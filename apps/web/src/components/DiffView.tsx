@@ -76,7 +76,7 @@ function VoxelLayer({ grid, voxelClass, count, color, opacity }: VoxelLayerProps
   );
 }
 
-const DEFAULT_TOLERANCE_MM = 0.1;
+const DEFAULT_TOLERANCE_MM = 0.15;
 
 export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
   const [mode, setMode] = useState<DiffMode>("voxel");
