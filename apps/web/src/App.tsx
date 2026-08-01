@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as THREE from "three";
 import type { VoxelDiffStats } from "./engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "./components/Viewer";
@@ -51,6 +51,11 @@ export default function App() {
   const [stats, setStats] = useState<DiffStats | null>(null);
   const viewerARef = useRef<ViewerHandle>(null);
   const viewerBRef = useRef<ViewerHandle>(null);
+
+  useEffect(() => {
+    viewerARef.current?.loadDemo();
+    viewerBRef.current?.loadDemo();
+  }, []);
 
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });

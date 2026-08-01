@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://meshdiff.example/sitemap.xml
+Sitemap: https://meshdiff.com/sitemap.xml
