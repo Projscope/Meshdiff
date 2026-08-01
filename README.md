@@ -8,7 +8,8 @@ above whatever produced the mesh.
 See [CLAUDE.md](CLAUDE.md) for the full product spec, architecture rules, and domain
 knowledge this project is built against.
 
-<img width="1873" height="1257" alt="Meshdiff screenshot" src="https://github.com/user-attachments/assets/1d140075-3198-435b-b660-b52b660784d8" />
+<img width="1600" height="1966" alt="image" src="https://github.com/user-attachments/assets/d5e94b49-bf51-41f5-ae71-ec189762c0ae" />
+
 
 ## Status
 
