@@ -25,6 +25,44 @@ function isPointInside(bvh: MeshBVH, point: THREE.Vector3): boolean {
   return hits.length % 2 === 1;
 }
 
+/**
+ * Voxelizes a geometry into a caller-supplied grid (fixed origin/dims/
+ * resolution). Lets two meshes be voxelized into the *same* index space
+ * so their occupancy arrays can be compared cell-for-cell — this is what
+ * the diff engine needs; voxelizeGeometry (below) is the single-mesh
+ * convenience wrapper that derives the grid from the mesh's own bounds.
+ */
+export function voxelizeGeometryIntoGrid(
+  geometry: THREE.BufferGeometry,
+  resolutionMm: number,
+  originMm: [number, number, number],
+  dims: [number, number, number],
+): Uint8Array {
+  const bvh = new MeshBVH(geometry);
+  const occupied = new Uint8Array(dims[0] * dims[1] * dims[2]);
+
+  const half = resolutionMm / 2;
+  const point = new THREE.Vector3();
+
+  for (let k = 0; k < dims[2]; k++) {
+    for (let j = 0; j < dims[1]; j++) {
+      for (let i = 0; i < dims[0]; i++) {
+        point.set(
+          originMm[0] + i * resolutionMm + half,
+          originMm[1] + j * resolutionMm + half,
+          originMm[2] + k * resolutionMm + half,
+        );
+        if (isPointInside(bvh, point)) {
+          const index = i + j * dims[0] + k * dims[0] * dims[1];
+          occupied[index] = 1;
+        }
+      }
+    }
+  }
+
+  return occupied;
+}
+
 export function voxelizeGeometry(
   geometry: THREE.BufferGeometry,
   resolutionMm: number,
@@ -50,37 +88,13 @@ export function voxelizeGeometry(
     Math.max(1, Math.round(size.y / resolutionMm)),
     Math.max(1, Math.round(size.z / resolutionMm)),
   ];
+  const originMm: [number, number, number] = [box.min.x, box.min.y, box.min.z];
 
-  const bvh = new MeshBVH(geometry);
-  const occupied = new Uint8Array(dims[0] * dims[1] * dims[2]);
-
-  const half = resolutionMm / 2;
-  const point = new THREE.Vector3();
-
-  for (let k = 0; k < dims[2]; k++) {
-    for (let j = 0; j < dims[1]; j++) {
-      for (let i = 0; i < dims[0]; i++) {
-        point.set(
-          box.min.x + i * resolutionMm + half,
-          box.min.y + j * resolutionMm + half,
-          box.min.z + k * resolutionMm + half,
-        );
-        if (isPointInside(bvh, point)) {
-          const index = i + j * dims[0] + k * dims[0] * dims[1];
-          occupied[index] = 1;
-        }
-      }
-    }
-  }
+  const occupied = voxelizeGeometryIntoGrid(geometry, resolutionMm, originMm, dims);
 
   return {
     success: true,
-    data: {
-      resolutionMm,
-      dims,
-      originMm: [box.min.x, box.min.y, box.min.z],
-      occupied,
-    },
+    data: { resolutionMm, dims, originMm, occupied },
   };
 }
 

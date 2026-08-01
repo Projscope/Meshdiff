@@ -7,9 +7,10 @@ import { loadMeshGeometry } from "../engine/loadMesh";
 
 interface ViewerProps {
   label: string;
+  onGeometryLoaded?: (geometry: THREE.BufferGeometry) => void;
 }
 
-export default function Viewer({ label }: ViewerProps) {
+export default function Viewer({ label, onGeometryLoaded }: ViewerProps) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -20,6 +21,7 @@ export default function Viewer({ label }: ViewerProps) {
     if (result.success) {
       setGeometry(result.data);
       setError(null);
+      onGeometryLoaded?.(result.data);
     } else {
       setError(result.error);
     }

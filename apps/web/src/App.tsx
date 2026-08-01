@@ -1,5 +1,8 @@
+import { useState } from "react";
+import type * as THREE from "three";
 import type { PrintabilityStatus } from "@meshdiff/shared/types/diff";
 import Viewer from "./components/Viewer";
+import DiffView from "./components/DiffView";
 
 const gateColor: Record<PrintabilityStatus, string> = {
   pass: "bg-emerald-500",
@@ -9,6 +12,8 @@ const gateColor: Record<PrintabilityStatus, string> = {
 
 export default function App() {
   const printability: PrintabilityStatus = "warn";
+  const [geometryA, setGeometryA] = useState<THREE.BufferGeometry | null>(null);
+  const [geometryB, setGeometryB] = useState<THREE.BufferGeometry | null>(null);
 
   return (
     <div className="flex h-screen flex-col bg-neutral-900 text-neutral-100">
@@ -19,9 +24,14 @@ export default function App() {
           <span className="uppercase text-neutral-400">{printability}</span>
         </div>
       </header>
-      <main className="grid flex-1 grid-cols-2 gap-2 p-2">
-        <Viewer label="Version A" />
-        <Viewer label="Version B" />
+      <main className="flex flex-1 flex-col gap-2 p-2">
+        <div className="grid h-1/2 grid-cols-2 gap-2">
+          <Viewer label="Version A" onGeometryLoaded={setGeometryA} />
+          <Viewer label="Version B" onGeometryLoaded={setGeometryB} />
+        </div>
+        <div className="h-1/2">
+          <DiffView geometryA={geometryA} geometryB={geometryB} />
+        </div>
       </main>
     </div>
   );
