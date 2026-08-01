@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useLayoutEffect } from "react";
+import { useMemo, useRef, useState, useLayoutEffect, useEffect } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
@@ -8,6 +8,7 @@ import {
   VOXEL_REMOVED,
   VOXEL_UNCHANGED,
   type VoxelDiffResult,
+  type VoxelDiffStats,
 } from "../engine/diffVoxels";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 
@@ -16,6 +17,7 @@ type DiffMode = "voxel" | "surface";
 interface DiffViewProps {
   geometryA: THREE.BufferGeometry | null;
   geometryB: THREE.BufferGeometry | null;
+  onStatsChange?: (stats: (VoxelDiffStats & { toleranceMm: number }) | null) => void;
 }
 
 interface VoxelLayerProps {
@@ -78,7 +80,7 @@ function VoxelLayer({ grid, voxelClass, count, color, opacity }: VoxelLayerProps
 
 const DEFAULT_TOLERANCE_MM = 0.15;
 
-export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
+export default function DiffView({ geometryA, geometryB, onStatsChange }: DiffViewProps) {
   const [mode, setMode] = useState<DiffMode>("voxel");
   const [toleranceMm, setToleranceMm] = useState(DEFAULT_TOLERANCE_MM);
 
@@ -90,6 +92,14 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
 
   const isPending = !geometryA || !geometryB;
   const hasError = diff && "error" in diff;
+
+  useEffect(() => {
+    if (diff && !("error" in diff)) {
+      onStatsChange?.({ ...diff.stats, toleranceMm });
+    } else {
+      onStatsChange?.(null);
+    }
+  }, [diff, toleranceMm, onStatsChange]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">

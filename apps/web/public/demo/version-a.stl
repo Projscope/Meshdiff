@@ -1,0 +1,170 @@
+solid meshdiff-demo-a
+facet normal 0 0 -1
+outer loop
+vertex 0 0 0
+vertex 0 10 0
+vertex 40 10 0
+endloop
+endfacet
+facet normal 0 0 -1
+outer loop
+vertex 0 0 0
+vertex 40 10 0
+vertex 40 0 0
+endloop
+endfacet
+facet normal 0 0 1
+outer loop
+vertex 0 0 4
+vertex 40 10 4
+vertex 0 10 4
+endloop
+endfacet
+facet normal 0 0 1
+outer loop
+vertex 0 0 4
+vertex 40 0 4
+vertex 40 10 4
+endloop
+endfacet
+facet normal 0 -1 0
+outer loop
+vertex 0 0 0
+vertex 40 0 0
+vertex 40 0 4
+endloop
+endfacet
+facet normal 0 -1 0
+outer loop
+vertex 0 0 0
+vertex 40 0 4
+vertex 0 0 4
+endloop
+endfacet
+facet normal 0 1 0
+outer loop
+vertex 0 10 0
+vertex 0 10 4
+vertex 40 10 4
+endloop
+endfacet
+facet normal 0 1 0
+outer loop
+vertex 0 10 0
+vertex 40 10 4
+vertex 40 10 0
+endloop
+endfacet
+facet normal -1 0 0
+outer loop
+vertex 0 0 0
+vertex 0 10 4
+vertex 0 10 0
+endloop
+endfacet
+facet normal -1 0 0
+outer loop
+vertex 0 0 0
+vertex 0 0 4
+vertex 0 10 4
+endloop
+endfacet
+facet normal 1 0 0
+outer loop
+vertex 40 0 0
+vertex 40 10 0
+vertex 40 10 4
+endloop
+endfacet
+facet normal 1 0 0
+outer loop
+vertex 40 0 0
+vertex 40 10 4
+vertex 40 0 4
+endloop
+endfacet
+facet normal 0 0 -1
+outer loop
+vertex 0 0 4
+vertex 0 10 4
+vertex 4 10 4
+endloop
+endfacet
+facet normal 0 0 -1
+outer loop
+vertex 0 0 4
+vertex 4 10 4
+vertex 4 0 4
+endloop
+endfacet
+facet normal 0 0 1
+outer loop
+vertex 0 0 28
+vertex 4 10 28
+vertex 0 10 28
+endloop
+endfacet
+facet normal 0 0 1
+outer loop
+vertex 0 0 28
+vertex 4 0 28
+vertex 4 10 28
+endloop
+endfacet
+facet normal 0 -1 0
+outer loop
+vertex 0 0 4
+vertex 4 0 4
+vertex 4 0 28
+endloop
+endfacet
+facet normal 0 -1 0
+outer loop
+vertex 0 0 4
+vertex 4 0 28
+vertex 0 0 28
+endloop
+endfacet
+facet normal 0 1 0
+outer loop
+vertex 0 10 4
+vertex 0 10 28
+vertex 4 10 28
+endloop
+endfacet
+facet normal 0 1 0
+outer loop
+vertex 0 10 4
+vertex 4 10 28
+vertex 4 10 4
+endloop
+endfacet
+facet normal -1 0 0
+outer loop
+vertex 0 0 4
+vertex 0 10 28
+vertex 0 10 4
+endloop
+endfacet
+facet normal -1 0 0
+outer loop
+vertex 0 0 4
+vertex 0 0 28
+vertex 0 10 28
+endloop
+endfacet
+facet normal 1 0 0
+outer loop
+vertex 4 0 4
+vertex 4 10 4
+vertex 4 10 28
+endloop
+endfacet
+facet normal 1 0 0
+outer loop
+vertex 4 0 4
+vertex 4 10 28
+vertex 4 0 28
+endloop
+endfacet
+endsolid meshdiff-demo-a

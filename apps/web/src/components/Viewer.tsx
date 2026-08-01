@@ -8,12 +8,15 @@ import { loadMeshGeometry } from "../engine/loadMesh";
 interface ViewerProps {
   label: string;
   onGeometryLoaded?: (geometry: THREE.BufferGeometry) => void;
+  /** Bundled sample STL to offer as a one-click "or try a demo" option. */
+  demoUrl?: string;
 }
 
-export default function Viewer({ label, onGeometryLoaded }: ViewerProps) {
+export default function Viewer({ label, onGeometryLoaded, demoUrl }: ViewerProps) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -24,6 +27,21 @@ export default function Viewer({ label, onGeometryLoaded }: ViewerProps) {
       onGeometryLoaded?.(result.data);
     } else {
       setError(result.error);
+    }
+  }
+
+  async function handleLoadDemo() {
+    if (!demoUrl) return;
+    setIsLoadingDemo(true);
+    try {
+      const response = await fetch(demoUrl);
+      const blob = await response.blob();
+      const filename = demoUrl.split("/").pop() ?? "demo.stl";
+      await handleFile(new File([blob], filename));
+    } catch {
+      setError("Failed to load demo model");
+    } finally {
+      setIsLoadingDemo(false);
     }
   }
 
@@ -62,8 +80,21 @@ export default function Viewer({ label, onGeometryLoaded }: ViewerProps) {
         {label}
       </span>
       {!geometry && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-center text-sm text-neutral-500">
-          {error ?? "Drop STL / OBJ here, or click to browse"}
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
+          <span>{error ?? "Drop STL / OBJ here, or click to browse"}</span>
+          {demoUrl && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                void handleLoadDemo();
+              }}
+              disabled={isLoadingDemo}
+              className="pointer-events-auto rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white disabled:opacity-50"
+            >
+              {isLoadingDemo ? "Loading…" : "or load demo"}
+            </button>
+          )}
         </div>
       )}
       <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
