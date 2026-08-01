@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_BASE_URL } from "../lib/api";
+import { WAITLIST_ENDPOINT } from "../lib/api";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -14,7 +14,7 @@ export default function WaitlistForm() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/waitlist`, {
+      const response = await fetch(WAITLIST_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
