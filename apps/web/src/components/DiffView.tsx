@@ -116,8 +116,17 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
           </div>
         )}
         {!isPending && !hasError && (
-          <label className="flex items-center gap-1 text-[11px] text-neutral-400">
-            Tol
+          <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+            Tolerance
+            <input
+              type="range"
+              min={0}
+              max={5}
+              step={0.05}
+              value={toleranceMm}
+              onChange={(event) => setToleranceMm(Number(event.target.value))}
+              className="w-20 accent-neutral-400"
+            />
             <input
               type="number"
               min={0}
@@ -127,7 +136,7 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
               className="w-12 rounded border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-neutral-200"
             />
             mm
-          </label>
+          </div>
         )}
       </div>
 
