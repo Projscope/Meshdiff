@@ -1,13 +1,17 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import { computeSurfaceDeviation } from "../engine/surfaceDeviation";
+import {
+  buildGhostOverlayColors,
+  computeSurfaceDeviation,
+  REMOVED_COLOR,
+} from "../engine/surfaceDeviation";
 
 interface SurfaceHeatmapProps {
   /** The surface shown to the user, heat-colored by its deviation from base. */
   geometry: THREE.BufferGeometry;
   /** The version geometry is compared against. */
   baseGeometry: THREE.BufferGeometry;
-  /** Deviations within this distance render as unchanged (gray). */
+  /** Deviations within this distance render as unchanged (gray) or invisible (ghost). */
   toleranceMm?: number;
 }
 
@@ -17,9 +21,10 @@ interface SurfaceHeatmapProps {
  * material), red = pulled inward (removed material), gray = unchanged.
  *
  * This only colors geometry's own surface, so a region entirely absent
- * from geometry but present in baseGeometry (fully removed material) has
- * no surface here to color — that case is covered by the voxel diff view
- * instead, which represents empty space directly.
+ * from geometry but present in baseGeometry (fully removed material, e.g.
+ * a hole cut through) has no surface here to color on its own — to make
+ * that visible anyway, a translucent "ghost" of baseGeometry is layered on
+ * top, rendered only where it sticks out beyond geometry past tolerance.
  */
 export default function SurfaceHeatmap({ geometry, baseGeometry, toleranceMm }: SurfaceHeatmapProps) {
   const colored = useMemo(() => {
@@ -33,11 +38,37 @@ export default function SurfaceHeatmap({ geometry, baseGeometry, toleranceMm }: 
     return { geometry: clone, maxAbsDeviationMm: result.data.maxAbsDeviationMm };
   }, [geometry, baseGeometry, toleranceMm]);
 
+  const ghost = useMemo(() => {
+    const result = computeSurfaceDeviation(baseGeometry, geometry, { toleranceMm });
+    if (!result.success) return null;
+
+    const rgba = buildGhostOverlayColors(
+      result.data.signedDistancesMm,
+      toleranceMm ?? 0,
+      REMOVED_COLOR,
+    );
+    const clone = baseGeometry.clone();
+    clone.setAttribute("color", new THREE.BufferAttribute(rgba, 4));
+    return clone;
+  }, [geometry, baseGeometry, toleranceMm]);
+
   if (!colored) return null;
 
   return (
-    <mesh geometry={colored.geometry}>
-      <meshStandardMaterial vertexColors />
-    </mesh>
+    <>
+      <mesh geometry={colored.geometry}>
+        <meshStandardMaterial vertexColors />
+      </mesh>
+      {ghost && (
+        <mesh geometry={ghost}>
+          <meshStandardMaterial
+            vertexColors
+            transparent
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+    </>
   );
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { computeSurfaceDeviation, UNCHANGED_COLOR } from "./surfaceDeviation";
+import {
+  buildGhostOverlayColors,
+  computeSurfaceDeviation,
+  REMOVED_COLOR,
+  UNCHANGED_COLOR,
+} from "./surfaceDeviation";
 
 describe("computeSurfaceDeviation", () => {
   it("reports zero deviation everywhere for two identical meshes", () => {
@@ -78,6 +83,38 @@ describe("computeSurfaceDeviation", () => {
       expect(withTolerance.data.colors[i]).toBeCloseTo(UNCHANGED_COLOR.r, 5);
       expect(withTolerance.data.colors[i + 1]).toBeCloseTo(UNCHANGED_COLOR.g, 5);
       expect(withTolerance.data.colors[i + 2]).toBeCloseTo(UNCHANGED_COLOR.b, 5);
+    }
+  });
+
+  it("makes ghost vertices visible only where the source sticks out past the reference", () => {
+    // Reuse the "pushed outward" case: B's vertices are all outside A by
+    // sqrt(12)mm, well past a 1mm tolerance -> every ghost vertex visible.
+    const geometryA = new THREE.BoxGeometry(10, 10, 10);
+    const geometryB = new THREE.BoxGeometry(14, 14, 14);
+    const outward = computeSurfaceDeviation(geometryB, geometryA);
+    expect(outward.success).toBe(true);
+    if (!outward.success) return;
+
+    const rgba = buildGhostOverlayColors(outward.data.signedDistancesMm, 1, REMOVED_COLOR, 0.5);
+    expect(rgba.length).toBe(outward.data.signedDistancesMm.length * 4);
+    for (let i = 0; i < outward.data.signedDistancesMm.length; i++) {
+      expect(rgba[i * 4]).toBeCloseTo(REMOVED_COLOR.r, 5);
+      expect(rgba[i * 4 + 3]).toBeCloseTo(0.5, 5);
+    }
+  });
+
+  it("makes ghost vertices invisible when the source stays within the reference", () => {
+    // "Pulled inward" case: B's vertices are all inside A -> signed
+    // distance negative, never exceeds a positive tolerance -> invisible.
+    const geometryA = new THREE.BoxGeometry(10, 10, 10);
+    const geometryB = new THREE.BoxGeometry(6, 6, 6);
+    const inward = computeSurfaceDeviation(geometryB, geometryA);
+    expect(inward.success).toBe(true);
+    if (!inward.success) return;
+
+    const rgba = buildGhostOverlayColors(inward.data.signedDistancesMm, 0.5, REMOVED_COLOR);
+    for (let i = 0; i < inward.data.signedDistancesMm.length; i++) {
+      expect(rgba[i * 4 + 3]).toBe(0);
     }
   });
 

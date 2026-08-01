@@ -13,7 +13,7 @@ export interface SurfaceDeviationResult {
 
 export const UNCHANGED_COLOR = new THREE.Color("#8b90a0");
 const ADDED_COLOR = new THREE.Color("#22c55e");
-const REMOVED_COLOR = new THREE.Color("#ef4444");
+export const REMOVED_COLOR = new THREE.Color("#ef4444");
 
 /**
  * For every vertex of sourceGeometry, finds the signed distance to
@@ -89,4 +89,31 @@ export function computeSurfaceDeviation(
     success: true,
     data: { colors, signedDistancesMm, maxAbsDeviationMm },
   };
+}
+
+/**
+ * Builds an RGBA vertex-color buffer for a "ghost" overlay of a mesh that
+ * is only visible where it sticks out beyond a reference mesh past
+ * tolerance (i.e. removed material with no counterpart in the other
+ * version) — invisible (alpha 0) everywhere else, so it can be layered on
+ * top of the reference's own opaque surface without obscuring or
+ * z-fighting it. `signedDistancesMm` should come from
+ * computeSurfaceDeviation(ghostSource, otherMesh) — positive values are
+ * where ghostSource sits outside otherMesh.
+ */
+export function buildGhostOverlayColors(
+  signedDistancesMm: Float32Array,
+  toleranceMm: number,
+  color: THREE.Color,
+  visibleAlpha = 0.5,
+): Float32Array {
+  const rgba = new Float32Array(signedDistancesMm.length * 4);
+  for (let i = 0; i < signedDistancesMm.length; i++) {
+    const visible = signedDistancesMm[i] > toleranceMm;
+    rgba[i * 4] = color.r;
+    rgba[i * 4 + 1] = color.g;
+    rgba[i * 4 + 2] = color.b;
+    rgba[i * 4 + 3] = visible ? visibleAlpha : 0;
+  }
+  return rgba;
 }

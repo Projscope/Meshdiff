@@ -184,6 +184,23 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
         {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
           <Bounds fit clip observe margin={1.2}>
             <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} toleranceMm={toleranceMm} />
+            {/*
+              The vertex-based ghost in SurfaceHeatmap only catches removed
+              material that used to be part of A's own surface (a trimmed
+              boss, a shortened feature). It can't see an interior hollow-out
+              where A was solid and B's outer silhouette didn't change — A
+              simply has no vertex sitting in that interior volume to test.
+              The voxel grid samples actual 3D space instead of existing
+              vertices, so it catches that case too; overlay its removed
+              cells here as the general-case fallback.
+            */}
+            <VoxelLayer
+              grid={diff.grid}
+              voxelClass={VOXEL_REMOVED}
+              count={diff.stats.removedCount}
+              color="#ef4444"
+              opacity={0.5}
+            />
           </Bounds>
         )}
         <OrbitControls makeDefault />
