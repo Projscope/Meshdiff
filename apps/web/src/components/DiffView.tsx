@@ -76,14 +76,17 @@ function VoxelLayer({ grid, voxelClass, count, color, opacity }: VoxelLayerProps
   );
 }
 
+const DEFAULT_TOLERANCE_MM = 0.1;
+
 export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
   const [mode, setMode] = useState<DiffMode>("voxel");
+  const [toleranceMm, setToleranceMm] = useState(DEFAULT_TOLERANCE_MM);
 
   const diff = useMemo(() => {
     if (!geometryA || !geometryB) return null;
-    const result = computeVoxelDiff(geometryA, geometryB);
+    const result = computeVoxelDiff(geometryA, geometryB, { toleranceMm });
     return result.success ? result.data : { error: result.error };
-  }, [geometryA, geometryB]);
+  }, [geometryA, geometryB, toleranceMm]);
 
   const isPending = !geometryA || !geometryB;
   const hasError = diff && "error" in diff;
@@ -111,6 +114,20 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
               Surface
             </button>
           </div>
+        )}
+        {!isPending && !hasError && (
+          <label className="flex items-center gap-1 text-[11px] text-neutral-400">
+            Tol
+            <input
+              type="number"
+              min={0}
+              step={0.05}
+              value={toleranceMm}
+              onChange={(event) => setToleranceMm(Math.max(0, Number(event.target.value)))}
+              className="w-12 rounded border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-neutral-200"
+            />
+            mm
+          </label>
         )}
       </div>
 
@@ -166,7 +183,7 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
         )}
         {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
           <Bounds fit clip observe margin={1.2}>
-            <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} />
+            <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} toleranceMm={toleranceMm} />
           </Bounds>
         )}
         <OrbitControls makeDefault />

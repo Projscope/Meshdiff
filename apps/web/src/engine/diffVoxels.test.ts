@@ -40,6 +40,35 @@ describe("computeVoxelDiff", () => {
     expect(result.data.stats.removedCount).toBe(countOccupied(occupiedA.data));
   });
 
+  it("collapses a 1-voxel shift to unchanged once tolerance covers it", () => {
+    // A 10x10x10mm cube shifted by exactly one 1mm voxel along x: without
+    // tolerance, the leading/trailing 1mm slices (10x10 cells each) are
+    // added/removed and the rest (9 slices) is unchanged.
+    const geometryA = new THREE.BoxGeometry(10, 10, 10);
+    const geometryB = new THREE.BoxGeometry(10, 10, 10);
+    geometryB.translate(1, 0, 0);
+    const resolutionMm = 1;
+
+    const withoutTolerance = computeVoxelDiff(geometryA, geometryB, { resolutionMm });
+    expect(withoutTolerance.success).toBe(true);
+    if (!withoutTolerance.success) return;
+    expect(withoutTolerance.data.stats.addedCount).toBe(100);
+    expect(withoutTolerance.data.stats.removedCount).toBe(100);
+    expect(withoutTolerance.data.stats.unchangedCount).toBe(900);
+
+    const withTolerance = computeVoxelDiff(geometryA, geometryB, {
+      resolutionMm,
+      toleranceMm: 1,
+    });
+    expect(withTolerance.success).toBe(true);
+    if (!withTolerance.success) return;
+    expect(withTolerance.data.stats.addedCount).toBe(0);
+    expect(withTolerance.data.stats.removedCount).toBe(0);
+    // All 1100 cells occupied in A or B (900 exact overlap + the 200 that
+    // were only-A/only-B) now read as unchanged.
+    expect(withTolerance.data.stats.unchangedCount).toBe(1100);
+  });
+
   it("rejects an explicit resolution too fine for the mesh extent, rather than truncating coverage", () => {
     const geometryA = new THREE.BoxGeometry(10, 10, 10);
     const geometryB = new THREE.BoxGeometry(10, 10, 10);

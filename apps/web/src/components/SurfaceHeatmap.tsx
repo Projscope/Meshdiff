@@ -7,6 +7,8 @@ interface SurfaceHeatmapProps {
   geometry: THREE.BufferGeometry;
   /** The version geometry is compared against. */
   baseGeometry: THREE.BufferGeometry;
+  /** Deviations within this distance render as unchanged (gray). */
+  toleranceMm?: number;
 }
 
 /**
@@ -19,9 +21,9 @@ interface SurfaceHeatmapProps {
  * no surface here to color — that case is covered by the voxel diff view
  * instead, which represents empty space directly.
  */
-export default function SurfaceHeatmap({ geometry, baseGeometry }: SurfaceHeatmapProps) {
+export default function SurfaceHeatmap({ geometry, baseGeometry, toleranceMm }: SurfaceHeatmapProps) {
   const colored = useMemo(() => {
-    const result = computeSurfaceDeviation(geometry, baseGeometry);
+    const result = computeSurfaceDeviation(geometry, baseGeometry, { toleranceMm });
     if (!result.success) return null;
 
     // Never mutate the loaded geometry in place — clone before attaching
@@ -29,7 +31,7 @@ export default function SurfaceHeatmap({ geometry, baseGeometry }: SurfaceHeatma
     const clone = geometry.clone();
     clone.setAttribute("color", new THREE.BufferAttribute(result.data.colors, 3));
     return { geometry: clone, maxAbsDeviationMm: result.data.maxAbsDeviationMm };
-  }, [geometry, baseGeometry]);
+  }, [geometry, baseGeometry, toleranceMm]);
 
   if (!colored) return null;
 

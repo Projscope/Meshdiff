@@ -33,6 +33,53 @@ const MAX_VOXELS_PER_AXIS = 96;
 const MIN_RESOLUTION_MM = 0.05;
 
 /**
+ * Grows an occupancy grid outward by `radiusVoxels` along each axis
+ * (separable box dilation — one 1D pass per axis, so cost is linear in
+ * radius rather than cubic). Used to implement a distance tolerance: a
+ * cell in the dilated grid is "occupied" if the real grid has an occupied
+ * cell within `radiusVoxels` of it.
+ */
+function dilateOccupancy(
+  occupied: Uint8Array,
+  dims: [number, number, number],
+  radiusVoxels: number,
+): Uint8Array {
+  const [dx, dy, dz] = dims;
+  let current = occupied;
+
+  for (const axis of [0, 1, 2] as const) {
+    const next = new Uint8Array(current.length);
+    const axisLen = dims[axis];
+
+    for (let k = 0; k < dz; k++) {
+      for (let j = 0; j < dy; j++) {
+        for (let i = 0; i < dx; i++) {
+          const index = i + j * dx + k * dx * dy;
+          if (current[index] !== 1) continue;
+
+          const [ci, cj, ck] = [i, j, k];
+          const coord = axis === 0 ? ci : axis === 1 ? cj : ck;
+          const lo = Math.max(0, coord - radiusVoxels);
+          const hi = Math.min(axisLen - 1, coord + radiusVoxels);
+          for (let c = lo; c <= hi; c++) {
+            const spreadIndex =
+              axis === 0
+                ? c + cj * dx + ck * dx * dy
+                : axis === 1
+                  ? ci + c * dx + ck * dx * dy
+                  : ci + cj * dx + c * dx * dy;
+            next[spreadIndex] = 1;
+          }
+        }
+      }
+    }
+    current = next;
+  }
+
+  return current;
+}
+
+/**
  * Voxelizes two meshes into a shared index space and classifies each cell
  * as unchanged / added / removed. Runs on the main thread today — the
  * voxel budget below keeps that fast for demo-sized meshes, but the perf
@@ -47,7 +94,12 @@ const MIN_RESOLUTION_MM = 0.05;
 export function computeVoxelDiff(
   geometryA: THREE.BufferGeometry,
   geometryB: THREE.BufferGeometry,
-  options?: { resolutionMm?: number; targetVoxelsPerAxis?: number },
+  options?: {
+    resolutionMm?: number;
+    targetVoxelsPerAxis?: number;
+    /** Deviations within this distance of the other mesh don't count as added/removed. */
+    toleranceMm?: number;
+  },
 ): Result<VoxelDiffResult> {
   geometryA.computeBoundingBox();
   geometryB.computeBoundingBox();
@@ -96,6 +148,14 @@ export function computeVoxelDiff(
   const occupiedA = voxelizeGeometryIntoGrid(geometryA, resolutionMm, originMm, dims);
   const occupiedB = voxelizeGeometryIntoGrid(geometryB, resolutionMm, originMm, dims);
 
+  const toleranceMm = options?.toleranceMm ?? 0;
+  const toleranceVoxels = toleranceMm > 0 ? Math.round(toleranceMm / resolutionMm) : 0;
+  // A cell that's occupied only in A (or only in B) is within tolerance if
+  // the *other* mesh has an occupied cell nearby — check against a dilated
+  // copy of the other mesh's grid rather than the exact one.
+  const dilatedA = toleranceVoxels > 0 ? dilateOccupancy(occupiedA, dims, toleranceVoxels) : occupiedA;
+  const dilatedB = toleranceVoxels > 0 ? dilateOccupancy(occupiedB, dims, toleranceVoxels) : occupiedB;
+
   const classification = new Uint8Array(occupiedA.length);
   let addedCount = 0;
   let removedCount = 0;
@@ -108,11 +168,21 @@ export function computeVoxelDiff(
       classification[i] = VOXEL_UNCHANGED;
       unchangedCount++;
     } else if (inA && !inB) {
-      classification[i] = VOXEL_REMOVED;
-      removedCount++;
+      if (dilatedB[i] === 1) {
+        classification[i] = VOXEL_UNCHANGED;
+        unchangedCount++;
+      } else {
+        classification[i] = VOXEL_REMOVED;
+        removedCount++;
+      }
     } else if (!inA && inB) {
-      classification[i] = VOXEL_ADDED;
-      addedCount++;
+      if (dilatedA[i] === 1) {
+        classification[i] = VOXEL_UNCHANGED;
+        unchangedCount++;
+      } else {
+        classification[i] = VOXEL_ADDED;
+        addedCount++;
+      }
     }
   }
 

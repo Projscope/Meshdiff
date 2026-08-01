@@ -11,7 +11,7 @@ export interface SurfaceDeviationResult {
   maxAbsDeviationMm: number;
 }
 
-const UNCHANGED_COLOR = new THREE.Color("#8b90a0");
+export const UNCHANGED_COLOR = new THREE.Color("#8b90a0");
 const ADDED_COLOR = new THREE.Color("#22c55e");
 const REMOVED_COLOR = new THREE.Color("#ef4444");
 
@@ -29,7 +29,12 @@ const REMOVED_COLOR = new THREE.Color("#ef4444");
 export function computeSurfaceDeviation(
   sourceGeometry: THREE.BufferGeometry,
   referenceGeometry: THREE.BufferGeometry,
-  options?: { clampMm?: number },
+  options?: {
+    /** Caps the color scale's max deviation; defaults to this mesh's own max. */
+    clampMm?: number;
+    /** Deviations within this distance render as unchanged (gray), not colored. */
+    toleranceMm?: number;
+  },
 ): Result<SurfaceDeviationResult> {
   const sourcePositions = sourceGeometry.attributes.position;
   const referencePositions = referenceGeometry.attributes.position;
@@ -57,11 +62,19 @@ export function computeSurfaceDeviation(
 
   const clamp = options?.clampMm ?? maxAbsDeviationMm;
   const normalizer = clamp > 0 ? clamp : 1;
+  const toleranceMm = options?.toleranceMm ?? 0;
   const colors = new Float32Array(vertexCount * 3);
   const color = new THREE.Color();
 
   for (let i = 0; i < vertexCount; i++) {
-    const t = THREE.MathUtils.clamp(signedDistancesMm[i] / normalizer, -1, 1);
+    const distance = signedDistancesMm[i];
+    if (Math.abs(distance) <= toleranceMm) {
+      colors[i * 3] = UNCHANGED_COLOR.r;
+      colors[i * 3 + 1] = UNCHANGED_COLOR.g;
+      colors[i * 3 + 2] = UNCHANGED_COLOR.b;
+      continue;
+    }
+    const t = THREE.MathUtils.clamp(distance / normalizer, -1, 1);
     if (t >= 0) {
       color.copy(UNCHANGED_COLOR).lerp(ADDED_COLOR, t);
     } else {
