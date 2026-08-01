@@ -76,7 +76,6 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      onClick={() => fileInputRef.current?.click()}
     >
       <input
         ref={fileInputRef}
@@ -94,20 +93,32 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       </span>
       {!geometry && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
-          <span>{error ?? "Drop STL / OBJ / 3MF here, or click to browse"}</span>
-          {demoUrl && (
+          <span>{error ?? "Drop STL / OBJ / 3MF here"}</span>
+          <div className="pointer-events-auto flex items-center gap-2">
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                void handleLoadDemo();
+                fileInputRef.current?.click();
               }}
-              disabled={isLoadingDemo}
-              className="pointer-events-auto rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white disabled:opacity-50"
+              className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white"
             >
-              {isLoadingDemo ? "Loading…" : "or load demo"}
+              Browse files
             </button>
-          )}
+            {demoUrl && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handleLoadDemo();
+                }}
+                disabled={isLoadingDemo}
+                className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white disabled:opacity-50"
+              >
+                {isLoadingDemo ? "Loading…" : "or load demo"}
+              </button>
+            )}
+          </div>
         </div>
       )}
       <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>

@@ -3,10 +3,76 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Meshdiff</title>
+
+    <title>Meshdiff — Compare 3D Model Versions (STL, 3MF, OBJ Diff Tool)</title>
+    <meta
+      name="description"
+      content="Meshdiff compares two versions of a 3D model and shows exactly what changed: added material, removed material, and dimensional drift. Free, in-browser voxel and surface-heatmap diffing for STL, 3MF, and OBJ files — nothing is uploaded."
+    />
+    <meta
+      name="keywords"
+      content="3D model diff, STL compare, STL diff tool, 3MF diff, OBJ diff, compare 3D models, mesh diff, 3D printing version control, CAD version comparison, voxel diff"
+    />
+    <meta name="author" content="Meshdiff" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#4338ca" />
+
+    <!--
+      SEO placeholder domain: meshdiff.example uses the IANA-reserved
+      .example TLD so it can never resolve to a real (possibly unrelated)
+      site by accident. Swap every occurrence below for the real
+      production domain before deploying.
+    -->
+    <link rel="canonical" href="https://meshdiff.example/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Meshdiff" />
+    <meta property="og:title" content="Meshdiff — Compare 3D Model Versions" />
+    <meta
+      property="og:description"
+      content="See exactly what changed between two 3D model versions — added material, removed material, dimensional drift. Free, in-browser, STL/3MF/OBJ."
+    />
+    <meta property="og:url" content="https://meshdiff.example/" />
+    <meta property="og:image" content="https://meshdiff.example/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Meshdiff — Compare 3D Model Versions" />
+    <meta
+      name="twitter:description"
+      content="See exactly what changed between two 3D model versions — added material, removed material, dimensional drift. Free, in-browser, STL/3MF/OBJ."
+    />
+    <meta name="twitter:image" content="https://meshdiff.example/og-image.png" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Meshdiff",
+        "applicationCategory": "DesignApplication",
+        "operatingSystem": "Any (runs in any modern browser)",
+        "description": "Meshdiff compares two versions of a 3D model (STL, 3MF, OBJ) and shows exactly what changed: added material, removed material, and dimensional drift. Diffing runs entirely client-side.",
+        "url": "https://meshdiff.example/",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>Meshdiff requires JavaScript to run — it's a browser-based 3D diff tool.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

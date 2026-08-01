@@ -9,33 +9,9 @@ const APP_VERSION = "0.0.1";
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
 
-function downloadReport(stats: DiffStats) {
-  const report = {
-    generatedAt: new Date().toISOString(),
-    tool: "Meshdiff",
-    note:
-      "Partial report — reflects the voxel diff engine only. Wall thickness, " +
-      "overhang, and hole checks are not implemented yet (see CLAUDE.md).",
-    toleranceMm: stats.toleranceMm,
-    addedVoxelCount: stats.addedCount,
-    removedVoxelCount: stats.removedCount,
-    unchangedVoxelCount: stats.unchangedCount,
-    voxelVolumeMm3: stats.voxelVolumeMm3,
-    approxVolumeDeltaMm3: stats.approxVolumeDeltaMm3,
-    approxVolumeDeltaPercent: stats.approxVolumeDeltaPercent,
-  };
-  const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `meshdiff-report-${Date.now()}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function LogoMark() {
   return (
-    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
+    <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
       <div className="h-3 w-3 rotate-45 rounded-[2px] bg-white" />
     </div>
   );
@@ -103,6 +79,7 @@ export default function App() {
         </div>
       </header>
 
+      <main>
       <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
         <div className="flex items-center gap-3">
           <span className="font-semibold uppercase tracking-wide text-neutral-300">
@@ -174,29 +151,6 @@ export default function App() {
               <span>Load both versions to see diff stats</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="group relative">
-              <button
-                type="button"
-                disabled
-                className="cursor-not-allowed rounded border border-neutral-700 px-3 py-1.5 text-neutral-500"
-              >
-                Share This Diff
-              </button>
-              <div className="pointer-events-none absolute bottom-full right-0 z-20 mb-2 hidden w-56 rounded border border-neutral-700 bg-neutral-800 p-2 text-left text-[11px] font-normal text-neutral-300 shadow-lg group-hover:block">
-                Coming soon — sharing a link requires persisting uploaded
-                meshes server-side, which isn&apos;t built yet.
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={!stats}
-              onClick={() => stats && downloadReport(stats)}
-              className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
-            >
-              Download Report
-            </button>
-          </div>
         </div>
       </section>
 
@@ -234,17 +188,24 @@ export default function App() {
             </ul>
           </div>
 
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-6">
-            <p className="text-sm text-neutral-400">
-              Get notified when we launch project workspaces, comment threads,
-              and print traceability.
-            </p>
-            <div className="mt-4">
-              <WaitlistForm />
+          <div
+            className="relative overflow-hidden rounded-lg border border-neutral-800 bg-cover bg-center p-6"
+            style={{ backgroundImage: "url(/notify-bg.jpg)" }}
+          >
+            <div className="absolute inset-0 bg-neutral-950/80" />
+            <div className="relative">
+              <p className="text-sm text-neutral-300">
+                Get notified when we launch project workspaces, comment
+                threads, and print traceability.
+              </p>
+              <div className="mt-4">
+                <WaitlistForm />
+              </div>
+              <p className="mt-3 text-xs text-neutral-400">
+                No spam. Unsubscribe anytime. We&apos;ll email you from{" "}
+                <span className="text-neutral-300">support@projscope.com</span>.
+              </p>
             </div>
-            <p className="mt-3 text-xs text-neutral-500">
-              No spam. Unsubscribe anytime.
-            </p>
           </div>
         </div>
 
@@ -286,9 +247,18 @@ export default function App() {
           </div>
         </div>
       </section>
+      </main>
 
       <footer className="border-t border-neutral-800 px-6 py-6 text-center text-xs text-neutral-600">
-        Meshdiff © 2026 — free diff tool
+        Meshdiff © 2026 — free diff tool · Developed by{" "}
+        <a
+          href="https://projscope.com"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-neutral-400"
+        >
+          Projscope
+        </a>
       </footer>
     </div>
   );

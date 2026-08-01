@@ -1,0 +1,14 @@
+{
+  "name": "Meshdiff — Compare 3D Model Versions",
+  "short_name": "Meshdiff",
+  "description": "Compare two versions of a 3D model (STL, 3MF, OBJ) and see what changed — added material, removed material, dimensional drift. Runs entirely in the browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#4338ca",
+  "background_color": "#0a0a0a",
+  "icons": [
+    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
