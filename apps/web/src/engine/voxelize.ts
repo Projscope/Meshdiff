@@ -19,7 +19,7 @@ const INSIDE_TEST_DIRECTION = new THREE.Vector3(1, 1e-4, 2.7e-4).normalize();
  * watertight, outward-facing manifold mesh — true for well-formed
  * STL/3MF/OBJ prints but not guaranteed for arbitrary uploads.
  */
-function isPointInside(bvh: MeshBVH, point: THREE.Vector3): boolean {
+export function isPointInsideMesh(bvh: MeshBVH, point: THREE.Vector3): boolean {
   const ray = new THREE.Ray(point, INSIDE_TEST_DIRECTION);
   const hits = bvh.raycast(ray, THREE.DoubleSide);
   return hits.length % 2 === 1;
@@ -52,7 +52,7 @@ export function voxelizeGeometryIntoGrid(
           originMm[1] + j * resolutionMm + half,
           originMm[2] + k * resolutionMm + half,
         );
-        if (isPointInside(bvh, point)) {
+        if (isPointInsideMesh(bvh, point)) {
           const index = i + j * dims[0] + k * dims[0] * dims[1];
           occupied[index] = 1;
         }

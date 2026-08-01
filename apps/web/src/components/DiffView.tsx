@@ -1,4 +1,4 @@
-import { useMemo, useRef, useLayoutEffect } from "react";
+import { useMemo, useRef, useState, useLayoutEffect } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
@@ -9,6 +9,9 @@ import {
   VOXEL_UNCHANGED,
   type VoxelDiffResult,
 } from "../engine/diffVoxels";
+import SurfaceHeatmap from "./SurfaceHeatmap";
+
+type DiffMode = "voxel" | "surface";
 
 interface DiffViewProps {
   geometryA: THREE.BufferGeometry | null;
@@ -74,6 +77,8 @@ function VoxelLayer({ grid, voxelClass, count, color, opacity }: VoxelLayerProps
 }
 
 export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
+  const [mode, setMode] = useState<DiffMode>("voxel");
+
   const diff = useMemo(() => {
     if (!geometryA || !geometryB) return null;
     const result = computeVoxelDiff(geometryA, geometryB);
@@ -85,9 +90,29 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
-      <span className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        Diff
-      </span>
+      <div className="absolute left-3 top-2 z-10 flex items-center gap-3">
+        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+          Diff
+        </span>
+        {!isPending && !hasError && (
+          <div className="flex overflow-hidden rounded border border-neutral-700 text-[11px]">
+            <button
+              type="button"
+              onClick={() => setMode("voxel")}
+              className={`px-2 py-0.5 ${mode === "voxel" ? "bg-neutral-700 text-white" : "text-neutral-400"}`}
+            >
+              Voxels
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("surface")}
+              className={`px-2 py-0.5 ${mode === "surface" ? "bg-neutral-700 text-white" : "text-neutral-400"}`}
+            >
+              Surface
+            </button>
+          </div>
+        )}
+      </div>
 
       {isPending && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-center text-sm text-neutral-500">
@@ -114,7 +139,7 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
         <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
-        {diff && !("error" in diff) && (
+        {diff && !("error" in diff) && mode === "voxel" && (
           <Bounds fit clip observe margin={1.2}>
             <VoxelLayer
               grid={diff.grid}
@@ -137,6 +162,11 @@ export default function DiffView({ geometryA, geometryB }: DiffViewProps) {
               color="#ef4444"
               opacity={0.9}
             />
+          </Bounds>
+        )}
+        {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
+          <Bounds fit clip observe margin={1.2}>
+            <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} />
           </Bounds>
         )}
         <OrbitControls makeDefault />
