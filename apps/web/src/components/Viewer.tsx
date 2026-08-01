@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
@@ -12,7 +12,15 @@ interface ViewerProps {
   demoUrl?: string;
 }
 
-export default function Viewer({ label, onGeometryLoaded, demoUrl }: ViewerProps) {
+export interface ViewerHandle {
+  openFileDialog: () => void;
+  loadDemo: () => void;
+}
+
+const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
+  { label, onGeometryLoaded, demoUrl },
+  ref,
+) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -44,6 +52,11 @@ export default function Viewer({ label, onGeometryLoaded, demoUrl }: ViewerProps
       setIsLoadingDemo(false);
     }
   }
+
+  useImperativeHandle(ref, () => ({
+    openFileDialog: () => fileInputRef.current?.click(),
+    loadDemo: () => void handleLoadDemo(),
+  }));
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -81,7 +94,7 @@ export default function Viewer({ label, onGeometryLoaded, demoUrl }: ViewerProps
       </span>
       {!geometry && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
-          <span>{error ?? "Drop STL / OBJ here, or click to browse"}</span>
+          <span>{error ?? "Drop STL / OBJ / 3MF here, or click to browse"}</span>
           {demoUrl && (
             <button
               type="button"
@@ -112,4 +125,6 @@ export default function Viewer({ label, onGeometryLoaded, demoUrl }: ViewerProps
       </Canvas>
     </div>
   );
-}
+});
+
+export default Viewer;
