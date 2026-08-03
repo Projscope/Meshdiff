@@ -41,29 +41,25 @@ export default function WaitlistForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-start">
-      <div className="flex flex-col gap-1">
-        <div className="flex gap-2">
-          <input
-            type="email"
-            required
-            placeholder="you@company.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-64 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
-          />
-          <button
-            type="submit"
-            disabled={status === "submitting"}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
-          >
-            {status === "submitting" ? "Submitting…" : "Notify me"}
-          </button>
-        </div>
-        {status === "error" && errorMessage && (
-          <span className="text-xs text-red-400">{errorMessage}</span>
-        )}
-      </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <input
+        type="email"
+        required
+        placeholder="you@company.com"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+      />
+      <button
+        type="submit"
+        disabled={status === "submitting"}
+        className="w-full rounded bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+      >
+        {status === "submitting" ? "Submitting…" : "Get Early Access — 50% Off"}
+      </button>
+      {status === "error" && errorMessage && (
+        <span className="text-xs text-red-400">{errorMessage}</span>
+      )}
     </form>
   );
 }

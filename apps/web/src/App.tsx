@@ -243,18 +243,47 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
+            <a
+              href="https://github.com/Projscope/Meshdiff"
+              target="_blank"
+              rel="noreferrer"
+              className="text-white/80 hover:text-white"
+            >
+              GitHub
+            </a>
             <button
               type="button"
               onClick={scrollToEarlyAccess}
-              className="rounded bg-white px-3 py-1.5 font-medium text-indigo-700 hover:bg-white/90"
+              className="flex items-center gap-1.5 rounded bg-white px-3 py-1.5 font-medium text-indigo-700 hover:bg-white/90"
             >
               Get Early Access
+              <span className="rounded bg-indigo-700 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                50% OFF
+              </span>
             </button>
           </div>
         </div>
       </header>
 
       <main>
+      <section className="border-b border-neutral-800 px-6 py-10 text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-emerald-300">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          Runs 100% in your browser · no upload
+        </span>
+        <h2 className="mx-auto mt-4 max-w-2xl text-3xl font-semibold text-white sm:text-4xl">
+          See{" "}
+          <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            exactly what changed
+          </span>{" "}
+          between two 3D models
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-sm text-neutral-400">
+          Voxel-level diff for STL, 3MF &amp; OBJ. Tune tolerance and read the
+          volume delta — green means added, red means removed.
+        </p>
+      </section>
+
       {isRestoringShare && (
         <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-400">
           Loading shared diff…
@@ -329,44 +358,146 @@ export default function App() {
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs text-neutral-400">
-          <div className="flex items-center gap-3">
-            {stats ? (
-              <>
-                <span>
-                  Voxels: <span className="text-emerald-400">+{stats.addedCount}</span>{" "}
-                  <span className="text-red-400">-{stats.removedCount}</span>
-                </span>
-                <span>
-                  Volume: {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
-                  {stats.approxVolumeDeltaPercent.toFixed(1)}%
-                </span>
-              </>
-            ) : (
-              <span>Load both versions to see diff stats</span>
-            )}
+        {stats ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                Added voxels
+              </div>
+              <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+                +{stats.addedCount.toLocaleString()}
+              </div>
+            </div>
+            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                Removed voxels
+              </div>
+              <div className="mt-0.5 text-lg font-semibold text-red-400">
+                -{stats.removedCount.toLocaleString()}
+              </div>
+            </div>
+            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                Volume delta
+              </div>
+              <div className="mt-0.5 text-lg font-semibold text-neutral-100">
+                {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
+                {stats.approxVolumeDeltaPercent.toFixed(1)}%
+              </div>
+            </div>
+            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                Tolerance
+              </div>
+              <div className="mt-0.5 text-lg font-semibold text-blue-400">
+                {stats.toleranceMm.toFixed(2)} mm
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={!fileA || !fileB}
-              onClick={() => {
-                setShareUrl(null);
-                setShareError(null);
-                setIsShareModalOpen(true);
-              }}
-              className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
-            >
-              Share This Diff
-            </button>
-            <button
-              type="button"
-              disabled={!stats}
-              onClick={() => setIsReportModalOpen(true)}
-              className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
-            >
-              Get the JSON diff report
-            </button>
+        ) : (
+          <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
+            Load both versions to see diff stats
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2 text-xs">
+          <button
+            type="button"
+            disabled={!fileA || !fileB}
+            onClick={() => {
+              setShareUrl(null);
+              setShareError(null);
+              setIsShareModalOpen(true);
+            }}
+            className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
+          >
+            Share This Diff
+          </button>
+          <button
+            type="button"
+            disabled={!stats}
+            onClick={() => setIsReportModalOpen(true)}
+            className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-600"
+          >
+            Download Report
+          </button>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-6 py-14">
+        <h3 className="text-center text-xs font-medium uppercase tracking-wide text-neutral-500">
+          How it works
+        </h3>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <div className="text-[10px] font-semibold text-blue-400">01</div>
+            <h4 className="mt-1 text-sm font-semibold text-white">Drop two files</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              STL, 3MF, or OBJ — Version A and Version B. Nothing uploads;
+              parsing happens in-browser.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <div className="text-[10px] font-semibold text-blue-400">02</div>
+            <h4 className="mt-1 text-sm font-semibold text-white">Voxelize the diff</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              Both meshes are voxelized into a shared grid and classified
+              added/removed/unchanged.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <div className="text-[10px] font-semibold text-blue-400">03</div>
+            <h4 className="mt-1 text-sm font-semibold text-white">Read the diff</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              Green is added, red is removed. Scrub tolerance and read the
+              exact volume delta.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-6 pb-14">
+        <h3 className="text-center text-xs font-medium uppercase tracking-wide text-neutral-500">
+          Built for print &amp; CAD engineers
+        </h3>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <h4 className="text-sm font-semibold text-white">100% local</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              Files never leave the browser unless you explicitly create a
+              share link.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <h4 className="text-sm font-semibold text-white">Deterministic</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              Same inputs produce the same diff every run.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <h4 className="text-sm font-semibold text-white">Tolerance-aware</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              Adjust from 0–5mm to control diff sensitivity.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <h4 className="text-sm font-semibold text-white">Format-native</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              STL, 3MF, and OBJ parsed directly, no conversion step.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <h4 className="text-sm font-semibold text-white">Two diff modes</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              Voxel cube diff, or a surface heatmap of dimensional deviation.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <h4 className="text-sm font-semibold text-white">Shareable</h4>
+            <p className="mt-1 text-xs text-neutral-400">
+              Send a link, not a file — anyone who opens it sees the exact
+              same diff.
+            </p>
           </div>
         </div>
       </section>
@@ -431,18 +562,25 @@ export default function App() {
           <h3 className="text-center text-xs uppercase tracking-wide text-neutral-500">
             Status
           </h3>
-          <div className="mt-4 grid gap-6 md:grid-cols-3">
-            <div>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
               <div className="flex items-center gap-1.5 border-b border-neutral-800 pb-2 text-xs font-medium text-emerald-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live
               </div>
               <ul className="mt-2 flex flex-col gap-2 text-xs text-neutral-300">
                 {ROADMAP.live.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item} className="flex items-center gap-1.5">
+                    {item}
+                    {item === "Shareable diff URLs" && (
+                      <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-300">
+                        New
+                      </span>
+                    )}
+                  </li>
                 ))}
               </ul>
             </div>
-            <div>
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
               <div className="flex items-center gap-1.5 border-b border-neutral-800 pb-2 text-xs font-medium text-amber-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> In beta
               </div>
@@ -452,7 +590,7 @@ export default function App() {
                 ))}
               </ul>
             </div>
-            <div>
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
               <div className="flex items-center gap-1.5 border-b border-neutral-800 pb-2 text-xs font-medium text-blue-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-400" /> Coming next
               </div>
@@ -465,18 +603,60 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      <section className="border-t border-neutral-800 px-6 py-16 text-center">
+        <h3 className="text-2xl font-semibold text-white">
+          Diff your next revision in seconds
+        </h3>
+        <p className="mt-2 text-sm text-neutral-400">
+          Free forever for solo use. Sign up for early access to save
+          projects and review with your team when it launches.
+        </p>
+        <div className="mt-6 flex items-center justify-center gap-3 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              viewerARef.current?.loadDemo();
+              viewerBRef.current?.loadDemo();
+              document.querySelector("main")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="rounded border border-neutral-700 px-4 py-2 font-medium text-neutral-200 hover:border-neutral-500"
+          >
+            ▶ Try the demo
+          </button>
+          <button
+            type="button"
+            onClick={scrollToEarlyAccess}
+            className="flex items-center gap-1.5 rounded bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 font-medium text-white hover:opacity-90"
+          >
+            Get Early Access — 50% Off
+          </button>
+        </div>
+      </section>
       </main>
 
       <footer className="border-t border-neutral-800 px-6 py-6 text-center text-xs text-neutral-600">
-        Meshdiff © 2026 — free diff tool · Developed by{" "}
-        <a
-          href="https://projscope.com"
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-neutral-400"
-        >
-          Projscope
-        </a>
+        <div>
+          Meshdiff © 2026 — free diff tool · Developed by{" "}
+          <a
+            href="https://projscope.com"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-neutral-400"
+          >
+            Projscope
+          </a>
+        </div>
+        <div className="mt-2">
+          <a
+            href="https://github.com/Projscope/Meshdiff"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-neutral-400"
+          >
+            GitHub
+          </a>
+        </div>
       </footer>
 
       {isReportModalOpen && (
