@@ -243,14 +243,6 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
-            <a
-              href="https://github.com/Projscope/Meshdiff"
-              target="_blank"
-              rel="noreferrer"
-              className="text-white/80 hover:text-white"
-            >
-              GitHub
-            </a>
             <button
               type="button"
               onClick={scrollToEarlyAccess}
@@ -645,16 +637,6 @@ export default function App() {
             className="hover:text-neutral-400"
           >
             Projscope
-          </a>
-        </div>
-        <div className="mt-2">
-          <a
-            href="https://github.com/Projscope/Meshdiff"
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-neutral-400"
-          >
-            GitHub
           </a>
         </div>
       </footer>
