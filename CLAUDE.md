@@ -194,3 +194,112 @@ Meshdiff/
   apps/web/             # React + TS + Tailwind + R3F frontend
   apps/api/              # Node.js (Fastify) backend
 ```
+
+---
+
+## Pricing Tiers
+
+| Tier     | Price                               | Billing        | Audience                       | Gate                                                                                                                                                     |
+| -------- | ------------------------------------ | -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Free** | $0                                   | —              | Hobbyists, evaluators           | 3 active shareable links, 3-day expiry, watermark, no saved projects                                                                                        |
+| **Pro**  | $15/mo or $144/yr (20% off)          | Monthly/Annual | Solo engineers, freelancers     | Unlimited links, custom expiry (1/3/7/30/never), no watermark, unlimited projects, comment pins, diff report export (PNG/PDF)                               |
+| **Team** | $35/seat/mo or $336/yr (20% off)     | Monthly/Annual | Hardware startups, print farms  | Everything in Pro + team approvals (Pending/Changes/Approved/Rejected), slicer profile snapshots, print result logging, SSO, admin dashboard, audit log     |
+
+Billing via Stripe (see roadmap — not yet implemented). Tier gates above are the
+target end state; until Stripe is wired up, no plan enforcement exists in code.
+
+---
+
+## Stripe Setup
+
+- Products: `Meshdiff Pro`, `Meshdiff Team`
+- Prices: monthly + yearly for each
+- Customer Portal enabled for self-service (update card, cancel, switch plan)
+- Checkout: Stripe hosted pages, not Elements
+
+## Database Schema (PostgreSQL)
+
+```sql
+users (
+  id uuid primary key,           -- Clerk user ID
+  email text not null,
+  stripe_customer_id text,
+  created_at timestamptz default now()
+);
+
+subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  stripe_subscription_id text unique not null,
+  stripe_price_id text not null,
+  status text not null check (status in ('active','canceled','past_due','unpaid','trialing')),
+  tier text not null check (tier in ('pro','team')),
+  current_period_start timestamptz not null,
+  current_period_end timestamptz not null,
+  cancel_at_period_end boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+teams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  owner_id uuid references users(id),
+  stripe_subscription_id text references subscriptions(stripe_subscription_id),
+  created_at timestamptz default now()
+);
+
+team_members (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid references teams(id) on delete cascade,
+  user_id uuid references users(id) on delete cascade,
+  role text not null check (role in ('admin','member')),
+  joined_at timestamptz default now(),
+  unique(team_id, user_id)
+);
+
+usage_limits (
+  user_id uuid primary key references users(id) on delete cascade,
+  active_share_links_count int default 0,
+  projects_count int default 0,
+  reset_at timestamptz default now()
+);
+```
+
+## Feature Gating Logic
+
+```
+Is user authenticated?
+  └─ No → Free tier limits (3 links, watermark, no save)
+  └─ Yes → Check subscriptions table
+      └─ status = 'active' or 'trialing'?
+          └─ tier = 'pro' → Pro limits
+          └─ tier = 'team' → Team limits (check team_members for seat)
+      └─ Else → Free tier limits
+```
+
+## API Endpoints
+
+| Method | Route                        | Auth     | Description                             |
+| ------ | ----------------------------- | -------- | ---------------------------------------- |
+| POST   | `/api/billing/checkout`       | Required | Creates Stripe Checkout session          |
+| POST   | `/api/billing/portal`         | Required | Creates Stripe Customer Portal session   |
+| GET    | `/api/billing/subscription`   | Required | Returns current subscription status      |
+| POST   | `/api/billing/webhook`        | None     | Stripe webhook handler                   |
+
+## Webhook Events to Handle
+
+| Event                            | Action                                                             |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `checkout.session.completed`      | Create subscription record, update user tier, send welcome email     |
+| `invoice.paid`                    | Mark active, update period dates                                     |
+| `invoice.payment_failed`          | Mark past_due, 7-day grace period                                    |
+| `customer.subscription.updated`   | Sync cancel_at_period_end, tier changes, quantity                    |
+| `customer.subscription.deleted`   | Downgrade to Free, preserve data 30 days                             |
+
+## Security Rules
+
+- Never trust client-side tier checks. Always verify server-side.
+- Stripe webhook secret in `STRIPE_WEBHOOK_SECRET` env var only.
+- Whitelist `price_id` server-side — reject unknown price IDs.
+- Team seat limits enforced at invite time.
