@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState, useLayoutEffect, useEffect } from "react";
+import {
+  forwardRef,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+} from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
@@ -12,12 +19,21 @@ import {
 } from "../engine/diffVoxels";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 
-type DiffMode = "voxel" | "surface";
+export type DiffMode = "voxel" | "surface";
 
 interface DiffViewProps {
   geometryA: THREE.BufferGeometry | null;
   geometryB: THREE.BufferGeometry | null;
   onStatsChange?: (stats: (VoxelDiffStats & { toleranceMm: number }) | null) => void;
+  mode: DiffMode;
+  onModeChange: (mode: DiffMode) => void;
+  toleranceMm: number;
+  onToleranceChange: (toleranceMm: number) => void;
+}
+
+export interface DiffViewHandle {
+  /** PNG data URL of the current render, or null if nothing has rendered yet. */
+  captureScreenshot: () => string | null;
 }
 
 interface VoxelLayerProps {
@@ -78,11 +94,15 @@ function VoxelLayer({ grid, voxelClass, count, color, opacity }: VoxelLayerProps
   );
 }
 
-const DEFAULT_TOLERANCE_MM = 0.15;
+const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
+  { geometryA, geometryB, onStatsChange, mode, onModeChange, toleranceMm, onToleranceChange },
+  ref,
+) {
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
-export default function DiffView({ geometryA, geometryB, onStatsChange }: DiffViewProps) {
-  const [mode, setMode] = useState<DiffMode>("voxel");
-  const [toleranceMm, setToleranceMm] = useState(DEFAULT_TOLERANCE_MM);
+  useImperativeHandle(ref, () => ({
+    captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
+  }));
 
   const diff = useMemo(() => {
     if (!geometryA || !geometryB) return null;
@@ -111,14 +131,14 @@ export default function DiffView({ geometryA, geometryB, onStatsChange }: DiffVi
           <div className="flex overflow-hidden rounded border border-neutral-700 text-[11px]">
             <button
               type="button"
-              onClick={() => setMode("voxel")}
+              onClick={() => onModeChange("voxel")}
               className={`px-2 py-0.5 ${mode === "voxel" ? "bg-neutral-700 text-white" : "text-neutral-400"}`}
             >
               Voxels
             </button>
             <button
               type="button"
-              onClick={() => setMode("surface")}
+              onClick={() => onModeChange("surface")}
               className={`px-2 py-0.5 ${mode === "surface" ? "bg-neutral-700 text-white" : "text-neutral-400"}`}
             >
               Surface
@@ -134,7 +154,7 @@ export default function DiffView({ geometryA, geometryB, onStatsChange }: DiffVi
               max={5}
               step={0.05}
               value={toleranceMm}
-              onChange={(event) => setToleranceMm(Number(event.target.value))}
+              onChange={(event) => onToleranceChange(Number(event.target.value))}
               className="w-20 accent-neutral-400"
             />
             <input
@@ -142,7 +162,7 @@ export default function DiffView({ geometryA, geometryB, onStatsChange }: DiffVi
               min={0}
               step={0.05}
               value={toleranceMm}
-              onChange={(event) => setToleranceMm(Math.max(0, Number(event.target.value)))}
+              onChange={(event) => onToleranceChange(Math.max(0, Number(event.target.value)))}
               className="w-12 rounded border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-neutral-200"
             />
             mm
@@ -171,7 +191,13 @@ export default function DiffView({ geometryA, geometryB, onStatsChange }: DiffVi
         </div>
       )}
 
-      <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
+      <Canvas
+        camera={{ position: [50, 50, 50], fov: 45 }}
+        gl={{ preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          canvasElRef.current = gl.domElement;
+        }}
+      >
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
         <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
@@ -226,4 +252,6 @@ export default function DiffView({ geometryA, geometryB, onStatsChange }: DiffVi
       </Canvas>
     </div>
   );
-}
+});
+
+export default DiffView;

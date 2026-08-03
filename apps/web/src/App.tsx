@@ -2,12 +2,47 @@ import { useEffect, useRef, useState } from "react";
 import type * as THREE from "three";
 import type { VoxelDiffStats } from "./engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "./components/Viewer";
-import DiffView from "./components/DiffView";
+import DiffView, { type DiffViewHandle, type DiffMode } from "./components/DiffView";
 import WaitlistForm from "./components/WaitlistForm";
+import ReportGateModal from "./components/ReportGateModal";
+import ShareModal, { type ExpiresInDays } from "./components/ShareModal";
+import ShareErrorModal from "./components/ShareErrorModal";
+import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "./lib/api";
 
 const APP_VERSION = "0.0.1";
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
+
+function downloadReport(stats: DiffStats) {
+  const report = {
+    generatedAt: new Date().toISOString(),
+    tool: "Meshdiff",
+    note:
+      "Partial report — reflects the voxel diff engine only. Wall thickness, " +
+      "overhang, and hole checks are not implemented yet (see CLAUDE.md).",
+    toleranceMm: stats.toleranceMm,
+    addedVoxelCount: stats.addedCount,
+    removedVoxelCount: stats.removedCount,
+    unchangedVoxelCount: stats.unchangedCount,
+    voxelVolumeMm3: stats.voxelVolumeMm3,
+    approxVolumeDeltaMm3: stats.approxVolumeDeltaMm3,
+    approxVolumeDeltaPercent: stats.approxVolumeDeltaPercent,
+  };
+  const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `meshdiff-report-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadDataUrl(dataUrl: string, filename: string) {
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = filename;
+  link.click();
+}
 
 function LogoMark() {
   return (
@@ -24,11 +59,14 @@ const ROADMAP = {
     "Volume delta metrics",
     "JSON diff report",
   ],
-  beta: ["Surface-mode heatmap diff", "Removed-material ghost overlay"],
+  beta: [
+    "Surface-mode heatmap diff",
+    "Removed-material ghost overlay",
+    "Shareable diff URLs",
+  ],
   next: [
     "Auto-align (PCA/ICP)",
     "Cross-section view",
-    "Shareable diff URLs",
     "Web-worker voxelizer",
     "Multi-file drag & drop",
     "Project workspaces",
@@ -48,17 +86,149 @@ const PLANNED_FEATURES = [
 export default function App() {
   const [geometryA, setGeometryA] = useState<THREE.BufferGeometry | null>(null);
   const [geometryB, setGeometryB] = useState<THREE.BufferGeometry | null>(null);
+  const [fileA, setFileA] = useState<File | null>(null);
+  const [fileB, setFileB] = useState<File | null>(null);
+  const [mode, setMode] = useState<DiffMode>("voxel");
+  const [toleranceMm, setToleranceMm] = useState(0.15);
   const [stats, setStats] = useState<DiffStats | null>(null);
   const viewerARef = useRef<ViewerHandle>(null);
   const viewerBRef = useRef<ViewerHandle>(null);
+  const diffViewRef = useRef<DiffViewHandle>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isReportSubmitting, setIsReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isShareSubmitting, setIsShareSubmitting] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [isRestoringShare, setIsRestoringShare] = useState(false);
 
   useEffect(() => {
+    const shareId = new URLSearchParams(window.location.search).get("share");
+    if (!shareId) {
+      viewerARef.current?.loadDemo();
+      viewerBRef.current?.loadDemo();
+      return;
+    }
+
+    setIsRestoringShare(true);
+    fetch(shareGetEndpoint(shareId))
+      .then(async (response) => {
+        const data = (await response.json()) as {
+          success: boolean;
+          error?: string;
+          data?: {
+            mode: DiffMode;
+            toleranceMm: number;
+            fileA: { filename: string; downloadUrl: string };
+            fileB: { filename: string; downloadUrl: string };
+          };
+        };
+        if (!data.success || !data.data) {
+          throw new Error(data.error ?? "This share link is no longer available");
+        }
+        const [blobA, blobB] = await Promise.all([
+          fetch(data.data.fileA.downloadUrl).then((r) => r.blob()),
+          fetch(data.data.fileB.downloadUrl).then((r) => r.blob()),
+        ]);
+        viewerARef.current?.loadFromBytes(blobA, data.data.fileA.filename);
+        viewerBRef.current?.loadFromBytes(blobB, data.data.fileB.filename);
+        setMode(data.data.mode);
+        setToleranceMm(data.data.toleranceMm);
+      })
+      .catch((err: unknown) => {
+        setRestoreError(err instanceof Error ? err.message : "Failed to load shared diff");
+      })
+      .finally(() => setIsRestoringShare(false));
+  }, []);
+
+  function dismissShareError() {
+    setRestoreError(null);
+    window.history.replaceState(null, "", window.location.pathname);
     viewerARef.current?.loadDemo();
     viewerBRef.current?.loadDemo();
-  }, []);
+  }
 
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function handleShareSubmit(expiresInDays: ExpiresInDays) {
+    if (!fileA || !fileB) return;
+    setIsShareSubmitting(true);
+    setShareError(null);
+
+    try {
+      const response = await fetch(SHARE_CREATE_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          toleranceMm,
+          expiresInDays,
+          fileA: { name: fileA.name, size: fileA.size },
+          fileB: { name: fileB.name, size: fileB.size },
+        }),
+      });
+      const data = (await response.json()) as {
+        success: boolean;
+        error?: string;
+        data?: { url: string; uploadUrlA: string; uploadUrlB: string };
+      };
+      if (!data.success || !data.data) {
+        setShareError(data.error ?? "Something went wrong");
+        return;
+      }
+
+      const uploads = await Promise.all([
+        fetch(data.data.uploadUrlA, { method: "PUT", body: fileA }),
+        fetch(data.data.uploadUrlB, { method: "PUT", body: fileB }),
+      ]);
+      if (uploads.some((r) => !r.ok)) {
+        setShareError("Upload failed, please try again");
+        return;
+      }
+
+      setShareUrl(data.data.url);
+    } catch {
+      setShareError("Couldn't reach the server — try again in a moment");
+    } finally {
+      setIsShareSubmitting(false);
+    }
+  }
+
+  async function handleReportEmailSubmit(email: string) {
+    if (!stats) return;
+    setIsReportSubmitting(true);
+    setReportError(null);
+
+    try {
+      const response = await fetch(WAITLIST_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await response.json()) as { success: boolean; error?: string };
+      if (!data.success) {
+        setReportError(data.error ?? "Something went wrong");
+        setIsReportSubmitting(false);
+        return;
+      }
+    } catch {
+      setReportError("Couldn't reach the server — try again in a moment");
+      setIsReportSubmitting(false);
+      return;
+    }
+
+    downloadReport(stats);
+    const screenshot = diffViewRef.current?.captureScreenshot();
+    if (screenshot) {
+      downloadDataUrl(screenshot, `meshdiff-diff-${Date.now()}.png`);
+    }
+
+    setIsReportSubmitting(false);
+    setIsReportModalOpen(false);
   }
 
   return (
@@ -85,6 +255,11 @@ export default function App() {
       </header>
 
       <main>
+      {isRestoringShare && (
+        <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-400">
+          Loading shared diff…
+        </div>
+      )}
       <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
         <div className="flex items-center gap-3">
           <span className="font-semibold uppercase tracking-wide text-neutral-300">
@@ -125,18 +300,33 @@ export default function App() {
           <Viewer
             ref={viewerARef}
             label="Version A"
-            onGeometryLoaded={setGeometryA}
+            onGeometryLoaded={(geometry, file) => {
+              setGeometryA(geometry);
+              setFileA(file);
+            }}
             demoUrl="/demo/version-a.stl"
           />
           <Viewer
             ref={viewerBRef}
             label="Version B"
-            onGeometryLoaded={setGeometryB}
+            onGeometryLoaded={(geometry, file) => {
+              setGeometryB(geometry);
+              setFileB(file);
+            }}
             demoUrl="/demo/version-b.stl"
           />
         </div>
         <div className="h-1/2 min-h-0">
-          <DiffView geometryA={geometryA} geometryB={geometryB} onStatsChange={setStats} />
+          <DiffView
+            ref={diffViewRef}
+            geometryA={geometryA}
+            geometryB={geometryB}
+            onStatsChange={setStats}
+            mode={mode}
+            onModeChange={setMode}
+            toleranceMm={toleranceMm}
+            onToleranceChange={setToleranceMm}
+          />
         </div>
 
         <div className="flex items-center justify-between text-xs text-neutral-400">
@@ -156,17 +346,40 @@ export default function App() {
               <span>Load both versions to see diff stats</span>
             )}
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!fileA || !fileB}
+              onClick={() => {
+                setShareUrl(null);
+                setShareError(null);
+                setIsShareModalOpen(true);
+              }}
+              className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
+            >
+              Share This Diff
+            </button>
+            <button
+              type="button"
+              disabled={!stats}
+              onClick={() => setIsReportModalOpen(true)}
+              className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
+            >
+              Get the JSON diff report
+            </button>
+          </div>
         </div>
       </section>
 
       <section id="early-access" className="border-t border-neutral-800 px-6 py-16">
         <div className="mx-auto max-w-5xl rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-center">
           <p className="text-base font-semibold text-emerald-300">
-            🔒 Static-first — your files never leave the browser.
+            🔒 Diffing runs entirely client-side.
           </p>
           <p className="mt-1 text-xs text-emerald-300/70">
-            Diffing runs entirely client-side. Nothing you drop into Version A
-            or B is uploaded anywhere.
+            Nothing you drop into Version A or B is uploaded unless you
+            explicitly create a share link — that's the only action that
+            sends your files anywhere.
           </p>
         </div>
 
@@ -265,6 +478,35 @@ export default function App() {
           Projscope
         </a>
       </footer>
+
+      {isReportModalOpen && (
+        <ReportGateModal
+          onClose={() => {
+            setIsReportModalOpen(false);
+            setReportError(null);
+          }}
+          onSubmit={handleReportEmailSubmit}
+          isSubmitting={isReportSubmitting}
+          error={reportError}
+        />
+      )}
+
+      {restoreError && (
+        <ShareErrorModal message={restoreError} onDismiss={dismissShareError} />
+      )}
+
+      {isShareModalOpen && (
+        <ShareModal
+          onClose={() => {
+            setIsShareModalOpen(false);
+            setShareError(null);
+          }}
+          onSubmit={handleShareSubmit}
+          isSubmitting={isShareSubmitting}
+          error={shareError}
+          shareUrl={shareUrl}
+        />
+      )}
     </div>
   );
 }

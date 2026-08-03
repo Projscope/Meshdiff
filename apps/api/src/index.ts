@@ -4,6 +4,7 @@ import cors from "@fastify/cors";
 import healthRoute from "./routes/health.js";
 import diffRoute from "./routes/diff.js";
 import waitlistRoute from "./routes/waitlist.js";
+import shareRoute from "./routes/share.js";
 
 const app = Fastify({ logger: true });
 
@@ -11,6 +12,7 @@ await app.register(cors, { origin: true });
 app.register(healthRoute);
 app.register(diffRoute);
 app.register(waitlistRoute);
+app.register(shareRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

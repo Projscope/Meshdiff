@@ -11,3 +11,16 @@ export const WAITLIST_ENDPOINT = explicitApiUrl
   : import.meta.env.DEV
     ? "http://localhost:3001/waitlist"
     : "/.netlify/functions/waitlist";
+
+export const SHARE_CREATE_ENDPOINT = explicitApiUrl
+  ? `${explicitApiUrl}/share`
+  : import.meta.env.DEV
+    ? "http://localhost:3001/share"
+    : "/.netlify/functions/share-create";
+
+export function shareGetEndpoint(id: string): string {
+  if (explicitApiUrl) return `${explicitApiUrl}/share/${id}`;
+  return import.meta.env.DEV
+    ? `http://localhost:3001/share/${id}`
+    : `/.netlify/functions/share-get?id=${id}`;
+}

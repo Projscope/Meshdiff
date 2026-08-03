@@ -7,7 +7,7 @@ import { loadMeshGeometry } from "../engine/loadMesh";
 
 interface ViewerProps {
   label: string;
-  onGeometryLoaded?: (geometry: THREE.BufferGeometry) => void;
+  onGeometryLoaded?: (geometry: THREE.BufferGeometry, file: File) => void;
   /** Bundled sample STL to offer as a one-click "or try a demo" option. */
   demoUrl?: string;
 }
@@ -15,6 +15,8 @@ interface ViewerProps {
 export interface ViewerHandle {
   openFileDialog: () => void;
   loadDemo: () => void;
+  /** Loads a mesh from already-fetched bytes (e.g. a shared diff's files). */
+  loadFromBytes: (bytes: Blob, filename: string) => void;
 }
 
 const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
@@ -32,7 +34,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     if (result.success) {
       setGeometry(result.data);
       setError(null);
-      onGeometryLoaded?.(result.data);
+      onGeometryLoaded?.(result.data, file);
     } else {
       setError(result.error);
     }
@@ -56,6 +58,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   useImperativeHandle(ref, () => ({
     openFileDialog: () => fileInputRef.current?.click(),
     loadDemo: () => void handleLoadDemo(),
+    loadFromBytes: (bytes, filename) => void handleFile(new File([bytes], filename)),
   }));
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
