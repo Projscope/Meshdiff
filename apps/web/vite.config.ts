@@ -12,6 +12,21 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    chunkSizeWarningLimit: 850,
+    rollupOptions: {
+      output: {
+        manualChunks: (id: string) => {
+          if (id.includes("node_modules/react")) {
+            return "react-vendor";
+          }
+          if (id.includes("node_modules/three") || id.includes("node_modules/@react-three")) {
+            return "three-vendor";
+          }
+        },
+      },
+    },
+  },
   test: {
     environment: "node",
   },
