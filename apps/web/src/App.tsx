@@ -9,7 +9,7 @@ import ShareModal, { type ExpiresInDays } from "./components/ShareModal";
 import ShareErrorModal from "./components/ShareErrorModal";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "./lib/api";
 
-const APP_VERSION = "0.0.1";
+const APP_VERSION = "0.1.1";
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
 
@@ -58,11 +58,11 @@ const ROADMAP = {
     "Adjustable tolerance",
     "Volume delta metrics",
     "JSON diff report",
+    "Shareable diff URLs",
   ],
   beta: [
     "Surface-mode heatmap diff",
     "Removed-material ghost overlay",
-    "Shareable diff URLs",
   ],
   next: [
     "Auto-align (PCA/ICP)",
