@@ -63,6 +63,24 @@ The API workspace needs a few secrets to run the waitlist and share endpoints �
 copy `apps/api/.env.example` to `apps/api/.env` and fill in ConvertKit and
 Supabase credentials (never committed).
 
+### Local Supabase (Docker)
+
+Rather than pointing dev at the live Supabase project, run a fully isolated
+local stack (Postgres, Auth, Storage, PostgREST) via the Supabase CLI —
+migrations under `supabase/migrations/` apply automatically:
+
+```bash
+supabase start        # first run pulls several Docker images, can take a few minutes
+supabase status        # prints the local Project URL + anon/service_role keys
+supabase stop           # when done — data persists in a Docker volume between runs
+```
+
+Copy the printed values into `apps/api/.env` (`SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`) and `apps/web/.env` (`VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY`). If another local Supabase project is already
+running, either `supabase stop --project-id <name>` it first or change the
+ports in `supabase/config.toml`.
+
 Other useful commands:
 
 ```bash
