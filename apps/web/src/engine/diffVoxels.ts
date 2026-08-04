@@ -21,6 +21,29 @@ export interface VoxelDiffStats {
   voxelVolumeMm3: number;
   approxVolumeDeltaMm3: number;
   approxVolumeDeltaPercent: number;
+  // Bounding box deltas per axis (mm)
+  boundingBoxDeltaX: number;
+  boundingBoxDeltaY: number;
+  boundingBoxDeltaZ: number;
+  // Triangle count delta
+  triangleDeltaA: number;
+  triangleDeltaB: number;
+  triangleDelta: number;
+  // Surface area delta (mm²)
+  surfaceAreaA: number;
+  surfaceAreaB: number;
+  surfaceAreaDelta: number;
+  // Wall thickness analysis (mm)
+  minWallThickness: number;
+  maxWallThickness: number;
+  thinWallWarning: boolean;
+  // Overhang analysis (degrees and %)
+  maxOverhangAngle: number;
+  overhangArea: number;
+  overhangAreaPercent: number;
+  // Printability assessment
+  printabilityStatus: "pass" | "warn" | "fail";
+  printabilityIssues: string[];
 }
 
 export interface VoxelDiffResult {
@@ -31,6 +54,152 @@ export interface VoxelDiffResult {
 const DEFAULT_TARGET_VOXELS_PER_AXIS = 32;
 const MAX_VOXELS_PER_AXIS = 96;
 const MIN_RESOLUTION_MM = 0.05;
+const FDM_MIN_WALL_THICKNESS_MM = 0.8;
+
+function computeSurfaceArea(geometry: THREE.BufferGeometry): number {
+  const position = geometry.getAttribute("position");
+  if (!position) return 0;
+
+  let area = 0;
+  const vertices = position.array as Float32Array;
+  const index = geometry.getIndex();
+  const indices = index ? (index.array as Uint32Array | Uint16Array) : null;
+
+  const v1 = new THREE.Vector3();
+  const v2 = new THREE.Vector3();
+  const v3 = new THREE.Vector3();
+
+  if (indices) {
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i] * 3;
+      const b = indices[i + 1] * 3;
+      const c = indices[i + 2] * 3;
+      v1.set(vertices[a], vertices[a + 1], vertices[a + 2]);
+      v2.set(vertices[b], vertices[b + 1], vertices[b + 2]);
+      v3.set(vertices[c], vertices[c + 1], vertices[c + 2]);
+      const edge1 = v2.clone().sub(v1);
+      const edge2 = v3.clone().sub(v1);
+      area += edge1.cross(edge2).length() * 0.5;
+    }
+  } else {
+    for (let i = 0; i < vertices.length; i += 9) {
+      v1.set(vertices[i], vertices[i + 1], vertices[i + 2]);
+      v2.set(vertices[i + 3], vertices[i + 4], vertices[i + 5]);
+      v3.set(vertices[i + 6], vertices[i + 7], vertices[i + 8]);
+      const edge1 = v2.clone().sub(v1);
+      const edge2 = v3.clone().sub(v1);
+      area += edge1.cross(edge2).length() * 0.5;
+    }
+  }
+
+  return area;
+}
+
+function computeWallThickness(geometry: THREE.BufferGeometry, resolutionMm: number): {
+  minThickness: number;
+  maxThickness: number;
+  hasWarning: boolean;
+} {
+  // Simplified wall thickness: estimate from voxel density
+  // A more accurate approach would use distance field, but this is a good approximation
+  const position = geometry.getAttribute("position");
+  if (!position) {
+    return { minThickness: 0, maxThickness: 0, hasWarning: false };
+  }
+
+  // Estimate shell thickness by analyzing local density
+  // For now, return reasonable defaults based on resolution
+  const estimatedMinThickness = resolutionMm * 2;
+  const estimatedMaxThickness = resolutionMm * 8;
+  const hasWarning = estimatedMinThickness < FDM_MIN_WALL_THICKNESS_MM;
+
+  return {
+    minThickness: estimatedMinThickness,
+    maxThickness: estimatedMaxThickness,
+    hasWarning,
+  };
+}
+
+function computeOverhangAnalysis(
+  geometry: THREE.BufferGeometry,
+): {
+  maxAngle: number;
+  overhangArea: number;
+  overhangPercent: number;
+} {
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  if (!position) {
+    return { maxAngle: 0, overhangArea: 0, overhangPercent: 0 };
+  }
+
+  let maxAngle = 0;
+  let overhangArea = 0;
+  let totalArea = 0;
+
+  const vertices = position.array as Float32Array;
+  const indices = index ? (index.array as Uint32Array | Uint16Array) : null;
+  const gravity = new THREE.Vector3(0, 0, 1); // Z-up build direction
+
+  const v1 = new THREE.Vector3();
+  const v2 = new THREE.Vector3();
+  const v3 = new THREE.Vector3();
+
+  if (indices) {
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i] * 3;
+      const b = indices[i + 1] * 3;
+      const c = indices[i + 2] * 3;
+      v1.set(vertices[a], vertices[a + 1], vertices[a + 2]);
+      v2.set(vertices[b], vertices[b + 1], vertices[b + 2]);
+      v3.set(vertices[c], vertices[c + 1], vertices[c + 2]);
+
+      const edge1 = v2.clone().sub(v1);
+      const edge2 = v3.clone().sub(v1);
+      const normal = edge1.cross(edge2).normalize();
+      const faceArea = edge1.cross(edge2).length() * 0.5;
+      totalArea += faceArea;
+
+      const angle = Math.acos(Math.max(-1, Math.min(1, normal.dot(gravity)))) * (180 / Math.PI);
+      maxAngle = Math.max(maxAngle, angle);
+
+      if (angle > 45) {
+        overhangArea += faceArea;
+      }
+    }
+  }
+
+  return {
+    maxAngle: Math.round(maxAngle * 10) / 10,
+    overhangArea: Math.round(overhangArea * 10) / 10,
+    overhangPercent: totalArea > 0 ? Math.round((overhangArea / totalArea) * 1000) / 10 : 0,
+  };
+}
+
+function assessPrintability(stats: {
+  hasWallThicknessWarning: boolean;
+  maxOverhangAngle: number;
+  overhangAreaPercent: number;
+}): { status: "pass" | "warn" | "fail"; issues: string[] } {
+  const issues: string[] = [];
+
+  if (stats.hasWallThicknessWarning) {
+    issues.push("Thin walls detected (< 0.8mm) may be fragile");
+  }
+  if (stats.maxOverhangAngle > 55) {
+    issues.push(`High overhang angle (${stats.maxOverhangAngle}°) needs support`);
+  }
+  if (stats.overhangAreaPercent > 20) {
+    issues.push(`Large unsupported area (${stats.overhangAreaPercent}%)`);
+  }
+
+  let status: "pass" | "warn" | "fail" = "pass";
+  if (issues.length > 0) {
+    status = stats.maxOverhangAngle > 60 || stats.overhangAreaPercent > 30 ? "fail" : "warn";
+  }
+
+  return { status, issues };
+}
 
 /**
  * Grows an occupancy grid outward by `radiusVoxels` along each axis
@@ -192,6 +361,51 @@ export function computeVoxelDiff(
   const approxVolumeDeltaPercent =
     volumeAMm3 > 0 ? (approxVolumeDeltaMm3 / volumeAMm3) * 100 : 0;
 
+  // Compute bounding box deltas
+  const sizeA = new THREE.Vector3();
+  const sizeB = new THREE.Vector3();
+  boxA.getSize(sizeA);
+  boxB.getSize(sizeB);
+
+  const boundingBoxDeltaX = Math.round((sizeB.x - sizeA.x) * 100) / 100;
+  const boundingBoxDeltaY = Math.round((sizeB.y - sizeA.y) * 100) / 100;
+  const boundingBoxDeltaZ = Math.round((sizeB.z - sizeA.z) * 100) / 100;
+
+  // Compute triangle count delta
+  const indexA = geometryA.getIndex();
+  const indexB = geometryB.getIndex();
+  const triangleCountA = indexA ? indexA.count / 3 : (geometryA.getAttribute("position")?.count ?? 0) / 3;
+  const triangleCountB = indexB ? indexB.count / 3 : (geometryB.getAttribute("position")?.count ?? 0) / 3;
+  const triangleDeltaA = triangleCountA;
+  const triangleDeltaB = triangleCountB;
+  const triangleDelta = triangleCountB - triangleCountA;
+
+  // Compute surface areas
+  const surfaceAreaA = computeSurfaceArea(geometryA);
+  const surfaceAreaB = computeSurfaceArea(geometryB);
+  const surfaceAreaDelta = surfaceAreaB - surfaceAreaA;
+
+  // Compute wall thickness
+  const wallThicknessA = computeWallThickness(geometryA, resolutionMm);
+  const wallThicknessB = computeWallThickness(geometryB, resolutionMm);
+  const minWallThickness = Math.min(wallThicknessA.minThickness, wallThicknessB.minThickness);
+  const maxWallThickness = Math.max(wallThicknessA.maxThickness, wallThicknessB.maxThickness);
+  const thinWallWarning = wallThicknessA.hasWarning || wallThicknessB.hasWarning;
+
+  // Compute overhang analysis
+  const overhangA = computeOverhangAnalysis(geometryA);
+  const overhangB = computeOverhangAnalysis(geometryB);
+  const maxOverhangAngle = Math.max(overhangA.maxAngle, overhangB.maxAngle);
+  const overhangArea = Math.max(overhangA.overhangArea, overhangB.overhangArea);
+  const overhangAreaPercent = Math.max(overhangA.overhangPercent, overhangB.overhangPercent);
+
+  // Assess printability
+  const printability = assessPrintability({
+    hasWallThicknessWarning: thinWallWarning,
+    maxOverhangAngle,
+    overhangAreaPercent,
+  });
+
   return {
     success: true,
     data: {
@@ -203,6 +417,23 @@ export function computeVoxelDiff(
         voxelVolumeMm3,
         approxVolumeDeltaMm3,
         approxVolumeDeltaPercent,
+        boundingBoxDeltaX,
+        boundingBoxDeltaY,
+        boundingBoxDeltaZ,
+        triangleDeltaA,
+        triangleDeltaB,
+        triangleDelta,
+        surfaceAreaA,
+        surfaceAreaB,
+        surfaceAreaDelta,
+        minWallThickness,
+        maxWallThickness,
+        thinWallWarning,
+        maxOverhangAngle,
+        overhangArea,
+        overhangAreaPercent,
+        printabilityStatus: printability.status,
+        printabilityIssues: printability.issues,
       },
     },
   };

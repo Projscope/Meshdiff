@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type * as THREE from "three";
+import * as THREE from "three";
 import type { VoxelDiffStats } from "./engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "./components/Viewer";
 import DiffView, { type DiffViewHandle, type DiffMode } from "./components/DiffView";
@@ -7,6 +7,7 @@ import WaitlistForm from "./components/WaitlistForm";
 import ReportGateModal from "./components/ReportGateModal";
 import ShareModal, { type ExpiresInDays } from "./components/ShareModal";
 import ShareErrorModal from "./components/ShareErrorModal";
+import DetailedStatsPanel from "./components/DetailedStatsPanel";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "./lib/api";
 
 const APP_VERSION = "0.1.4";
@@ -106,6 +107,20 @@ export default function App() {
   const [syncedCameraState, setSyncedCameraState] = useState<{ position: [number, number, number]; target: [number, number, number] } | null>(null);
   const [isSyncEnabled, setIsSyncEnabled] = useState(true);
   const [selectedDemo, setSelectedDemo] = useState<"simple" | "bracket" | "gear">("simple");
+  const [sameFileWarning, setSameFileWarning] = useState<string | null>(null);
+  const [showDetailedStats, setShowDetailedStats] = useState(false);
+  const [boundingBoxA, setBoundingBoxA] = useState<[number, number, number]>([0, 0, 0]);
+  const [boundingBoxB, setBoundingBoxB] = useState<[number, number, number]>([0, 0, 0]);
+  const [volumeA, setVolumeA] = useState(0);
+  const [volumeB, setVolumeB] = useState(0);
+
+  useEffect(() => {
+    if (fileA && fileB && fileA.name === fileB.name && fileA.size === fileB.size) {
+      setSameFileWarning(`File ${fileA.name} is being compared to itself.`);
+    } else {
+      setSameFileWarning(null);
+    }
+  }, [fileA, fileB]);
 
   const handleCameraChange = (state: { position: [number, number, number]; target: [number, number, number] }) => {
     setSyncedCameraState(state);
@@ -350,6 +365,11 @@ export default function App() {
       </div>
 
       <section className="flex h-[calc(100vh-98px)] flex-col gap-2 p-2">
+        {sameFileWarning && (
+          <div className="rounded border border-amber-800 bg-amber-950/50 px-3 py-2 text-sm text-amber-300">
+            ⚠ {sameFileWarning}
+          </div>
+        )}
         <div className="grid h-1/2 grid-cols-2 gap-2">
           <Viewer
             ref={viewerARef}
@@ -357,6 +377,17 @@ export default function App() {
             onGeometryLoaded={(geometry, file) => {
               setGeometryA(geometry);
               setFileA(file);
+              geometry.computeBoundingBox();
+              const box = geometry.boundingBox;
+              if (box) {
+                const size = box.getSize(new THREE.Vector3());
+                setBoundingBoxA([size.x, size.y, size.z]);
+                const index = geometry.getIndex();
+                const posAttr = geometry.getAttribute("position");
+                if (index && posAttr) {
+                  setVolumeA(index.count / 3);
+                }
+              }
             }}
             demoUrl={currentDemo.a}
             syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
@@ -369,6 +400,17 @@ export default function App() {
             onGeometryLoaded={(geometry, file) => {
               setGeometryB(geometry);
               setFileB(file);
+              geometry.computeBoundingBox();
+              const box = geometry.boundingBox;
+              if (box) {
+                const size = box.getSize(new THREE.Vector3());
+                setBoundingBoxB([size.x, size.y, size.z]);
+                const index = geometry.getIndex();
+                const posAttr = geometry.getAttribute("position");
+                if (index && posAttr) {
+                  setVolumeB(index.count / 3);
+                }
+              }
             }}
             demoUrl={currentDemo.b}
             syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
@@ -393,44 +435,65 @@ export default function App() {
         </div>
 
         {stats ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
-                Added voxels
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                  Added voxels
+                </div>
+                <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+                  +{stats.addedCount.toLocaleString()}
+                </div>
               </div>
-              <div className="mt-0.5 text-lg font-semibold text-emerald-400">
-                +{stats.addedCount.toLocaleString()}
+              <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                  Removed voxels
+                </div>
+                <div className="mt-0.5 text-lg font-semibold text-red-400">
+                  -{stats.removedCount.toLocaleString()}
+                </div>
+              </div>
+              <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                  Volume delta
+                </div>
+                <div className="mt-0.5 text-lg font-semibold text-neutral-100">
+                  {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
+                  {stats.approxVolumeDeltaPercent.toFixed(1)}%
+                </div>
+              </div>
+              <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                  Tolerance
+                </div>
+                <div className="mt-0.5 text-lg font-semibold text-blue-400">
+                  {stats.toleranceMm.toFixed(2)} mm
+                </div>
               </div>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
-                Removed voxels
-              </div>
-              <div className="mt-0.5 text-lg font-semibold text-red-400">
-                -{stats.removedCount.toLocaleString()}
-              </div>
-            </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
-                Volume delta
-              </div>
-              <div className="mt-0.5 text-lg font-semibold text-neutral-100">
-                {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
-                {stats.approxVolumeDeltaPercent.toFixed(1)}%
-              </div>
-            </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">
-                Tolerance
-              </div>
-              <div className="mt-0.5 text-lg font-semibold text-blue-400">
-                {stats.toleranceMm.toFixed(2)} mm
-              </div>
-            </div>
-          </div>
+            <button
+              type="button"
+              onClick={() => setShowDetailedStats(!showDetailedStats)}
+              className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+            >
+              {showDetailedStats ? "Hide" : "Show"} Detailed Stats
+            </button>
+          </>
         ) : (
           <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
             Load both versions to see diff stats
+          </div>
+        )}
+
+        {showDetailedStats && stats && (
+          <div className="rounded border border-neutral-800 bg-neutral-900 p-3">
+            <DetailedStatsPanel
+              stats={stats}
+              volumeA={volumeA}
+              volumeB={volumeB}
+              boundingBoxA={boundingBoxA}
+              boundingBoxB={boundingBoxB}
+            />
           </div>
         )}
 
