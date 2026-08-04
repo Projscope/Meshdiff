@@ -12,6 +12,7 @@ import {
 } from "../lib/projectsApi";
 import PrintabilityBadge from "../components/PrintabilityBadge";
 import ApprovalBadge from "../components/ApprovalBadge";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
 const MAX_FILE_BYTES = 200 * 1024 * 1024;
@@ -32,6 +33,8 @@ export default function ProjectDetailPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; versionNumber: number } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -90,10 +93,12 @@ export default function ProjectDetailPage() {
     if (!result.success) setError(result.error);
   }
 
-  async function handleDeleteVersion(versionId: string, versionNumber: number) {
-    if (!projectId) return;
-    if (!window.confirm(`Delete v${versionNumber}? This can't be undone.`)) return;
-    const result = await deleteVersion(projectId, versionId);
+  async function handleConfirmDelete() {
+    if (!projectId || !pendingDelete) return;
+    setIsDeleting(true);
+    const result = await deleteVersion(projectId, pendingDelete.id);
+    setIsDeleting(false);
+    setPendingDelete(null);
     if (!result.success) {
       setError(result.error);
       return;
@@ -245,7 +250,7 @@ export default function ProjectDetailPage() {
               </Link>
               <button
                 type="button"
-                onClick={() => void handleDeleteVersion(version.id, version.versionNumber)}
+                onClick={() => setPendingDelete({ id: version.id, versionNumber: version.versionNumber })}
                 title="Delete this version"
                 className="rounded border border-neutral-700 p-1.5 text-neutral-400 hover:border-red-700 hover:text-red-400"
               >
@@ -269,6 +274,18 @@ export default function ProjectDetailPage() {
           </div>
         ))}
       </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete v${pendingDelete.versionNumber}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          isDestructive
+          isConfirming={isDeleting}
+          onConfirm={() => void handleConfirmDelete()}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

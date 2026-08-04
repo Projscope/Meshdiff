@@ -11,7 +11,17 @@ import commentsRoute from "./routes/comments.js";
 
 const app = Fastify({ logger: true });
 
-await app.register(cors, { origin: true });
+// Explicit methods list, rather than relying on @fastify/cors's automatic
+// per-route detection — that reflects Fastify's internal OPTIONS route
+// synthesis, which (registration-order-dependent) reported only
+// GET,HEAD,POST as allowed on /projects/:id/versions/:id even though the
+// DELETE handler on that exact path worked fine when called directly.
+// Browsers correctly refuse to send the actual DELETE after a preflight
+// that doesn't list it, surfacing as an opaque "Failed to fetch".
+await app.register(cors, {
+  origin: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+});
 app.register(healthRoute);
 app.register(diffRoute);
 app.register(waitlistRoute);
