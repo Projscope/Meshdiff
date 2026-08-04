@@ -5,6 +5,8 @@ import { extensionOf } from "../lib/filename.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
 import { computeVoxelDiff } from "@meshdiff/shared/engine/diffVoxels.js";
+import { requireAuth } from "../lib/requireAuth.js";
+import { isProjectOwner } from "../lib/ownership.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const MAX_FILE_BYTES = 200 * 1024 * 1024;
@@ -49,6 +51,7 @@ function toVersionSummary(row: VersionRow) {
 export default async function versionsRoute(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { projectId: string }; Body: CreateVersionBody }>(
     "/projects/:projectId/versions",
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { fileName, fileSize } = request.body ?? {};
       const { projectId } = request.params;
@@ -75,17 +78,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        const { data: project, error: projectError } = await supabase
-          .from("projects")
-          .select("id")
-          .eq("id", projectId)
-          .maybeSingle();
-        if (projectError) {
-          app.log.error(projectError, "Failed to look up project");
-          reply.code(502);
-          return { success: false, error: "Failed to create version" };
-        }
-        if (!project) {
+        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
@@ -101,7 +94,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
             p_file_path: filePath,
             p_file_format: extension,
             p_file_size_bytes: fileSize,
-            p_uploaded_by_user_id: null,
+            p_uploaded_by_user_id: request.userId,
           })
           .single();
 
@@ -138,6 +131,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/finalize",
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -148,6 +142,11 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
+        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+
         const { data: current, error: currentError } = await supabase
           .from("versions")
           .select("*")
@@ -308,6 +307,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/versions",
+    { preHandler: requireAuth },
     async (request, reply) => {
       const supabase = getSupabase();
       if (!supabase) {
@@ -317,6 +317,11 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
+        if (!(await isProjectOwner(supabase, request.params.projectId, request.userId!))) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+
         const { data: rows, error } = await supabase
           .from("versions")
           .select("*")
@@ -339,6 +344,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId",
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -349,6 +355,11 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
+        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+
         const { data: row, error } = await supabase
           .from("versions")
           .select("*")

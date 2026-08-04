@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createProject, listProjects, type ProjectSummary } from "../lib/projectsApi";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../lib/AuthProvider";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -79,6 +81,8 @@ function NewProjectModal({
 }
 
 export default function ProjectsListPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -93,6 +97,11 @@ export default function ProjectsListPage() {
     });
   }, []);
 
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    navigate("/login");
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex items-center justify-between">
@@ -100,13 +109,23 @@ export default function ProjectsListPage() {
           <h1 className="text-2xl font-bold text-white">Projects</h1>
           <p className="mt-1 text-sm text-neutral-400">Track and review 3D model versions</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-        >
-          + New Project
-        </button>
+        <div className="flex items-center gap-3">
+          {user && <span className="text-xs text-neutral-500">{user.email}</span>}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-neutral-500"
+          >
+            Sign Out
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            + New Project
+          </button>
+        </div>
       </div>
 
       {error && (

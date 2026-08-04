@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./api";
+import { supabase } from "./supabaseClient";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 
 export type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -40,9 +41,15 @@ export interface CommentSummary {
 
 async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> {
   try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
     });
     const body = (await response.json()) as Result<T>;
     return body;

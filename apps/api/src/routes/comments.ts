@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
+import { requireAuth } from "../lib/requireAuth.js";
+import { isProjectOwner } from "../lib/ownership.js";
 
 interface CommentRow {
   id: string;
@@ -37,7 +39,9 @@ function toCommentSummary(row: CommentRow) {
 export default async function commentsRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/comments",
+    { preHandler: requireAuth },
     async (request, reply) => {
+      const { projectId, versionId } = request.params;
       const supabase = getSupabase();
       if (!supabase) {
         app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
@@ -46,10 +50,15 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
+        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+
         const { data: rows, error } = await supabase
           .from("comments")
           .select("*")
-          .eq("version_id", request.params.versionId)
+          .eq("version_id", versionId)
           .order("created_at", { ascending: true });
         if (error) {
           app.log.error(error, "Failed to list comments");
@@ -68,6 +77,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string }; Body: CreateCommentBody }>(
     "/projects/:projectId/versions/:versionId/comments",
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { body, position, normal } = request.body ?? {};
@@ -102,6 +112,11 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
+        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+
         const { data: version, error: versionError } = await supabase
           .from("versions")
           .select("id")
@@ -122,6 +137,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           .from("comments")
           .insert({
             version_id: versionId,
+            author_user_id: request.userId,
             body: body.trim(),
             position_x: position[0],
             position_y: position[1],
