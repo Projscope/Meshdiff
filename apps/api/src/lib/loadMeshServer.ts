@@ -22,6 +22,15 @@ const threeMFLoader = new ThreeMFLoader();
  * from buffers/text with no DOM dependency, same as the client. 3MF mirrors
  * the client's merge-all-objects logic exactly (see loadMesh.ts's comment
  * for why: multiple mesh objects per file, world-space baking).
+ *
+ * TODO: three.js's stock ThreeMFLoader doesn't support the 3MF Production
+ * Extension (objects split across separate `3D/Objects/*.model` files,
+ * referenced via a component's `p:path` attribute — used by BambuStudio,
+ * PrusaSlicer, OrcaSlicer for multi-plate/multi-instance files). Uploading
+ * one throws "Cannot read properties of undefined (reading 'mesh')" here
+ * (and identically client-side, since it's the same loader) because the
+ * referenced object IDs are never found in the main model file. Same
+ * limitation exists in apps/web/src/engine/loadMesh.ts.
  */
 export async function loadMeshGeometryServer(
   buffer: ArrayBuffer,

@@ -46,7 +46,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> 
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: {
-        "Content-Type": "application/json",
+        // Fastify's JSON body parser rejects an empty body when this
+        // header is present ("Body cannot be empty when content-type is
+        // set to 'application/json'") — only send it when there's an
+        // actual body, e.g. finalizeVersion()'s bodyless POST would 400.
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },

@@ -22,6 +22,13 @@ function extensionOf(filename: string): string {
  * file" note on the format). Only positions survive the merge — per-mesh
  * attributes like color/uv aren't guaranteed consistent across objects,
  * and normals are recomputed on the merged result anyway.
+ *
+ * TODO: ThreeMFLoader doesn't support the 3MF Production Extension
+ * (objects split across separate `3D/Objects/*.model` files, referenced
+ * via a component's `p:path` attribute — used by BambuStudio, PrusaSlicer,
+ * OrcaSlicer for multi-plate/multi-instance files). Those throw "Cannot
+ * read properties of undefined (reading 'mesh')" here. Same limitation in
+ * apps/api/src/lib/loadMeshServer.ts (identical loader).
  */
 export async function loadMeshGeometry(
   file: File,
