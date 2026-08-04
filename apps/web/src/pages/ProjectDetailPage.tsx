@@ -278,7 +278,7 @@ export default function ProjectDetailPage() {
       {pendingDelete && (
         <ConfirmDialog
           title={`Delete v${pendingDelete.versionNumber}?`}
-          message="This can't be undone."
+          message="This can't be undone. Its comments, cached diffs, and uploaded file will be deleted too."
           confirmLabel="Delete"
           isDestructive
           isConfirming={isDeleting}
