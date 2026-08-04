@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
-import Viewer, { type ViewerHandle } from "./components/Viewer";
-import DiffView, { type DiffViewHandle, type DiffMode } from "./components/DiffView";
-import WaitlistForm from "./components/WaitlistForm";
-import ReportGateModal from "./components/ReportGateModal";
-import ShareModal, { type ExpiresInDays } from "./components/ShareModal";
-import ShareErrorModal from "./components/ShareErrorModal";
-import DetailedStatsPanel from "./components/DetailedStatsPanel";
-import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "./lib/api";
+import Viewer, { type ViewerHandle } from "../components/Viewer";
+import DiffView, { type DiffViewHandle, type DiffMode } from "../components/DiffView";
+import WaitlistForm from "../components/WaitlistForm";
+import ReportGateModal from "../components/ReportGateModal";
+import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
+import ShareErrorModal from "../components/ShareErrorModal";
+import DetailedStatsPanel from "../components/DetailedStatsPanel";
+import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 
 const APP_VERSION = "0.1.4";
 
@@ -84,7 +84,7 @@ const PLANNED_FEATURES = [
   "Team approvals & report export",
 ];
 
-export default function App() {
+export default function LiveDiffPage() {
   const [geometryA, setGeometryA] = useState<THREE.BufferGeometry | null>(null);
   const [geometryB, setGeometryB] = useState<THREE.BufferGeometry | null>(null);
   const [fileA, setFileA] = useState<File | null>(null);

@@ -35,7 +35,17 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
         return { success: false, error: "Failed to create project, please try again" };
       }
 
-      return { success: true, data: row };
+      return {
+        success: true,
+        data: {
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          latestFileName: null,
+        },
+      };
     } catch (err) {
       app.log.error(err, "Project creation threw");
       reply.code(502);
