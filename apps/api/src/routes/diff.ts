@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { computeVoxelDiff } from "@meshdiff/shared/engine/diffVoxels.js";
+import { requireAuth } from "../lib/requireAuth.js";
+import { isProjectOwner } from "../lib/ownership.js";
 
 const BUCKET = "project-meshes";
 
@@ -15,6 +17,7 @@ interface VersionRow {
 export default async function diffRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { versionAId: string; versionBId: string } }>(
     "/diff/:versionAId/:versionBId",
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { versionAId, versionBId } = request.params;
       const supabase = getSupabase();
@@ -25,21 +28,9 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
       }
 
       try {
-        const { data: cached, error: cacheError } = await supabase
-          .from("version_diffs")
-          .select("stats")
-          .eq("version_a_id", versionAId)
-          .eq("version_b_id", versionBId)
-          .maybeSingle();
-        if (cacheError) {
-          app.log.error(cacheError, "Failed to look up cached diff");
-          reply.code(502);
-          return { success: false, error: "Failed to load diff" };
-        }
-        if (cached) {
-          return { success: true, data: cached.stats };
-        }
-
+        // Ownership must be checked before the cache lookup below — a
+        // cached diff's presence/content shouldn't leak to a user who
+        // doesn't own the project it belongs to.
         const { data: versions, error: versionsError } = await supabase
           .from("versions")
           .select("id, project_id, file_path, file_format")
@@ -60,9 +51,24 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           reply.code(400);
           return { success: false, error: "Versions must belong to the same project" };
         }
-        if (versionA.file_format === "3mf" || versionB.file_format === "3mf") {
-          reply.code(422);
-          return { success: false, error: "3MF diffing is not yet supported server-side" };
+        if (!(await isProjectOwner(supabase, versionA.project_id, request.userId!))) {
+          reply.code(404);
+          return { success: false, error: "One or both versions not found" };
+        }
+
+        const { data: cached, error: cacheError } = await supabase
+          .from("version_diffs")
+          .select("stats")
+          .eq("version_a_id", versionAId)
+          .eq("version_b_id", versionBId)
+          .maybeSingle();
+        if (cacheError) {
+          app.log.error(cacheError, "Failed to look up cached diff");
+          reply.code(502);
+          return { success: false, error: "Failed to load diff" };
+        }
+        if (cached) {
+          return { success: true, data: cached.stats };
         }
 
         const [blobA, blobB] = await Promise.all([

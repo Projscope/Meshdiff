@@ -135,6 +135,31 @@ export function createComment(
   });
 }
 
+/** Fetches the zip with the auth header attached (a plain <a href> can't send one) and triggers a browser download. */
+export async function downloadAllVersionsZip(projectId: string): Promise<Result<true>> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}/versions.zip`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as Result<never> | null;
+      return { success: false, error: body?.success === false ? body.error : `Download failed (${response.status})` };
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `project-${projectId}-versions.zip`;
+    link.click();
+    URL.revokeObjectURL(url);
+    return { success: true, data: true };
+  } catch {
+    return { success: false, error: "Download failed, please try again" };
+  }
+}
+
 /** Orchestrates the 3-step upload flow: allocate -> PUT bytes -> finalize (diff + summary). */
 export async function uploadVersion(
   projectId: string,

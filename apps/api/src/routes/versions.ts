@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { ulid } from "ulid";
+import archiver from "archiver";
 import { getSupabase } from "../lib/supabase.js";
 import { extensionOf } from "../lib/filename.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
@@ -165,14 +166,6 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
         const currentRow = current as VersionRow;
 
-        if (currentRow.file_format === "3mf") {
-          reply.code(422);
-          return {
-            success: false,
-            error: "3MF diffing is not yet supported server-side",
-          };
-        }
-
         const { data: currentBlob, error: currentDownloadError } = await supabase.storage
           .from(BUCKET)
           .download(currentRow.file_path);
@@ -214,13 +207,6 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         let previousGeometry = currentGeoResult.data;
         let previousFormat = currentRow.file_format;
         if (previousRow) {
-          if (previousRow.file_format === "3mf") {
-            reply.code(422);
-            return {
-              success: false,
-              error: "3MF diffing is not yet supported server-side",
-            };
-          }
           const { data: prevBlob, error: prevDownloadError } = await supabase.storage
             .from(BUCKET)
             .download(previousRow.file_path);
@@ -410,6 +396,69 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         reply.code(502);
         return { success: false, error: "Failed to load version" };
       }
+    },
+  );
+
+  app.get<{ Params: { projectId: string } }>(
+    "/projects/:projectId/versions.zip",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Projects are not configured" };
+      }
+
+      if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+        reply.code(404);
+        return { success: false, error: "Project not found" };
+      }
+
+      const { data: rows, error } = await supabase
+        .from("versions")
+        .select("id, version_number, file_name, file_path")
+        .eq("project_id", projectId)
+        .order("version_number", { ascending: true });
+      if (error) {
+        app.log.error(error, "Failed to list versions for zip");
+        reply.code(502);
+        return { success: false, error: "Failed to build archive" };
+      }
+      const versionRows = (rows ?? []) as Array<{
+        id: string;
+        version_number: number;
+        file_name: string;
+        file_path: string;
+      }>;
+      if (versionRows.length === 0) {
+        reply.code(404);
+        return { success: false, error: "No versions to download" };
+      }
+
+      const archive = archiver("zip", { zlib: { level: 9 } });
+      reply.header("Content-Type", "application/zip");
+      reply.header("Content-Disposition", `attachment; filename="project-${projectId}-versions.zip"`);
+      reply.send(archive);
+
+      archive.on("error", (err) => {
+        app.log.error(err, "Archive stream error");
+      });
+
+      for (const version of versionRows) {
+        const { data: blob, error: downloadError } = await supabase.storage
+          .from(BUCKET)
+          .download(version.file_path);
+        if (downloadError || !blob) {
+          app.log.warn(downloadError, `Skipping version ${version.id} in zip — download failed`);
+          continue;
+        }
+        const buffer = Buffer.from(await blob.arrayBuffer());
+        archive.append(buffer, { name: `v${version.version_number}-${version.file_name}` });
+      }
+
+      await archive.finalize();
     },
   );
 }

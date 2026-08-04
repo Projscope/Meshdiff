@@ -5,9 +5,9 @@ import {
   getProject,
   listVersions,
   uploadVersion,
+  downloadAllVersionsZip,
   type VersionSummary,
 } from "../lib/projectsApi";
-import { API_BASE_URL } from "../lib/api";
 import PrintabilityBadge from "../components/PrintabilityBadge";
 
 const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
@@ -75,6 +75,12 @@ export default function ProjectDetailPage() {
     if (file) void handleFile(file);
   }
 
+  async function handleDownloadAll() {
+    if (!projectId) return;
+    const result = await downloadAllVersionsZip(projectId);
+    if (!result.success) setError(result.error);
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <Link to="/projects" className="text-xs text-neutral-500 hover:text-neutral-300">
@@ -140,12 +146,13 @@ export default function ProjectDetailPage() {
           Version History <span className="text-neutral-600">({versions.length})</span>
         </h2>
         {projectId && versions.length > 0 && (
-          <a
-            href={`${API_BASE_URL}/projects/${projectId}/versions.zip`}
+          <button
+            type="button"
+            onClick={handleDownloadAll}
             className="rounded border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 hover:border-neutral-500"
           >
             Download All (ZIP)
-          </a>
+          </button>
         )}
       </div>
 
