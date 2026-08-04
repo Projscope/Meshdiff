@@ -212,6 +212,9 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
   }));
 
+  // TODO: Move this to a Web Worker to avoid blocking the render thread during diff computation
+  // The voxelization, BVH building, and dilation are expensive operations that should run off-thread
+  // See CLAUDE.md "3D Performance Rules": "All heavy computation runs in Web Workers"
   const diff = useMemo(() => {
     if (!geometryA || !geometryB) return null;
     const result = computeVoxelDiff(geometryA, geometryB, { toleranceMm });
