@@ -1,15 +1,133 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import type { DragEvent } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
-import type * as THREE from "three";
+import * as THREE from "three";
 import { loadMeshGeometry } from "../engine/loadMesh";
+
+interface CameraSyncProps {
+  syncedCameraState: { position: [number, number, number]; target: [number, number, number] } | undefined;
+  onCameraChange: ((state: { position: [number, number, number]; target: [number, number, number] }) => void) | undefined;
+  isSyncEnabled: boolean;
+  zoomSpeed?: number;
+  rotateSpeed?: number;
+  onControlsReady?: (controls: any) => void;
+}
+
+function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled, zoomSpeed = 1, rotateSpeed = 1, onControlsReady }: CameraSyncProps) {
+  const { camera } = useThree();
+  const controlsRef = useRef<any>(null);
+  const readyRef = useRef(false);
+  const frameCountRef = useRef(0);
+  const lastPosRef = useRef(new THREE.Vector3());
+  const lastTargetRef = useRef(new THREE.Vector3());
+  const lastLocalPosRef = useRef(new THREE.Vector3());
+  const userInteractingRef = useRef(false);
+  const interactionCooldownRef = useRef(0);
+  const idleFramesRef = useRef(0);
+
+  useFrame(() => {
+    const controls = controlsRef.current;
+    if (!controls?.target) return;
+
+    // Set speeds every frame (safer than useEffect in R3F)
+    controls.zoomSpeed = zoomSpeed;
+    controls.rotateSpeed = rotateSpeed;
+
+    // Call onControlsReady once
+    if (!readyRef.current) {
+      readyRef.current = true;
+      lastPosRef.current.copy(camera.position);
+      lastTargetRef.current.copy(controls.target);
+      lastLocalPosRef.current.copy(camera.position);
+      onControlsReady?.(controls);
+    }
+
+    // Only do sync logic if sync is enabled
+    if (!isSyncEnabled) return;
+
+    frameCountRef.current++;
+
+    // Skip sync for first 60 frames (model loading phase to avoid shake)
+    const isLoading = frameCountRef.current < 60;
+
+    // Detect if user is actively rotating (not zooming)
+    // Zoom = distance from camera to target changed significantly
+    // Rotation = camera moved but distance to target stayed roughly same
+    const curDist = camera.position.distanceTo(controls.target);
+    const lastDist = lastLocalPosRef.current.distanceTo(controls.target);
+    const distanceChange = Math.abs(curDist - lastDist);
+    const positionMovement = camera.position.distanceTo(lastLocalPosRef.current);
+
+    // If distance changed a lot, it's zoom - don't block sync
+    // If position moved but distance didn't change much, it's rotation - block sync
+    if (positionMovement > 0.5 && distanceChange < 0.15) {
+      userInteractingRef.current = true;
+      interactionCooldownRef.current = 15;
+      idleFramesRef.current = 0;
+    }
+    if (interactionCooldownRef.current > 0) {
+      interactionCooldownRef.current--;
+    } else {
+      userInteractingRef.current = false;
+    }
+
+    // Track idle frames (no user interaction)
+    if (!userInteractingRef.current && positionMovement < 0.01) {
+      idleFramesRef.current++;
+    } else {
+      idleFramesRef.current = 0;
+    }
+    lastLocalPosRef.current.copy(camera.position);
+
+    // Broadcast local changes every frame
+    const curPos = camera.position;
+    const curTarget = controls.target;
+
+    const posChanged = !curPos.equals(lastPosRef.current);
+    const targetChanged = !curTarget.equals(lastTargetRef.current);
+
+    if (posChanged || targetChanged) {
+      lastPosRef.current.copy(curPos);
+      lastTargetRef.current.copy(curTarget);
+
+      onCameraChange?.({
+        position: curPos.toArray() as [number, number, number],
+        target: curTarget.toArray() as [number, number, number],
+      });
+    }
+
+    // Apply synced state: skip during loading, during rotation, and until truly idle (5+ idle frames)
+    if (syncedCameraState && !isLoading && !userInteractingRef.current && idleFramesRef.current >= 5 && frameCountRef.current % 2 === 0) {
+      camera.position.set(...syncedCameraState.position);
+      controls.target.set(...syncedCameraState.target);
+      controls.update();
+    }
+  });
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      makeDefault
+      enableZoom={true}
+      enablePan={true}
+      enableRotate={true}
+      autoRotate={false}
+    />
+  );
+}
 
 interface ViewerProps {
   label: string;
   onGeometryLoaded?: (geometry: THREE.BufferGeometry, file: File) => void;
   /** Bundled sample STL to offer as a one-click "or try a demo" option. */
   demoUrl?: string;
+  /** Shared camera state for synchronized rotation. */
+  syncedCameraState?: { position: [number, number, number]; target: [number, number, number] };
+  /** Callback when camera rotates (if sync is enabled). */
+  onCameraChange?: (state: { position: [number, number, number]; target: [number, number, number] }) => void;
+  /** Whether sync is currently enabled. */
+  isSyncEnabled?: boolean;
 }
 
 export interface ViewerHandle {
@@ -20,14 +138,18 @@ export interface ViewerHandle {
 }
 
 const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
-  { label, onGeometryLoaded, demoUrl },
+  { label, onGeometryLoaded, demoUrl, syncedCameraState, onCameraChange, isSyncEnabled = false },
   ref,
 ) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
+  const [zoomSpeed, setZoomSpeed] = useState(1);
+  const [rotateSpeed, setRotateSpeed] = useState(1);
+  const [showControls, setShowControls] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const orbitControlsRef = useRef<any>(null);
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -91,9 +213,59 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           event.target.value = "";
         }}
       />
-      <span className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        {label}
-      </span>
+      <div className="absolute left-3 top-2 z-10 flex items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+          {label}
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowControls(!showControls)}
+          className="rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+        >
+          ⚙
+        </button>
+      </div>
+      {showControls && geometry && (
+        <div className="absolute left-3 top-8 z-20 rounded border border-neutral-700 bg-neutral-900 p-2 text-xs text-neutral-300">
+          <div className="flex flex-col gap-1.5 w-32">
+            <label className="flex items-center justify-between gap-2">
+              <span>Rotate:</span>
+              <input
+                type="range"
+                min="0.1"
+                max="3"
+                step="0.1"
+                value={rotateSpeed}
+                onChange={(e) => setRotateSpeed(parseFloat(e.target.value))}
+                className="w-16 h-1"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-2">
+              <span>Zoom:</span>
+              <input
+                type="range"
+                min="0.1"
+                max="3"
+                step="0.1"
+                value={zoomSpeed}
+                onChange={(e) => setZoomSpeed(parseFloat(e.target.value))}
+                className="w-16 h-1"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                if (orbitControlsRef.current) {
+                  orbitControlsRef.current.reset();
+                }
+              }}
+              className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+            >
+              Reset view
+            </button>
+          </div>
+        </div>
+      )}
       {!geometry && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
           <span>{error ?? "Drop STL / OBJ / 3MF here"}</span>
@@ -135,7 +307,16 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             </mesh>
           </Bounds>
         )}
-        <OrbitControls makeDefault />
+        <CameraSync
+          syncedCameraState={syncedCameraState}
+          onCameraChange={onCameraChange}
+          isSyncEnabled={isSyncEnabled}
+          zoomSpeed={zoomSpeed}
+          rotateSpeed={rotateSpeed}
+          onControlsReady={(controls) => {
+            orbitControlsRef.current = controls;
+          }}
+        />
       </Canvas>
     </div>
   );

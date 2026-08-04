@@ -103,6 +103,21 @@ export default function App() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isRestoringShare, setIsRestoringShare] = useState(false);
+  const [syncedCameraState, setSyncedCameraState] = useState<{ position: [number, number, number]; target: [number, number, number] } | null>(null);
+  const [isSyncEnabled, setIsSyncEnabled] = useState(true);
+  const [selectedDemo, setSelectedDemo] = useState<"simple" | "bracket" | "gear">("simple");
+
+  const handleCameraChange = (state: { position: [number, number, number]; target: [number, number, number] }) => {
+    setSyncedCameraState(state);
+  };
+
+  const demoConfigs = {
+    simple: { a: "/demo/version-a.stl", b: "/demo/version-b.stl", label: "Simple Bracket" },
+    bracket: { a: "/demo/bracket-v1.stl", b: "/demo/bracket-v2.stl", label: "Complex Bracket" },
+    gear: { a: "/demo/gear-v1.stl", b: "/demo/gear-v2.stl", label: "Gear Assembly" },
+  };
+
+  const currentDemo = demoConfigs[selectedDemo];
 
   useEffect(() => {
     const shareId = new URLSearchParams(window.location.search).get("share");
@@ -300,6 +315,15 @@ export default function App() {
           >
             + Version B
           </button>
+          <select
+            value={selectedDemo}
+            onChange={(e) => setSelectedDemo(e.target.value as "simple" | "bracket" | "gear")}
+            className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+          >
+            <option value="simple">Simple Bracket</option>
+            <option value="bracket">Complex Bracket</option>
+            <option value="gear">Gear Assembly</option>
+          </select>
           <button
             type="button"
             onClick={() => {
@@ -308,8 +332,17 @@ export default function App() {
             }}
             className="rounded border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-blue-300 hover:border-blue-400"
           >
-            Demo
+            Load Demo
           </button>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isSyncEnabled}
+              onChange={(e) => setIsSyncEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-neutral-700 bg-neutral-950 accent-emerald-500"
+            />
+            <span className="text-xs text-neutral-300">Locked views</span>
+          </label>
           <span className="text-neutral-500">
             STL · 3MF · OBJ — parsed locally, in-browser
           </span>
@@ -325,7 +358,10 @@ export default function App() {
               setGeometryA(geometry);
               setFileA(file);
             }}
-            demoUrl="/demo/version-a.stl"
+            demoUrl={currentDemo.a}
+            syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
+            onCameraChange={handleCameraChange}
+            isSyncEnabled={isSyncEnabled}
           />
           <Viewer
             ref={viewerBRef}
@@ -334,7 +370,10 @@ export default function App() {
               setGeometryB(geometry);
               setFileB(file);
             }}
-            demoUrl="/demo/version-b.stl"
+            demoUrl={currentDemo.b}
+            syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
+            onCameraChange={handleCameraChange}
+            isSyncEnabled={isSyncEnabled}
           />
         </div>
         <div className="h-1/2 min-h-0">
@@ -347,6 +386,9 @@ export default function App() {
             onModeChange={setMode}
             toleranceMm={toleranceMm}
             onToleranceChange={setToleranceMm}
+            syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
+            onCameraChange={handleCameraChange}
+            isSyncEnabled={isSyncEnabled}
           />
         </div>
 
