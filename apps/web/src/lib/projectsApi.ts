@@ -164,6 +164,29 @@ export async function downloadAllVersionsZip(projectId: string): Promise<Result<
   }
 }
 
+/** Downloads a single version's file (distinct from downloadAllVersionsZip, which bundles every version). */
+export async function downloadVersionFile(projectId: string, versionId: string): Promise<Result<true>> {
+  const result = await getVersion(projectId, versionId);
+  if (!result.success) return result;
+
+  try {
+    const response = await fetch(result.data.downloadUrl);
+    if (!response.ok) {
+      return { success: false, error: `Download failed (${response.status})` };
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = result.data.fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+    return { success: true, data: true };
+  } catch {
+    return { success: false, error: "Download failed, please try again" };
+  }
+}
+
 /** Orchestrates the 3-step upload flow: allocate -> PUT bytes -> finalize (diff + summary). */
 export async function uploadVersion(
   projectId: string,

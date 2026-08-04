@@ -6,9 +6,11 @@ import {
   listVersions,
   uploadVersion,
   downloadAllVersionsZip,
+  downloadVersionFile,
   type VersionSummary,
 } from "../lib/projectsApi";
 import PrintabilityBadge from "../components/PrintabilityBadge";
+import ApprovalBadge from "../components/ApprovalBadge";
 
 const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
 const MAX_FILE_BYTES = 200 * 1024 * 1024;
@@ -78,6 +80,12 @@ export default function ProjectDetailPage() {
   async function handleDownloadAll() {
     if (!projectId) return;
     const result = await downloadAllVersionsZip(projectId);
+    if (!result.success) setError(result.error);
+  }
+
+  async function handleDownloadVersion(versionId: string) {
+    if (!projectId) return;
+    const result = await downloadVersionFile(projectId, versionId);
     if (!result.success) setError(result.error);
   }
 
@@ -179,14 +187,28 @@ export default function ProjectDetailPage() {
               )}
               <div className="mt-1.5 flex items-center gap-2 text-[11px] text-neutral-500">
                 <PrintabilityBadge status={version.printabilityStatus} />
-                <span className="rounded border border-neutral-700 px-1.5 py-0.5 capitalize">
-                  {version.approvalStatus}
-                </span>
+                <ApprovalBadge status={version.approvalStatus} />
                 <span>{version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}</span>
                 <span>{formatDate(version.createdAt)}</span>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs">
+              {version.versionNumber > 1 && (
+                <Link
+                  to={`/projects/${projectId}/versions/${version.id}/compare`}
+                  className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500"
+                >
+                  Compare
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleDownloadVersion(version.id)}
+                title="Download this version"
+                className="rounded border border-neutral-700 px-2 py-1.5 text-neutral-200 hover:border-neutral-500"
+              >
+                ↓
+              </button>
               <Link
                 to={`/projects/${projectId}/versions/${version.id}`}
                 className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500"

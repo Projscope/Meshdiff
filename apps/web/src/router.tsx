@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import ProjectsListPage from "./pages/ProjectsListPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import VersionDetailPage from "./pages/VersionDetailPage";
+import CompareVersionsPage from "./pages/CompareVersionsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
 
@@ -43,6 +44,16 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <ProjectsLayout>
           <VersionDetailPage />
+        </ProjectsLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/projects/:projectId/versions/:versionId/compare",
+    element: (
+      <ProtectedRoute>
+        <ProjectsLayout>
+          <CompareVersionsPage />
         </ProjectsLayout>
       </ProtectedRoute>
     ),
