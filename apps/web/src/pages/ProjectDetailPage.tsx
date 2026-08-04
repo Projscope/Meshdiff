@@ -7,6 +7,7 @@ import {
   uploadVersion,
   downloadAllVersionsZip,
   downloadVersionFile,
+  deleteVersion,
   type VersionSummary,
 } from "../lib/projectsApi";
 import PrintabilityBadge from "../components/PrintabilityBadge";
@@ -87,6 +88,17 @@ export default function ProjectDetailPage() {
     if (!projectId) return;
     const result = await downloadVersionFile(projectId, versionId);
     if (!result.success) setError(result.error);
+  }
+
+  async function handleDeleteVersion(versionId: string, versionNumber: number) {
+    if (!projectId) return;
+    if (!window.confirm(`Delete v${versionNumber}? This can't be undone.`)) return;
+    const result = await deleteVersion(projectId, versionId);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    await refresh();
   }
 
   return (
@@ -170,13 +182,16 @@ export default function ProjectDetailPage() {
             No versions yet — upload a file above to get started.
           </div>
         )}
-        {versions.map((version) => (
+        {versions.map((version, index) => (
           <div
             key={version.id}
             className="flex items-center gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-4"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-neutral-800 text-xs font-semibold text-neutral-300">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded bg-neutral-800 text-xs font-semibold text-neutral-300">
               v{version.versionNumber}
+              {index < versions.length - 1 && (
+                <div className="absolute left-1/2 top-full h-2 w-px -translate-x-1/2 bg-neutral-700" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-white">
@@ -205,9 +220,22 @@ export default function ProjectDetailPage() {
                 type="button"
                 onClick={() => void handleDownloadVersion(version.id)}
                 title="Download this version"
-                className="rounded border border-neutral-700 px-2 py-1.5 text-neutral-200 hover:border-neutral-500"
+                className="rounded border border-neutral-700 p-1.5 text-neutral-200 hover:border-neutral-500"
               >
-                ↓
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
               </button>
               <Link
                 to={`/projects/${projectId}/versions/${version.id}`}
@@ -215,6 +243,28 @@ export default function ProjectDetailPage() {
               >
                 View
               </Link>
+              <button
+                type="button"
+                onClick={() => void handleDeleteVersion(version.id, version.versionNumber)}
+                title="Delete this version"
+                className="rounded border border-neutral-700 p-1.5 text-neutral-400 hover:border-red-700 hover:text-red-400"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </button>
             </div>
           </div>
         ))}

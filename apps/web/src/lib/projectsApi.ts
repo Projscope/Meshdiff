@@ -89,6 +89,10 @@ export function getDiff(versionAId: string, versionBId: string): Promise<Result<
   return request(`/diff/${versionAId}/${versionBId}`);
 }
 
+export function deleteVersion(projectId: string, versionId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}/versions/${versionId}`, { method: "DELETE" });
+}
+
 export function createVersion(
   projectId: string,
   file: File,

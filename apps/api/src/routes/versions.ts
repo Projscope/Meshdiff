@@ -399,6 +399,68 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     },
   );
 
+  app.delete<{ Params: { projectId: string; versionId: string } }>(
+    "/projects/:projectId/versions/:versionId",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Projects are not configured" };
+      }
+
+      try {
+        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+
+        const { data: row, error: lookupError } = await supabase
+          .from("versions")
+          .select("file_path")
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .maybeSingle();
+        if (lookupError) {
+          app.log.error(lookupError, "Failed to look up version for delete");
+          reply.code(502);
+          return { success: false, error: "Failed to delete version" };
+        }
+        if (!row) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+
+        // comments and version_diffs cascade via FK; only the storage
+        // object needs explicit cleanup.
+        const { error: deleteError } = await supabase
+          .from("versions")
+          .delete()
+          .eq("id", versionId);
+        if (deleteError) {
+          app.log.error(deleteError, "Failed to delete version");
+          reply.code(502);
+          return { success: false, error: "Failed to delete version" };
+        }
+
+        const { error: storageError } = await supabase.storage
+          .from(BUCKET)
+          .remove([(row as { file_path: string }).file_path]);
+        if (storageError) {
+          app.log.warn(storageError, "Failed to remove version file from storage");
+        }
+
+        return { success: true, data: true };
+      } catch (err) {
+        app.log.error(err, "Version delete threw");
+        reply.code(502);
+        return { success: false, error: "Failed to delete version" };
+      }
+    },
+  );
+
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/versions.zip",
     { preHandler: requireAuth },
