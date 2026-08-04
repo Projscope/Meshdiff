@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { APP_VERSION } from "../lib/version";
 
 export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -32,7 +33,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="border-t border-neutral-800 px-4 py-3 text-[11px] text-neutral-600">
-          FDM Print Pipeline · v0.1
+          v{APP_VERSION}
         </div>
       </aside>
 

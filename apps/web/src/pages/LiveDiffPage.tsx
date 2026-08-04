@@ -9,8 +9,7 @@ import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
-
-const APP_VERSION = "0.1.4";
+import { APP_VERSION } from "../lib/version";
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
 
