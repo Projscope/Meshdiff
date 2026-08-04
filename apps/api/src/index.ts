@@ -5,6 +5,8 @@ import healthRoute from "./routes/health.js";
 import diffRoute from "./routes/diff.js";
 import waitlistRoute from "./routes/waitlist.js";
 import shareRoute from "./routes/share.js";
+import projectsRoute from "./routes/projects.js";
+import versionsRoute from "./routes/versions.js";
 
 const app = Fastify({ logger: true });
 
@@ -13,6 +15,8 @@ app.register(healthRoute);
 app.register(diffRoute);
 app.register(waitlistRoute);
 app.register(shareRoute);
+app.register(projectsRoute);
+app.register(versionsRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

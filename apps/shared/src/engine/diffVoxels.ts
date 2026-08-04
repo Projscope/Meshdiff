@@ -44,6 +44,9 @@ export interface VoxelDiffStats {
   // Printability assessment
   printabilityStatus: "pass" | "warn" | "fail";
   printabilityIssues: string[];
+  // Source file formats, when known (set via options.fileFormatA/B — not derivable from geometry alone)
+  fileFormatA?: string;
+  fileFormatB?: string;
 }
 
 export interface VoxelDiffResult {
@@ -268,6 +271,8 @@ export function computeVoxelDiff(
     targetVoxelsPerAxis?: number;
     /** Deviations within this distance of the other mesh don't count as added/removed. */
     toleranceMm?: number;
+    fileFormatA?: string;
+    fileFormatB?: string;
   },
 ): Result<VoxelDiffResult> {
   geometryA.computeBoundingBox();
@@ -434,6 +439,8 @@ export function computeVoxelDiff(
         overhangAreaPercent,
         printabilityStatus: printability.status,
         printabilityIssues: printability.issues,
+        fileFormatA: options?.fileFormatA,
+        fileFormatB: options?.fileFormatB,
       },
     },
   };

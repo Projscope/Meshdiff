@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase } from "../lib/supabase.js";
+import { sanitizeFilename, extensionOf } from "../lib/filename.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -20,18 +21,6 @@ interface CreateShareBody {
   fileB?: FileMeta;
 }
 
-function sanitizeFilename(name: string): string {
-  const extension = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
-  const base = name.slice(0, name.length - extension.length);
-  const safeBase = base.replace(/[^a-zA-Z0-9-]/g, "-").slice(0, 100) || "file";
-  const safeExtension = extension.replace(/[^a-zA-Z0-9.]/g, "");
-  return `${safeBase}${safeExtension}`;
-}
-
-function extensionOf(name: string): string {
-  return name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
-}
-
 function validateFile(file: FileMeta | undefined, label: string): string | null {
   if (!file || !file.name || typeof file.size !== "number") {
     return `${label} is required`;
@@ -43,13 +32,6 @@ function validateFile(file: FileMeta | undefined, label: string): string | null 
     return `${label} must be under 50MB`;
   }
   return null;
-}
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key);
 }
 
 export default async function shareRoute(app: FastifyInstance): Promise<void> {
