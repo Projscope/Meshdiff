@@ -7,6 +7,7 @@ import waitlistRoute from "./routes/waitlist.js";
 import shareRoute from "./routes/share.js";
 import projectsRoute from "./routes/projects.js";
 import versionsRoute from "./routes/versions.js";
+import commentsRoute from "./routes/comments.js";
 
 const app = Fastify({ logger: true });
 
@@ -17,6 +18,7 @@ app.register(waitlistRoute);
 app.register(shareRoute);
 app.register(projectsRoute);
 app.register(versionsRoute);
+app.register(commentsRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

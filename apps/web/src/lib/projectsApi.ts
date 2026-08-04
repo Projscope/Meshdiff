@@ -30,6 +30,14 @@ export interface VersionDetail extends VersionSummary {
   previousVersionId: string | null;
 }
 
+export interface CommentSummary {
+  id: string;
+  body: string;
+  position: [number, number, number];
+  normal: [number, number, number] | null;
+  createdAt: string;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> {
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -101,6 +109,23 @@ export function finalizeVersion(
   versionId: string,
 ): Promise<Result<{ versionId: string; triangleCount: number; changeSummary: string; printabilityStatus: string }>> {
   return request(`/projects/${projectId}/versions/${versionId}/finalize`, { method: "POST" });
+}
+
+export function listComments(projectId: string, versionId: string): Promise<Result<CommentSummary[]>> {
+  return request(`/projects/${projectId}/versions/${versionId}/comments`);
+}
+
+export function createComment(
+  projectId: string,
+  versionId: string,
+  body: string,
+  position: [number, number, number],
+  normal?: [number, number, number],
+): Promise<Result<CommentSummary>> {
+  return request(`/projects/${projectId}/versions/${versionId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ body, position, normal }),
+  });
 }
 
 /** Orchestrates the 3-step upload flow: allocate -> PUT bytes -> finalize (diff + summary). */
