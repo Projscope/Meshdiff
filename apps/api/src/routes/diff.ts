@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { GeometricDeltaReport, Result } from "../../../../src/types/diff.js";
+import type { GeometricDeltaReport, Result } from "@meshdiff/shared/types/diff.js";
 
 export default async function diffRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { versionAId: string; versionBId: string } }>(

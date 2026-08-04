@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import type { VoxelDiffStats } from "./engine/diffVoxels";
+import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "./components/Viewer";
 import DiffView, { type DiffViewHandle, type DiffMode } from "./components/DiffView";
 import WaitlistForm from "./components/WaitlistForm";

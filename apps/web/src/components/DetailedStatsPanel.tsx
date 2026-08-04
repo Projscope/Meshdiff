@@ -1,4 +1,4 @@
-import type { VoxelDiffStats } from "../engine/diffVoxels";
+import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 
 interface DetailedStatsPanelProps {
   stats: VoxelDiffStats & { toleranceMm: number };

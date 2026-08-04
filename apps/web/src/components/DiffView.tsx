@@ -16,7 +16,7 @@ import {
   VOXEL_UNCHANGED,
   type VoxelDiffResult,
   type VoxelDiffStats,
-} from "../engine/diffVoxels";
+} from "@meshdiff/shared/engine/diffVoxels";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 
 export type DiffMode = "voxel" | "surface";

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { MeshBVH } from "three-mesh-bvh";
-import type { Result } from "@meshdiff/shared/types/diff";
+import type { Result } from "../types/diff.js";
 
 export interface VoxelGrid {
   resolutionMm: number;

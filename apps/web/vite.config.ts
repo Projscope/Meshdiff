@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@meshdiff/shared": path.resolve(import.meta.dirname, "../../src"),
+      "@meshdiff/shared": path.resolve(import.meta.dirname, "../shared/src"),
     },
   },
   server: {

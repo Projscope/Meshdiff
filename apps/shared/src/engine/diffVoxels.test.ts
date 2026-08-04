@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { computeVoxelDiff } from "./diffVoxels";
-import { countOccupied, voxelizeGeometry } from "./voxelize";
+import { computeVoxelDiff } from "./diffVoxels.js";
+import { countOccupied, voxelizeGeometry } from "./voxelize.js";
 
 describe("computeVoxelDiff", () => {
   it("reports zero added/removed for two identical meshes", () => {

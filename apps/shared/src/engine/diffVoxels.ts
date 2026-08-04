@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { Result } from "@meshdiff/shared/types/diff";
-import { voxelizeGeometryIntoGrid } from "./voxelize";
+import type { Result } from "../types/diff.js";
+import { voxelizeGeometryIntoGrid } from "./voxelize.js";
 
 export const VOXEL_EMPTY = 0;
 export const VOXEL_UNCHANGED = 1;
