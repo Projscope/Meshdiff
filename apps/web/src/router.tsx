@@ -5,11 +5,13 @@ import ProjectsListPage from "./pages/ProjectsListPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import VersionDetailPage from "./pages/VersionDetailPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProjectsLayout from "./components/ProjectsLayout";
 
 /**
  * Live Diff stays the unauthenticated entry point (Free tier's only
  * no-signup path — see plan). Projects routes require a Supabase Auth
- * session (see project memory "auth_provider_supabase_not_clerk").
+ * session (see project memory "auth_provider_supabase_not_clerk") and
+ * share the sidebar shell (logo/nav/footer) from ProjectsLayout.
  */
 export const router = createBrowserRouter([
   { path: "/", element: <LiveDiffPage /> },
@@ -19,7 +21,9 @@ export const router = createBrowserRouter([
     path: "/projects",
     element: (
       <ProtectedRoute>
-        <ProjectsListPage />
+        <ProjectsLayout>
+          <ProjectsListPage />
+        </ProjectsLayout>
       </ProtectedRoute>
     ),
   },
@@ -27,7 +31,9 @@ export const router = createBrowserRouter([
     path: "/projects/:projectId",
     element: (
       <ProtectedRoute>
-        <ProjectDetailPage />
+        <ProjectsLayout>
+          <ProjectDetailPage />
+        </ProjectsLayout>
       </ProtectedRoute>
     ),
   },
@@ -35,7 +41,9 @@ export const router = createBrowserRouter([
     path: "/projects/:projectId/versions/:versionId",
     element: (
       <ProtectedRoute>
-        <VersionDetailPage />
+        <ProjectsLayout>
+          <VersionDetailPage />
+        </ProjectsLayout>
       </ProtectedRoute>
     ),
   },

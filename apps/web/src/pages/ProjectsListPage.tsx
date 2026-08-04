@@ -113,17 +113,17 @@ export default function ProjectsListPage() {
           {user && <span className="text-xs text-neutral-500">{user.email}</span>}
           <button
             type="button"
-            onClick={handleSignOut}
-            className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-neutral-500"
-          >
-            Sign Out
-          </button>
-          <button
-            type="button"
             onClick={() => setIsModalOpen(true)}
             className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
           >
             + New Project
+          </button>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-neutral-500"
+          >
+            Sign Out
           </button>
         </div>
       </div>
