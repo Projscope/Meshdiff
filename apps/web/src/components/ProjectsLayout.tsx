@@ -13,7 +13,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             ◈
           </div>
           <div>
-            <div className="text-sm font-bold text-white">PartTree</div>
+            <div className="text-sm font-bold text-white">MeshDiff</div>
             <div className="text-[11px] text-neutral-500">3D Diff &amp; Review</div>
           </div>
         </div>
