@@ -375,9 +375,24 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "This version's file is unavailable" };
         }
 
+        let previousVersionId: string | null = null;
+        if (versionRow.version_number > 1) {
+          const { data: prev } = await supabase
+            .from("versions")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("version_number", versionRow.version_number - 1)
+            .maybeSingle();
+          previousVersionId = (prev as { id: string } | null)?.id ?? null;
+        }
+
         return {
           success: true,
-          data: { ...toVersionSummary(versionRow), downloadUrl: download.signedUrl },
+          data: {
+            ...toVersionSummary(versionRow),
+            downloadUrl: download.signedUrl,
+            previousVersionId,
+          },
         };
       } catch (err) {
         app.log.error(err, "Version lookup threw");

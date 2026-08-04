@@ -3,14 +3,19 @@ import { Link, useParams } from "react-router-dom";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
-import { getVersion, type VersionDetail } from "../lib/projectsApi";
+import { getVersion, getDiff, type VersionDetail } from "../lib/projectsApi";
+import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import PrintabilityBadge from "../components/PrintabilityBadge";
+import DetailedStatsPanel from "../components/DetailedStatsPanel";
 
 export default function VersionDetailPage() {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
   const [version, setVersion] = useState<VersionDetail | null>(null);
+  const [diffStats, setDiffStats] = useState<VoxelDiffStats | null>(null);
+  const [hasComparison, setHasComparison] = useState(false);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [boundingBox, setBoundingBox] = useState<[number, number, number]>([0, 0, 0]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,12 +30,28 @@ export default function VersionDetailPage() {
       }
       setVersion(result.data);
 
+      // No previous version (v1): self-diff still yields real per-mesh
+      // Version Stats/Printability values for the "B" side (same trick
+      // finalize uses server-side) — just don't treat the zeroed-out
+      // deltas as a real comparison for the Geometric Delta section.
+      const versionAId = result.data.previousVersionId ?? versionId;
+      setHasComparison(result.data.previousVersionId !== null);
+      getDiff(versionAId, versionId).then((diffResult) => {
+        if (!cancelled && diffResult.success) setDiffStats(diffResult.data);
+      });
+
       const response = await fetch(result.data.downloadUrl);
       const blob = await response.blob();
       const meshResult = await loadMeshGeometry(new File([blob], result.data.fileName));
       if (cancelled) return;
       if (meshResult.success) {
         setGeometry(meshResult.data);
+        meshResult.data.computeBoundingBox();
+        const box = meshResult.data.boundingBox;
+        if (box) {
+          const size = box.getSize(new THREE.Vector3());
+          setBoundingBox([size.x, size.y, size.z]);
+        }
       } else {
         setError(meshResult.error);
       }
@@ -60,10 +81,7 @@ export default function VersionDetailPage() {
       </div>
 
       <div className="w-80 shrink-0 overflow-y-auto">
-        <Link
-          to={`/projects/${projectId}`}
-          className="text-xs text-neutral-500 hover:text-neutral-300"
-        >
+        <Link to={`/projects/${projectId}`} className="text-xs text-neutral-500 hover:text-neutral-300">
           ← {version ? "Back to project" : "Back"}
         </Link>
 
@@ -92,28 +110,18 @@ export default function VersionDetailPage() {
             </div>
 
             <div className="mt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Version Stats
-              </h3>
-              <div className="mt-1.5 space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Triangles</span>
-                  <span className="text-neutral-200">{version.triangleCount ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">File Format</span>
-                  <span className="text-neutral-200">{version.fileFormat.toUpperCase()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
                 Printability Gate
               </h3>
-              <div className="mt-1.5">
-                <PrintabilityBadge status={version.printabilityStatus} />
-              </div>
+              <PrintabilityBadge status={version.printabilityStatus} />
+            </div>
+
+            <div className="mt-5">
+              <DetailedStatsPanel
+                stats={diffStats}
+                hasComparison={hasComparison}
+                boundingBoxB={boundingBox}
+              />
             </div>
           </>
         )}

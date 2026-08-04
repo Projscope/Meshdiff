@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./api";
+import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 
 export type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -26,6 +27,7 @@ export interface VersionSummary {
 
 export interface VersionDetail extends VersionSummary {
   downloadUrl: string;
+  previousVersionId: string | null;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> {
@@ -62,6 +64,10 @@ export function listVersions(projectId: string): Promise<Result<VersionSummary[]
 
 export function getVersion(projectId: string, versionId: string): Promise<Result<VersionDetail>> {
   return request(`/projects/${projectId}/versions/${versionId}`);
+}
+
+export function getDiff(versionAId: string, versionBId: string): Promise<Result<VoxelDiffStats>> {
+  return request(`/diff/${versionAId}/${versionBId}`);
 }
 
 export function createVersion(

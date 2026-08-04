@@ -109,10 +109,7 @@ export default function LiveDiffPage() {
   const [selectedDemo, setSelectedDemo] = useState<"simple" | "bracket" | "gear">("simple");
   const [sameFileWarning, setSameFileWarning] = useState<string | null>(null);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
-  const [boundingBoxA, setBoundingBoxA] = useState<[number, number, number]>([0, 0, 0]);
   const [boundingBoxB, setBoundingBoxB] = useState<[number, number, number]>([0, 0, 0]);
-  const [volumeA, setVolumeA] = useState(0);
-  const [volumeB, setVolumeB] = useState(0);
 
   useEffect(() => {
     if (fileA && fileB && fileA.name === fileB.name && fileA.size === fileB.size) {
@@ -377,17 +374,6 @@ export default function LiveDiffPage() {
             onGeometryLoaded={(geometry, file) => {
               setGeometryA(geometry);
               setFileA(file);
-              geometry.computeBoundingBox();
-              const box = geometry.boundingBox;
-              if (box) {
-                const size = box.getSize(new THREE.Vector3());
-                setBoundingBoxA([size.x, size.y, size.z]);
-                const index = geometry.getIndex();
-                const posAttr = geometry.getAttribute("position");
-                if (index && posAttr) {
-                  setVolumeA(index.count / 3);
-                }
-              }
             }}
             demoUrl={currentDemo.a}
             syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
@@ -405,11 +391,6 @@ export default function LiveDiffPage() {
               if (box) {
                 const size = box.getSize(new THREE.Vector3());
                 setBoundingBoxB([size.x, size.y, size.z]);
-                const index = geometry.getIndex();
-                const posAttr = geometry.getAttribute("position");
-                if (index && posAttr) {
-                  setVolumeB(index.count / 3);
-                }
               }
             }}
             demoUrl={currentDemo.b}
@@ -487,13 +468,7 @@ export default function LiveDiffPage() {
 
         {showDetailedStats && stats && (
           <div className="rounded border border-neutral-800 bg-neutral-900 p-3">
-            <DetailedStatsPanel
-              stats={stats}
-              volumeA={volumeA}
-              volumeB={volumeB}
-              boundingBoxA={boundingBoxA}
-              boundingBoxB={boundingBoxB}
-            />
+            <DetailedStatsPanel stats={stats} hasComparison boundingBoxB={boundingBoxB} />
           </div>
         )}
 
