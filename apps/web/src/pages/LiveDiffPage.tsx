@@ -9,6 +9,7 @@ import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import FaqAccordion from "../components/FaqAccordion";
+import HeroModelPreview from "../components/HeroModelPreview";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { APP_VERSION } from "../lib/version";
 
@@ -328,8 +329,9 @@ export default function LiveDiffPage() {
             </span>
           </div>
           <div className="flex">
-            <div className="flex h-40 flex-1 items-center justify-center text-neutral-700">
-              <span className="text-2xl">⬚</span>
+            <div className="grid h-40 flex-1 grid-cols-2 divide-x divide-neutral-800">
+              <HeroModelPreview url="/demo/bracket-v1.stl" color="#4f8ff7" />
+              <HeroModelPreview url="/demo/bracket-v2.stl" color="#4f8ff7" />
             </div>
             <div className="w-32 shrink-0 border-l border-neutral-800 p-2 text-[10px]">
               <div className="flex items-center justify-between text-neutral-500">
