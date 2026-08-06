@@ -3,7 +3,7 @@ import { WAITLIST_ENDPOINT } from "../lib/api";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
-export default function WaitlistForm() {
+function useWaitlistSubmit() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,6 +32,12 @@ export default function WaitlistForm() {
     }
   }
 
+  return { email, setEmail, status, errorMessage, handleSubmit };
+}
+
+export default function WaitlistForm() {
+  const { email, setEmail, status, errorMessage, handleSubmit } = useWaitlistSubmit();
+
   if (status === "success") {
     return (
       <p className="text-sm text-emerald-400">
@@ -41,22 +47,59 @@ export default function WaitlistForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <input
         type="email"
         required
-        placeholder="you@company.com"
+        placeholder="you@studio.com"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
-        className="w-full rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+        className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm text-neutral-100 placeholder:text-neutral-600"
       />
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="w-full rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
+        className="w-full rounded-full bg-emerald-400 px-4 py-3 text-sm font-bold text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
       >
-        {status === "submitting" ? "Submitting…" : "Get Early Access — 50% Off"}
+        {status === "submitting" ? "Submitting…" : "Get Early Access"}
       </button>
+      {status === "error" && errorMessage && (
+        <span className="text-xs text-red-400">{errorMessage}</span>
+      )}
+    </form>
+  );
+}
+
+export function CompactWaitlistForm() {
+  const { email, setEmail, status, errorMessage, handleSubmit } = useWaitlistSubmit();
+
+  if (status === "success") {
+    return (
+      <p className="text-sm text-emerald-400">
+        You&apos;re on the list — we&apos;ll let you know when it ships.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col items-center gap-2">
+      <div className="flex w-full max-w-sm gap-2">
+        <input
+          type="email"
+          required
+          placeholder="you@studio.com"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="min-w-0 flex-1 rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+        />
+        <button
+          type="submit"
+          disabled={status === "submitting"}
+          className="shrink-0 rounded-full bg-emerald-400 px-4 py-2 text-sm font-bold text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
+        >
+          {status === "submitting" ? "…" : "Notify me"}
+        </button>
+      </div>
       {status === "error" && errorMessage && (
         <span className="text-xs text-red-400">{errorMessage}</span>
       )}

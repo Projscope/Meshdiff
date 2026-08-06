@@ -8,6 +8,7 @@ import VersionDetailPage from "./pages/VersionDetailPage";
 import CompareVersionsPage from "./pages/CompareVersionsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
+import RootLayout from "./components/RootLayout";
 
 /**
  * The landing page (marketing) and the actual interactive diff tool are
@@ -16,50 +17,57 @@ import ProjectsLayout from "./components/ProjectsLayout";
  * from the landing page rather than embedded inline. Projects routes
  * require a Supabase Auth session (see project memory
  * "auth_provider_supabase_not_clerk") and share the sidebar shell
- * (logo/nav/footer) from ProjectsLayout.
+ * (logo/nav) from ProjectsLayout. Every route is nested under RootLayout
+ * so the site-wide footer (SiteFooter) renders on every page, present
+ * and future, without each page having to include it itself.
  */
 export const router = createBrowserRouter([
-  { path: "/", element: <LandingPage /> },
-  { path: "/live", element: <LiveDiffToolPage /> },
-  { path: "/login", element: <LoginPage /> },
   {
-    path: "/projects",
-    element: (
-      <ProtectedRoute>
-        <ProjectsLayout>
-          <ProjectsListPage />
-        </ProjectsLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/projects/:projectId",
-    element: (
-      <ProtectedRoute>
-        <ProjectsLayout>
-          <ProjectDetailPage />
-        </ProjectsLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/projects/:projectId/versions/:versionId",
-    element: (
-      <ProtectedRoute>
-        <ProjectsLayout>
-          <VersionDetailPage />
-        </ProjectsLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/projects/:projectId/versions/:versionId/compare",
-    element: (
-      <ProtectedRoute>
-        <ProjectsLayout>
-          <CompareVersionsPage />
-        </ProjectsLayout>
-      </ProtectedRoute>
-    ),
+    element: <RootLayout />,
+    children: [
+      { path: "/", element: <LandingPage /> },
+      { path: "/live", element: <LiveDiffToolPage /> },
+      { path: "/login", element: <LoginPage /> },
+      {
+        path: "/projects",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <ProjectsListPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/projects/:projectId",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <ProjectDetailPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/projects/:projectId/versions/:versionId",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <VersionDetailPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/projects/:projectId/versions/:versionId/compare",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <CompareVersionsPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+    ],
   },
 ]);

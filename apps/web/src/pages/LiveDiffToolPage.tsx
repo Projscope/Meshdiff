@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import * as THREE from "three";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
@@ -214,13 +213,45 @@ export default function LiveDiffToolPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-100">
-      <header className="flex items-center justify-between border-b border-neutral-800 px-4 py-2 text-xs">
-        <Link to="/" className="flex items-center gap-1.5 text-neutral-400 hover:text-white">
-          ← Meshdiff
-        </Link>
-        <span className="text-neutral-600">Community diff tool — free, runs in your browser</span>
-      </header>
+    <div className="flex h-screen flex-col overflow-hidden bg-neutral-950 text-neutral-100">
+      <div className="border-b border-neutral-800 px-4 py-1.5 text-center text-xs text-neutral-600">
+        Community diff tool — free, runs in your browser
+      </div>
+
+      <section className="border-b border-neutral-800 px-6 py-6">
+        <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
+          How it works
+        </span>
+        <h3 className="mt-1 text-center text-lg font-semibold text-white">
+          From two files to a shared review in seconds
+        </h3>
+        <div className="mx-auto mt-4 grid max-w-4xl gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+            <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">01</div>
+            <h4 className="mt-1.5 text-xs font-semibold text-white">Drop two models</h4>
+            <p className="mt-1 text-[11px] text-neutral-400">
+              Drag-and-drop a new version — STL, 3MF, or OBJ — and Meshdiff
+              instantly formats both meshes for review.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+            <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">02</div>
+            <h4 className="mt-1.5 text-xs font-semibold text-white">Auto-align &amp; voxel diff</h4>
+            <p className="mt-1 text-[11px] text-neutral-400">
+              Meshdiff voxelizes both meshes — added geometry turns green,
+              removed turns red. Tune the tolerance to taste.
+            </p>
+          </div>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+            <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">03</div>
+            <h4 className="mt-1.5 text-xs font-semibold text-white">Read &amp; share</h4>
+            <p className="mt-1 text-[11px] text-neutral-400">
+              See exact voxel counts and volume delta, then share a
+              self-explaining link so anyone can spot the diff.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {isRestoringShare && (
         <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-400">
@@ -280,13 +311,20 @@ export default function LiveDiffToolPage() {
         </div>
       </div>
 
-      <section className="flex flex-1 flex-col gap-2 p-2">
+      <div className="border-b border-emerald-500/20 bg-emerald-500/5 px-4 py-1.5 text-center text-[11px]">
+        <span className="font-medium text-emerald-300">🔒 Diffing runs entirely client-side.</span>{" "}
+        <span className="text-emerald-300/60">
+          Nothing you drop here is uploaded unless you explicitly create a share link — that's the only action that sends your files anywhere.
+        </span>
+      </div>
+
+      <section className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
         {sameFileWarning && (
           <div className="rounded border border-amber-800 bg-amber-950/50 px-3 py-2 text-sm text-amber-300">
             ⚠ {sameFileWarning}
           </div>
         )}
-        <div className="grid h-1/2 grid-cols-2 gap-2">
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
           <Viewer
             ref={viewerARef}
             label="Version A"
@@ -318,7 +356,7 @@ export default function LiveDiffToolPage() {
             isSyncEnabled={isSyncEnabled}
           />
         </div>
-        <div className="h-1/2 min-h-0">
+        <div className="min-h-0 flex-1">
           <DiffView
             ref={diffViewRef}
             geometryA={geometryA}
