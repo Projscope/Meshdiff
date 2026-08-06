@@ -1,0 +1,53 @@
+# Version B of multi-group-test.obj, for diffing against it in the Live Diff tool.
+# CubeA: unchanged.
+# CubeB: grown taller (z now -0.75..0.75 instead of -0.5..0.5) -> shows as changed geometry.
+# CubeC: new group, not present in v1 -> shows as entirely added geometry.
+# Exercises the same multi-group merge fix, but now across BOTH files being diffed.
+
+g CubeA
+v -0.5 -0.5 -0.5
+v  0.5 -0.5 -0.5
+v  0.5  0.5 -0.5
+v -0.5  0.5 -0.5
+v -0.5 -0.5  0.5
+v  0.5 -0.5  0.5
+v  0.5  0.5  0.5
+v -0.5  0.5  0.5
+f 1 2 3 4
+f 5 6 7 8
+f 1 2 6 5
+f 4 3 7 8
+f 1 4 8 5
+f 2 3 7 6
+
+g CubeB
+v 2.5 -0.5 -0.75
+v 3.5 -0.5 -0.75
+v 3.5  0.5 -0.75
+v 2.5  0.5 -0.75
+v 2.5 -0.5  0.75
+v 3.5 -0.5  0.75
+v 3.5  0.5  0.75
+v 2.5  0.5  0.75
+f 9  10 11 12
+f 13 14 15 16
+f 9  10 14 13
+f 12 11 15 16
+f 9  12 16 13
+f 10 11 15 14
+
+g CubeC
+v 5.5 -0.5 -0.5
+v 6.5 -0.5 -0.5
+v 6.5  0.5 -0.5
+v 5.5  0.5 -0.5
+v 5.5 -0.5  0.5
+v 6.5 -0.5  0.5
+v 6.5  0.5  0.5
+v 5.5  0.5  0.5
+f 17 18 19 20
+f 21 22 23 24
+f 17 18 22 21
+f 20 19 23 24
+f 17 20 24 21
+f 18 19 23 22

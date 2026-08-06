@@ -46,17 +46,32 @@ export async function loadMeshGeometryServer(
     if (fileFormat === "obj") {
       const text = new TextDecoder().decode(buffer);
       const group = objLoader.parse(text);
+      group.updateWorldMatrix(true, true);
+
       const geometries: THREE.BufferGeometry[] = [];
       group.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          geometries.push(child.geometry);
+          let geometry = child.geometry.clone();
+          geometry.applyMatrix4(child.matrixWorld);
+          if (geometry.index) geometry = geometry.toNonIndexed();
+          for (const name of Object.keys(geometry.attributes)) {
+            if (name !== "position") geometry.deleteAttribute(name);
+          }
+          geometries.push(geometry);
         }
       });
+
       if (geometries.length === 0) {
         return { success: false, error: "OBJ file contains no mesh data" };
       }
-      geometries[0].computeVertexNormals();
-      return { success: true, data: geometries[0] };
+
+      const merged =
+        geometries.length === 1 ? geometries[0] : mergeGeometries(geometries, false);
+      if (!merged) {
+        return { success: false, error: "Failed to merge OBJ mesh data" };
+      }
+      merged.computeVertexNormals();
+      return { success: true, data: merged };
     }
 
     // 3mf

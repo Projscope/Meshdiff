@@ -16,12 +16,14 @@ function extensionOf(filename: string): string {
 
 /**
  * Parses an uploaded STL, OBJ, or 3MF file into a single BufferGeometry.
- * 3MF can contain multiple mesh objects positioned by their own transform,
- * so those are baked into world space and merged into one geometry rather
- * than only keeping the first (matching CLAUDE.md's "multiple meshes per
- * file" note on the format). Only positions survive the merge — per-mesh
- * attributes like color/uv aren't guaranteed consistent across objects,
- * and normals are recomputed on the merged result anyway.
+ * OBJ and 3MF can both contain multiple mesh objects/groups (each becomes
+ * a separate `THREE.Mesh` under the parsed group), so those are baked into
+ * world space and merged into one geometry rather than only keeping the
+ * first (matching CLAUDE.md's "multiple meshes per file" note on 3MF —
+ * multi-group OBJ files need the same treatment). Only positions survive
+ * the merge — per-mesh attributes like color/uv aren't guaranteed
+ * consistent across objects, and normals are recomputed on the merged
+ * result anyway.
  *
  * TODO: ThreeMFLoader doesn't support the 3MF Production Extension
  * (objects split across separate `3D/Objects/*.model` files, referenced
@@ -46,17 +48,36 @@ export async function loadMeshGeometry(
     if (extension === "obj") {
       const text = await file.text();
       const group = objLoader.parse(text);
+      group.updateWorldMatrix(true, true);
+
       const geometries: THREE.BufferGeometry[] = [];
       group.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          geometries.push(child.geometry);
+          let geometry = child.geometry.clone();
+          geometry.applyMatrix4(child.matrixWorld);
+          // Groups can differ in which attributes they carry (normals/uvs
+          // present on some, not others) — mergeGeometries requires
+          // matching attribute sets across inputs, so keep only position
+          // and let computeVertexNormals rebuild normals on the merged result.
+          if (geometry.index) geometry = geometry.toNonIndexed();
+          for (const name of Object.keys(geometry.attributes)) {
+            if (name !== "position") geometry.deleteAttribute(name);
+          }
+          geometries.push(geometry);
         }
       });
+
       if (geometries.length === 0) {
         return { success: false, error: "OBJ file contains no mesh data" };
       }
-      geometries[0].computeVertexNormals();
-      return { success: true, data: geometries[0] };
+
+      const merged =
+        geometries.length === 1 ? geometries[0] : mergeGeometries(geometries, false);
+      if (!merged) {
+        return { success: false, error: "Failed to merge OBJ mesh data" };
+      }
+      merged.computeVertexNormals();
+      return { success: true, data: merged };
     }
 
     if (extension === "3mf") {
