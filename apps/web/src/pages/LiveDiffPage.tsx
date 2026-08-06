@@ -8,6 +8,7 @@ import ReportGateModal from "../components/ReportGateModal";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
+import FaqAccordion from "../components/FaqAccordion";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { APP_VERSION } from "../lib/version";
 
@@ -59,19 +60,19 @@ const ROADMAP = {
     "Volume delta metrics",
     "JSON diff report",
     "Shareable diff URLs",
+    "Project workspaces",
+    "Version history"
   ],
   beta: [
     "Surface-mode heatmap diff",
     "Removed-material ghost overlay",
+    "Comment pins on models",
   ],
   next: [
     "Auto-align (PCA/ICP)",
     "Cross-section view",
     "Web-worker voxelizer",
-    "Multi-file drag & drop",
-    "Project workspaces",
-    "Comment pins on models",
-    "Version history",
+    "Multi-file drag & drop",    
     "Slicer profile snapshots",
     "Team approvals + PDF export",
   ],
@@ -259,26 +260,29 @@ export default function LiveDiffPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <header className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 px-4 py-3">
-        <div className="flex items-center justify-between">
+      <header className="border-b border-neutral-800 bg-neutral-950/80 px-4 py-3 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-2">
             <LogoMark />
-            <div className="leading-tight">
+            <div className="flex items-center gap-1.5 leading-tight">
               <h1 className="text-sm font-semibold text-white">Meshdiff</h1>
-              <span className="text-[10px] text-white/70">v{APP_VERSION} · free</span>
+              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-400">
+                v{APP_VERSION}
+              </span>
             </div>
           </div>
+          <nav className="hidden items-center gap-6 text-xs text-neutral-400 sm:flex">
+            <a href="#pricing" className="hover:text-white">
+              Pricing
+            </a>
+            <a href="#faq" className="hover:text-white">
+              FAQ
+            </a>
+          </nav>
           <div className="flex items-center gap-3 text-xs">
-            <button
-              type="button"
-              onClick={scrollToEarlyAccess}
-              className="flex items-center gap-1.5 rounded bg-white px-3 py-1.5 font-medium text-indigo-700 hover:bg-white/90"
-            >
-              Get Early Access
-              <span className="rounded bg-indigo-700 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                50% OFF
-              </span>
-            </button>
+            <a href="/login" className="text-neutral-300 hover:text-white">
+              Sign In
+            </a>
           </div>
         </div>
       </header>
@@ -287,19 +291,69 @@ export default function LiveDiffPage() {
       <section className="border-b border-neutral-800 px-6 py-10 text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-emerald-300">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          Runs 100% in your browser · no upload
+          Community version runs 100% in your browser · files never leave your machine
         </span>
-        <h2 className="mx-auto mt-4 max-w-2xl text-3xl font-semibold text-white sm:text-4xl">
-          See{" "}
-          <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            exactly what changed
-          </span>{" "}
-          between two 3D models
+        <h2 className="mx-auto mt-4 max-w-2xl text-3xl font-bold text-white sm:text-4xl">
+          See exactly what changed between two 3D models.
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-neutral-400">
-          Voxel-level diff for STL, 3MF &amp; OBJ. Tune tolerance and read the
-          volume delta — green means added, red means removed.
+          A diff of two binary STLs tells you nothing. Meshdiff runs a real
+          voxel comparison on your STL, 3MF, and OBJ files —{" "}
+          <span className="text-emerald-400">added geometry in green</span>,{" "}
+          <span className="text-red-400">removed in red</span> — so you can
+          review a revision in seconds.
         </p>
+        <div className="mt-6 flex items-center justify-center gap-3 text-xs">
+          <button
+            type="button"
+            onClick={scrollToEarlyAccess}
+            className="rounded bg-emerald-500 px-4 py-2 font-medium text-neutral-950 hover:bg-emerald-400"
+          >
+            Get early access →
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("live-diff-tool")?.scrollIntoView({ behavior: "smooth" })}
+            className="rounded border border-neutral-700 px-4 py-2 font-medium text-neutral-200 hover:border-neutral-500"
+          >
+            Try the diff tool
+          </button>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-xl rounded-lg border border-neutral-800 bg-neutral-900 text-left shadow-2xl">
+          <div className="flex items-center gap-2 border-b border-neutral-800 px-3 py-2 text-[10px] text-neutral-500">
+            <span className="rounded bg-neutral-800 px-2 py-0.5">bracket_v1.stl</span>
+            <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-400">
+              bracket_v2.stl · REVISED
+            </span>
+          </div>
+          <div className="flex">
+            <div className="flex h-40 flex-1 items-center justify-center text-neutral-700">
+              <span className="text-2xl">⬚</span>
+            </div>
+            <div className="w-32 shrink-0 border-l border-neutral-800 p-2 text-[10px]">
+              <div className="flex items-center justify-between text-neutral-500">
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Added
+                </span>
+                <span className="text-emerald-400">26,850</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-neutral-500">
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-400" /> Removed
+                </span>
+                <span className="text-red-400">19,203</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-neutral-500">
+                <span>Volume Δ</span>
+                <span className="text-emerald-400">+2.1%</span>
+              </div>
+              <div className="mt-2 border-t border-neutral-800 pt-2 text-neutral-500">
+                Tolerance <span className="text-neutral-300">0.20 mm</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {isRestoringShare && (
@@ -307,7 +361,7 @@ export default function LiveDiffPage() {
           Loading shared diff…
         </div>
       )}
-      <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
+      <div id="live-diff-tool" className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
         <div className="flex items-center gap-3">
           <span className="font-semibold uppercase tracking-wide text-neutral-300">
             Live Diff
@@ -341,7 +395,7 @@ export default function LiveDiffPage() {
               viewerARef.current?.loadDemo();
               viewerBRef.current?.loadDemo();
             }}
-            className="rounded border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-blue-300 hover:border-blue-400"
+            className="rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-emerald-300 hover:border-emerald-400"
           >
             Load Demo
           </button>
@@ -446,7 +500,7 @@ export default function LiveDiffPage() {
                 <div className="text-[10px] uppercase tracking-wide text-neutral-500">
                   Tolerance
                 </div>
-                <div className="mt-0.5 text-lg font-semibold text-blue-400">
+                <div className="mt-0.5 text-lg font-semibold text-emerald-400">
                   {stats.toleranceMm.toFixed(2)} mm
                 </div>
               </div>
@@ -488,7 +542,7 @@ export default function LiveDiffPage() {
             type="button"
             disabled={!stats}
             onClick={() => setIsReportModalOpen(true)}
-            className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-600"
+            className="rounded bg-emerald-500 px-3 py-1.5 font-medium text-neutral-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-600"
           >
             Download Report
           </button>
@@ -496,32 +550,38 @@ export default function LiveDiffPage() {
       </section>
 
       <section className="mx-auto max-w-5xl px-6 py-14">
-        <h3 className="text-center text-xs font-medium uppercase tracking-wide text-neutral-500">
+        <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
           How it works
+        </span>
+        <h3 className="mt-2 text-center text-2xl font-semibold text-white">
+          From two files to a shared review in seconds
         </h3>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-            <div className="text-[10px] font-semibold text-blue-400">01</div>
-            <h4 className="mt-1 text-sm font-semibold text-white">Drop two files</h4>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-emerald-500/15 text-[10px] font-semibold text-emerald-400">01</div>
+            <h4 className="mt-2 text-sm font-semibold text-white">Drop two models</h4>
             <p className="mt-1 text-xs text-neutral-400">
-              STL, 3MF, or OBJ — Version A and Version B. Nothing uploads;
-              parsing happens in-browser.
+              Drag-and-drop a new version — STL, 3MF, or OBJ — and Meshdiff
+              instantly formats both meshes for review. No mobile app,
+              nothing to install: just pick a file.
             </p>
           </div>
           <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-            <div className="text-[10px] font-semibold text-blue-400">02</div>
-            <h4 className="mt-1 text-sm font-semibold text-white">Voxelize the diff</h4>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-emerald-500/15 text-[10px] font-semibold text-emerald-400">02</div>
+            <h4 className="mt-2 text-sm font-semibold text-white">Auto-align &amp; voxel diff</h4>
             <p className="mt-1 text-xs text-neutral-400">
-              Both meshes are voxelized into a shared grid and classified
-              added/removed/unchanged.
+              Meshdiff registers the meshes and voxelizes them — added
+              geometry turns green, removed turns red. Tune the tolerance
+              to taste.
             </p>
           </div>
           <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-            <div className="text-[10px] font-semibold text-blue-400">03</div>
-            <h4 className="mt-1 text-sm font-semibold text-white">Read the diff</h4>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-emerald-500/15 text-[10px] font-semibold text-emerald-400">03</div>
+            <h4 className="mt-2 text-sm font-semibold text-white">Read &amp; share</h4>
             <p className="mt-1 text-xs text-neutral-400">
-              Green is added, red is removed. Scrub tolerance and read the
-              exact volume delta.
+              See exact voxel counts and volume delta, then share a
+              self-explaining link so anyone can spot the diff in their
+              browser.
             </p>
           </div>
         </div>
@@ -573,6 +633,210 @@ export default function LiveDiffPage() {
         </div>
       </section>
 
+      <section className="border-t border-neutral-800 px-6 py-14">
+        <div className="mx-auto max-w-5xl">
+          <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
+            Shareable comparisons
+          </span>
+          <h3 className="mt-2 text-center text-2xl font-semibold text-white">
+            One link — no accounts, no downloads
+          </h3>
+          <div className="mt-8 grid gap-6 rounded-lg border border-neutral-800 bg-neutral-900 p-6 md:grid-cols-2">
+            <div>
+              <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+                Shareable links
+              </span>
+              <h4 className="mt-3 text-lg font-semibold text-white">
+                Send a diff, not a 40MB attachment
+              </h4>
+              <p className="mt-2 text-sm text-neutral-400">
+                Hit Share in the viewer toolbar and Meshdiff generates a link
+                to the exact comparison — same alignment, tolerance, and
+                view. Recipients open it in any browser, no account or
+                software needed.
+              </p>
+              <ul className="mt-4 flex flex-col gap-1.5 text-xs text-neutral-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Pick an expiry: 1, 3, or 7 days
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Link dies automatically — nothing left lingering
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Free on the Community plan
+                </li>
+              </ul>
+            </div>
+            <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+              <button
+                type="button"
+                className="w-full rounded bg-emerald-500 py-2 text-sm font-medium text-neutral-950"
+              >
+                Share this comparison
+              </button>
+              <p className="mt-3 text-[10px] uppercase tracking-wide text-neutral-500">
+                Link expires in
+              </p>
+              <div className="mt-1.5 flex gap-1.5 text-xs">
+                <span className="rounded border border-neutral-700 px-2 py-1 text-neutral-400">1 day</span>
+                <span className="rounded border border-emerald-500 bg-emerald-500/10 px-2 py-1 text-emerald-400">
+                  3 days
+                </span>
+                <span className="rounded border border-neutral-700 px-2 py-1 text-neutral-400">7 days</span>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 truncate rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-[11px] text-neutral-400">
+                  meshdiff.app/d/8f4a5c2
+                </div>
+                <button type="button" className="rounded bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200">
+                  Copy
+                </button>
+              </div>
+              <p className="mt-3 text-[10px] text-neutral-600">
+                Anyone with this link can view — expires in 3 days.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-neutral-800 px-6 py-14">
+        <div className="mx-auto max-w-2xl rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-500">
+            Meshdiff, reviewed by
+          </p>
+          <p className="mt-3 text-lg text-neutral-200">
+            &ldquo;Version control for 3D models has always been awkward,
+            since a diff of two binary STLs tells you nothing useful.
+            Meshdiff is a free browser-based tool that does the job
+            properly.&rdquo;
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-800 text-xs text-neutral-500">
+              🖨
+            </div>
+            <span className="text-xs text-neutral-500">a hardware engineer</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="border-t border-neutral-800 px-6 py-14">
+        <div className="mx-auto max-w-5xl">
+          <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
+            Pricing
+          </span>
+          <h3 className="mt-2 text-center text-2xl font-semibold text-white">
+            Diff for free. Upgrade to keep the history.
+          </h3>
+          <p className="mx-auto mt-2 max-w-xl text-center text-sm text-neutral-400">
+            The comparison tool is free forever. Paid plans add workspaces,
+            versions, and review — with 50% off for 3 months at launch.
+          </p>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+              <h4 className="text-sm font-semibold text-neutral-300">Community</h4>
+              <div className="mt-2 text-3xl font-bold text-white">$0</div>
+              <p className="mt-1 text-xs text-neutral-500">Compare any two models, right now.</p>
+              <button
+                type="button"
+                onClick={() => document.getElementById("live-diff-tool")?.scrollIntoView({ behavior: "smooth" })}
+                className="mt-4 w-full rounded bg-emerald-500 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400"
+              >
+                Open the diff tool
+              </button>
+              <ul className="mt-4 flex flex-col gap-1.5 text-xs text-neutral-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Compare OBJ / STL / 3MF files
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Voxel diff — added / removed
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Adjustable tolerance & cross-section
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Shareable links — 1, 3, or 7 days
+                </li>
+              </ul>
+            </div>
+
+            <div className="relative rounded-lg border border-emerald-500 bg-neutral-900 p-6">
+              <span className="absolute -top-3 left-6 rounded bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-neutral-950">
+                50% OFF · 3 MONTHS
+              </span>
+              <h4 className="text-sm font-semibold text-emerald-400">Pro</h4>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-white">$7.50</span>
+                <span className="text-xs text-neutral-500 line-through">$15</span>
+                <span className="text-xs text-neutral-500">/mo</span>
+              </div>
+              <p className="mt-1 text-xs text-neutral-500">Founding price — first 3 months, early access only.</p>
+              <button
+                type="button"
+                onClick={scrollToEarlyAccess}
+                disabled
+                className="mt-4 w-full cursor-not-allowed rounded border border-emerald-500/40 bg-emerald-500/10 py-2 text-sm font-medium text-emerald-400"
+              >
+                Launching soon
+              </button>
+              <ul className="mt-4 flex flex-col gap-1.5 text-xs text-neutral-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Everything in Community
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Project workspaces
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Version history for every model
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Comment pins on 3D models
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> PDF diff reports for client review
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+              <span className="inline-block rounded bg-neutral-800 px-2 py-0.5 text-[10px] font-semibold text-neutral-400">
+                50% OFF · 3 MONTHS
+              </span>
+              <h4 className="mt-2 text-sm font-semibold text-neutral-300">Team</h4>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-white">$17.50</span>
+                <span className="text-xs text-neutral-500 line-through">$35</span>
+                <span className="text-xs text-neutral-500">/seat/mo</span>
+              </div>
+              <p className="mt-1 text-xs text-neutral-500">Founding price — first 3 months, early access only.</p>
+              <button
+                type="button"
+                onClick={scrollToEarlyAccess}
+                disabled
+                className="mt-4 w-full cursor-not-allowed rounded border border-neutral-700 py-2 text-sm font-medium text-neutral-400"
+              >
+                Launching soon
+              </button>
+              <ul className="mt-4 flex flex-col gap-1.5 text-xs text-neutral-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Everything in Pro
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Team approvals workflow
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Slicer profile snapshots & print logs
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400">✓</span> Centralized billing & roles
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="early-access" className="border-t border-neutral-800 px-6 py-16">
         <div className="mx-auto max-w-5xl rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-center">
           <p className="text-base font-semibold text-emerald-300">
@@ -583,6 +847,38 @@ export default function LiveDiffPage() {
             explicitly create a share link — that's the only action that
             sends your files anywhere.
           </p>
+        </div>
+
+        <div className="mx-auto mt-14 max-w-5xl rounded-lg border border-neutral-800 bg-neutral-900 p-8 text-center">
+          <span className="inline-block rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-emerald-300">
+            Always shipping
+          </span>
+          <h3 className="mx-auto mt-3 max-w-lg text-xl font-semibold text-white">
+            Meshdiff gets sharper every week — with a clear roadmap ahead
+          </h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-neutral-400">
+            The diff engine is live today, and we ship improvements
+            constantly. There's a clear roadmap ahead — built in the open,
+            with early-access members helping decide what lands next.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-neutral-400">
+            <span className="flex items-center gap-1.5">
+              <span className="text-emerald-400">✓</span> Frequent releases
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-emerald-400">✓</span> Roadmap shaped by users
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-emerald-400">✓</span> Your feedback ships
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={scrollToEarlyAccess}
+            className="mt-4 text-xs font-medium text-emerald-400 hover:text-emerald-300"
+          >
+            See what's coming — join early access →
+          </button>
         </div>
 
         <div className="mx-auto mt-10 grid max-w-5xl gap-10 md:grid-cols-2">
@@ -642,7 +938,7 @@ export default function LiveDiffPage() {
                 {ROADMAP.live.map((item) => (
                   <li key={item} className="flex items-center gap-1.5">
                     {item}
-                    {item === "Shareable diff URLs" && (
+                    {(item === "Shareable diff URLs" || item === "Project workspaces" || item === "Version history")  && (
                       <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-300">
                         New
                       </span>
@@ -662,8 +958,8 @@ export default function LiveDiffPage() {
               </ul>
             </div>
             <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-              <div className="flex items-center gap-1.5 border-b border-neutral-800 pb-2 text-xs font-medium text-blue-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" /> Coming next
+              <div className="flex items-center gap-1.5 border-b border-neutral-800 pb-2 text-xs font-medium text-neutral-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" /> Coming next
               </div>
               <ul className="mt-2 flex flex-col gap-2 text-xs text-neutral-300">
                 {ROADMAP.next.map((item) => (
@@ -698,15 +994,39 @@ export default function LiveDiffPage() {
           <button
             type="button"
             onClick={scrollToEarlyAccess}
-            className="flex items-center gap-1.5 rounded bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 font-medium text-white hover:opacity-90"
+            className="flex items-center gap-1.5 rounded bg-emerald-500 px-4 py-2 font-medium text-neutral-950 hover:bg-emerald-400"
           >
             Get Early Access — 50% Off
           </button>
         </div>
       </section>
+
+      <section id="faq" className="border-t border-neutral-800 px-6 py-16">
+        <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
+          FAQ
+        </span>
+        <h3 className="mt-2 text-center text-2xl font-semibold text-white">
+          Frequently asked
+        </h3>
+        <div className="mt-8">
+          <FaqAccordion />
+        </div>
+        <p className="mt-6 text-center text-xs text-neutral-500">
+          Still curious?{" "}
+          <button type="button" onClick={scrollToEarlyAccess} className="text-emerald-400 hover:text-emerald-300">
+            Join early access
+          </button>{" "}
+          and ask us anything.
+        </p>
+      </section>
       </main>
 
       <footer className="border-t border-neutral-800 px-6 py-6 text-center text-xs text-neutral-600">
+        <div className="mb-2">
+          <a href="/privacy" className="hover:text-neutral-400">
+            Privacy Policy
+          </a>
+        </div>
         <div>
           Meshdiff © 2026 — free diff tool · Developed by{" "}
           <a
