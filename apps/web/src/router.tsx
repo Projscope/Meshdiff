@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
-import LiveDiffPage from "./pages/LiveDiffPage";
+import LandingPage from "./pages/LandingPage";
+import LiveDiffToolPage from "./pages/LiveDiffToolPage";
 import LoginPage from "./pages/LoginPage";
 import ProjectsListPage from "./pages/ProjectsListPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
@@ -9,14 +10,17 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
 
 /**
- * Live Diff stays the unauthenticated entry point (Free tier's only
- * no-signup path — see plan). Projects routes require a Supabase Auth
- * session (see project memory "auth_provider_supabase_not_clerk") and
- * share the sidebar shell (logo/nav/footer) from ProjectsLayout.
+ * The landing page (marketing) and the actual interactive diff tool are
+ * separate routes — Live Diff stays the unauthenticated entry point
+ * (Free tier's only no-signup path — see plan), reached via "/live" links
+ * from the landing page rather than embedded inline. Projects routes
+ * require a Supabase Auth session (see project memory
+ * "auth_provider_supabase_not_clerk") and share the sidebar shell
+ * (logo/nav/footer) from ProjectsLayout.
  */
 export const router = createBrowserRouter([
-  { path: "/", element: <LiveDiffPage /> },
-  { path: "/live", element: <LiveDiffPage /> },
+  { path: "/", element: <LandingPage /> },
+  { path: "/live", element: <LiveDiffToolPage /> },
   { path: "/login", element: <LoginPage /> },
   {
     path: "/projects",

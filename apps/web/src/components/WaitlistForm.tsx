@@ -53,7 +53,7 @@ export default function WaitlistForm() {
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="w-full rounded bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+        className="w-full rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
       >
         {status === "submitting" ? "Submitting…" : "Get Early Access — 50% Off"}
       </button>

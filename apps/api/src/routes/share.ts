@@ -90,7 +90,7 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
         return { success: false, error: "Failed to create share, please try again" };
       }
 
-      const shareUrl = `${request.headers.origin ?? "http://localhost:5173"}/?share=${id}`;
+      const shareUrl = `${request.headers.origin ?? "http://localhost:5173"}/live?share=${id}`;
 
       // Best-effort: this is a permanent log for the future admin dashboard,
       // independent of the shares row's lifecycle (delete_expired_shares()
