@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/AuthProvider";
 import { supabase } from "../lib/supabaseClient";
+import { SHOW_MONETIZATION } from "../lib/featureFlags";
 
 function LogoMark() {
   return (
@@ -17,6 +18,7 @@ function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!user) {
+    if (!SHOW_MONETIZATION) return null;
     return (
       <Link
         to="/login"
@@ -78,9 +80,11 @@ export default function SiteHeader() {
           <Link to="/live" className="hover:text-neutral-300">
             Free Diff tool
           </Link>
-          <a href="/#pricing" className="hover:text-neutral-300">
-            Pricing
-          </a>
+          {SHOW_MONETIZATION && (
+            <a href="/#pricing" className="hover:text-neutral-300">
+              Pricing
+            </a>
+          )}
           <a href="/#faq" className="hover:text-neutral-300">
             FAQ
           </a>
