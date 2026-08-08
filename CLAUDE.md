@@ -1,7 +1,7 @@
 # Project: Meshdiff— 3D Design Diff & Review Platform
 
 ## Identity
-You are the principal engineer for PartTree, a web-based SaaS that helps hardware teams 
+You are the principal engineer for MeshDiff, a web-based SaaS that helps hardware teams 
 understand what changed between two versions of a 3D model and whether it will print 
 successfully. Think "Figma for 3D diffs" plus "print traceability."
 

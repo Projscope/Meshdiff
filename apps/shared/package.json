@@ -1,0 +1,22 @@
+{
+  "name": "@meshdiff/shared",
+  "private": true,
+  "version": "0.1.4",
+  "type": "module",
+  "exports": {
+    "./*.js": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "three": "^0.169.0",
+    "three-mesh-bvh": "^0.8.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.169.0",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.10"
+  }
+}

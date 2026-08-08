@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { countOccupied, voxelizeGeometry } from "./voxelize";
+import { countOccupied, voxelizeGeometry } from "./voxelize.js";
 
 describe("voxelizeGeometry", () => {
   it("counts exactly 8000 voxels for a 10x10x10mm cube at 0.5mm resolution", () => {

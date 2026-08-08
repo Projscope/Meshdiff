@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { MeshBVH } from "three-mesh-bvh";
 import type { Result } from "@meshdiff/shared/types/diff";
-import { isPointInsideMesh } from "./voxelize";
+import { isPointInsideMesh } from "@meshdiff/shared/engine/voxelize";
 
 export interface SurfaceDeviationResult {
   /** Per-vertex RGB, aligned 1:1 with sourceGeometry's position attribute. */
