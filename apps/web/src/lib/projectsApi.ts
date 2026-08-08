@@ -10,7 +10,16 @@ export interface ProjectSummary {
   description: string | null;
   createdAt: string;
   updatedAt: string;
+  teamId: string | null;
   latestFileName: string | null;
+  versionCount: number;
+  latestPrintabilityStatus: "pass" | "warn" | "fail" | null;
+  thumbnailUrl: string | null;
+}
+
+export interface ProjectsPage {
+  projects: ProjectSummary[];
+  total: number;
 }
 
 export interface VersionSummary {
@@ -22,13 +31,48 @@ export interface VersionSummary {
   triangleCount: number | null;
   changeSummary: string | null;
   printabilityStatus: "pass" | "warn" | "fail" | null;
-  approvalStatus: "pending" | "approved";
+  approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason: string | null;
   createdAt: string;
 }
 
 export interface VersionDetail extends VersionSummary {
   downloadUrl: string;
   previousVersionId: string | null;
+}
+
+export interface ProjectDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  teamId: string | null;
+  /** This user's access level for the project. 'approver' is an "upgraded
+   * member" — can approve/reject versions, nothing else admin-gated. */
+  myRole: "owner" | "admin" | "approver" | "member";
+}
+
+export interface TeamMember {
+  userId: string;
+  email: string | null;
+  role: "admin" | "approver" | "member";
+  joinedAt: string;
+  isOwner: boolean;
+}
+
+export interface TeamDetail {
+  id: string;
+  name: string;
+  myRole: "admin" | "approver" | "member";
+  isOwner: boolean;
+  members: TeamMember[];
+}
+
+export interface StableVersion {
+  versionId: string;
+  versionNumber: number;
+  fileName: string;
+  approvalStatus: "pending" | "approved" | "rejected";
+  downloadUrl: string;
 }
 
 export interface CommentSummary {
@@ -56,18 +100,127 @@ async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> 
       },
     });
     const body = (await response.json()) as Result<T>;
+    // The backend's own JWT check (requireAuth) rejects an expired/invalid
+    // access token with 401 independently of Supabase-js's client-side
+    // refresh timer — e.g. after a long-backgrounded tab whose refresh
+    // didn't fire. Sign out here so the stale session doesn't just show
+    // broken/failing pages; AuthProvider's onAuthStateChange listener picks
+    // this up and ProtectedRoute redirects to /login on its own.
+    if (response.status === 401) {
+      await supabase.auth.signOut();
+    }
     return body;
   } catch {
     return { success: false, error: "Network error, please try again" };
   }
 }
 
-export function listProjects(): Promise<Result<ProjectSummary[]>> {
-  return request("/projects");
+export function listProjects(page = 1, pageSize = 10): Promise<Result<ProjectsPage>> {
+  return request(`/projects?page=${page}&pageSize=${pageSize}`);
 }
 
-export function getProject(projectId: string): Promise<Result<{ id: string; name: string; description: string | null }>> {
+export function getWorkspace(): Promise<Result<{ name: string }>> {
+  return request("/workspace");
+}
+
+export function updateWorkspace(name: string): Promise<Result<{ name: string }>> {
+  return request("/workspace", { method: "PATCH", body: JSON.stringify({ name }) });
+}
+
+export function getProjectThumbnailUploadUrl(projectId: string): Promise<Result<{ uploadUrl: string }>> {
+  return request(`/projects/${projectId}/thumbnail-upload-url`, { method: "POST" });
+}
+
+/** Best-effort: renders a snapshot of the just-uploaded mesh and pushes it to
+ * storage so the projects list picks up a fresh thumbnail. Never throws —
+ * failures here shouldn't block the upload flow that triggered them. */
+export async function uploadProjectThumbnail(projectId: string, geometryBlob: Blob): Promise<void> {
+  const urlResult = await getProjectThumbnailUploadUrl(projectId);
+  if (!urlResult.success) return;
+  try {
+    await fetch(urlResult.data.uploadUrl, {
+      method: "PUT",
+      body: geometryBlob,
+      headers: { "Content-Type": "image/png" },
+    });
+  } catch {
+    // best-effort — a stale/missing thumbnail is not worth surfacing an error for
+  }
+}
+
+/** Best-effort: removes the project's thumbnail (e.g. its last version was
+ * deleted, so there's no model left to depict). */
+export async function clearProjectThumbnail(projectId: string): Promise<void> {
+  await request(`/projects/${projectId}/thumbnail`, { method: "DELETE" });
+}
+
+export function getProject(projectId: string): Promise<Result<ProjectDetail>> {
   return request(`/projects/${projectId}`);
+}
+
+export function setProjectTeam(projectId: string, teamId: string | null): Promise<Result<{ teamId: string | null }>> {
+  return request(`/projects/${projectId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ teamId }),
+  });
+}
+
+export function updateProject(
+  projectId: string,
+  updates: { name: string; description: string | null },
+): Promise<Result<{ name: string; description: string | null }>> {
+  return request(`/projects/${projectId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export function listMyTeams(): Promise<
+  Result<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>
+> {
+  return request("/teams");
+}
+
+export function createTeam(name: string): Promise<Result<{ id: string; name: string; createdAt: string }>> {
+  return request("/teams", { method: "POST", body: JSON.stringify({ name }) });
+}
+
+export function getTeam(teamId: string): Promise<Result<TeamDetail>> {
+  return request(`/teams/${teamId}`);
+}
+
+export function addTeamMember(
+  teamId: string,
+  email: string,
+  role: "admin" | "approver" | "member",
+): Promise<Result<{ userId: string; role: string }>> {
+  return request(`/teams/${teamId}/members`, {
+    method: "POST",
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export function removeTeamMember(teamId: string, userId: string): Promise<Result<true>> {
+  return request(`/teams/${teamId}/members/${userId}`, { method: "DELETE" });
+}
+
+export function approveVersion(projectId: string, versionId: string): Promise<Result<VersionSummary>> {
+  return request(`/projects/${projectId}/versions/${versionId}/approve`, { method: "POST" });
+}
+
+export function rejectVersion(
+  projectId: string,
+  versionId: string,
+  reason?: string,
+): Promise<Result<VersionSummary>> {
+  return request(`/projects/${projectId}/versions/${versionId}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function getStableVersion(projectId: string): Promise<Result<StableVersion>> {
+  return request(`/projects/${projectId}/stable-version`);
 }
 
 export function createProject(name: string, description: string): Promise<Result<ProjectSummary>> {
@@ -152,6 +305,7 @@ export async function downloadAllVersionsZip(projectId: string): Promise<Result<
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {
+      if (response.status === 401) await supabase.auth.signOut();
       const body = (await response.json().catch(() => null)) as Result<never> | null;
       return { success: false, error: body?.success === false ? body.error : `Download failed (${response.status})` };
     }

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { APP_VERSION } from "../lib/version";
 
 export default function SiteFooter() {
@@ -13,6 +14,18 @@ export default function SiteFooter() {
             v{APP_VERSION}
           </span>
         </div>
+
+        <nav className="flex items-center gap-4 text-xs text-neutral-500">
+          <Link to="/live" className="hover:text-neutral-300">
+            Diff tool
+          </Link>
+          <a href="/#pricing" className="hover:text-neutral-300">
+            Pricing
+          </a>
+          <a href="/#faq" className="hover:text-neutral-300">
+            FAQ
+          </a>
+        </nav>
 
         <div className="flex items-center gap-4 font-mono text-xs text-neutral-500">
           <a href="/privacy" className="hover:text-neutral-300">

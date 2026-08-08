@@ -59,7 +59,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "/projects/:projectId/versions/:versionId/compare",
+        path: "/projects/:projectId/compare/:versionAId/:versionBId",
         element: (
           <ProtectedRoute>
             <ProjectsLayout>

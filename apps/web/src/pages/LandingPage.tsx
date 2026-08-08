@@ -88,7 +88,7 @@ export default function LandingPage() {
 
           <div className="mt-12">
             <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500 ">
-              Built for community - forever free, no accounts, no uploads
+              <i>Community version</i> - forever free, no accounts, no uploads
             </span>
 
             <Link
@@ -281,7 +281,7 @@ export default function LandingPage() {
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-6">
                 <h4 className="text-sm font-semibold text-neutral-300">Community</h4>
-                <div className="mt-2 text-3xl font-bold text-white">$0</div>
+                <div className="mt-2 text-3xl font-bold text-white">FREE</div>
                 <p className="mt-1 text-xs text-neutral-500">Compare any two models, right now.</p>
                 <Link
                   to="/live"

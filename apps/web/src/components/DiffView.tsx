@@ -18,6 +18,8 @@ import {
   type VoxelDiffStats,
 } from "@meshdiff/shared/engine/diffVoxels";
 import SurfaceHeatmap from "./SurfaceHeatmap";
+import AxisLegend from "./AxisLegend";
+import AxisLabels from "./AxisLabels";
 
 export type DiffMode = "voxel" | "surface";
 
@@ -25,6 +27,8 @@ interface DiffViewProps {
   geometryA: THREE.BufferGeometry | null;
   geometryB: THREE.BufferGeometry | null;
   onStatsChange?: (stats: (VoxelDiffStats & { toleranceMm: number }) | null) => void;
+  /** Top-left overlay label. Defaults to "Diff". */
+  label?: string;
   mode: DiffMode;
   onModeChange: (mode: DiffMode) => void;
   toleranceMm: number;
@@ -203,7 +207,7 @@ function VoxelLayer({ grid, voxelClass, count, color, opacity }: VoxelLayerProps
 }
 
 const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
-  { geometryA, geometryB, onStatsChange, mode, onModeChange, toleranceMm, onToleranceChange, syncedCameraState, onCameraChange, isSyncEnabled = false },
+  { geometryA, geometryB, onStatsChange, label = "Diff", mode, onModeChange, toleranceMm, onToleranceChange, syncedCameraState, onCameraChange, isSyncEnabled = false },
   ref,
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
@@ -236,7 +240,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
       <div className="absolute left-3 top-2 z-10 flex items-center gap-3">
         <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-          Diff
+          {label}
         </span>
         {!isPending && !hasError && (
           <div className="flex overflow-hidden rounded border border-neutral-700 text-[11px]">
@@ -312,55 +316,65 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
         <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
-        {diff && !("error" in diff) && mode === "voxel" && (
-          <Bounds fit clip observe margin={1.2}>
-            <VoxelLayer
-              grid={diff.grid}
-              voxelClass={VOXEL_UNCHANGED}
-              count={diff.stats.unchangedCount}
-              color="#6b7280"
-              opacity={0.15}
-            />
-            <VoxelLayer
-              grid={diff.grid}
-              voxelClass={VOXEL_ADDED}
-              count={diff.stats.addedCount}
-              color="#22c55e"
-              opacity={0.9}
-            />
-            <VoxelLayer
-              grid={diff.grid}
-              voxelClass={VOXEL_REMOVED}
-              count={diff.stats.removedCount}
-              color="#ef4444"
-              opacity={0.9}
-            />
-          </Bounds>
-        )}
-        {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
-          <Bounds fit clip observe margin={1.2}>
-            <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} toleranceMm={toleranceMm} />
-            {/*
-              The vertex-based ghost in SurfaceHeatmap only catches removed
-              material that used to be part of A's own surface (a trimmed
-              boss, a shortened feature). It can't see an interior hollow-out
-              where A was solid and B's outer silhouette didn't change — A
-              simply has no vertex sitting in that interior volume to test.
-              The voxel grid samples actual 3D space instead of existing
-              vertices, so it catches that case too; overlay its removed
-              cells here as the general-case fallback.
-            */}
-            <VoxelLayer
-              grid={diff.grid}
-              voxelClass={VOXEL_REMOVED}
-              count={diff.stats.removedCount}
-              color="#ef4444"
-              opacity={0.5}
-            />
-          </Bounds>
-        )}
+        {/* The grid is drei's default Y-up floor; this app's model data is
+            Z-up (see diffVoxels.ts's gravity vector), so the displayed
+            content is rotated -90° around X to lay it flat on that floor.
+            Purely a presentation transform — doesn't touch the geometry
+            used for diffing/printability. */}
+        <group rotation={[-Math.PI / 2, 0, 0]}>
+          <axesHelper args={[30]} />
+          <AxisLabels />
+          {diff && !("error" in diff) && mode === "voxel" && (
+            <Bounds fit clip observe margin={1.2}>
+              <VoxelLayer
+                grid={diff.grid}
+                voxelClass={VOXEL_UNCHANGED}
+                count={diff.stats.unchangedCount}
+                color="#6b7280"
+                opacity={0.15}
+              />
+              <VoxelLayer
+                grid={diff.grid}
+                voxelClass={VOXEL_ADDED}
+                count={diff.stats.addedCount}
+                color="#22c55e"
+                opacity={0.9}
+              />
+              <VoxelLayer
+                grid={diff.grid}
+                voxelClass={VOXEL_REMOVED}
+                count={diff.stats.removedCount}
+                color="#ef4444"
+                opacity={0.9}
+              />
+            </Bounds>
+          )}
+          {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
+            <Bounds fit clip observe margin={1.2}>
+              <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} toleranceMm={toleranceMm} />
+              {/*
+                The vertex-based ghost in SurfaceHeatmap only catches removed
+                material that used to be part of A's own surface (a trimmed
+                boss, a shortened feature). It can't see an interior hollow-out
+                where A was solid and B's outer silhouette didn't change — A
+                simply has no vertex sitting in that interior volume to test.
+                The voxel grid samples actual 3D space instead of existing
+                vertices, so it catches that case too; overlay its removed
+                cells here as the general-case fallback.
+              */}
+              <VoxelLayer
+                grid={diff.grid}
+                voxelClass={VOXEL_REMOVED}
+                count={diff.stats.removedCount}
+                color="#ef4444"
+                opacity={0.5}
+              />
+            </Bounds>
+          )}
+        </group>
         <CameraSync syncedCameraState={syncedCameraState} onCameraChange={onCameraChange} isSyncEnabled={isSyncEnabled} />
       </Canvas>
+      <AxisLegend />
     </div>
   );
 });

@@ -4,6 +4,8 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { loadMeshGeometry } from "../engine/loadMesh";
+import AxisLegend from "./AxisLegend";
+import AxisLabels from "./AxisLabels";
 
 interface CameraSyncProps {
   syncedCameraState: { position: [number, number, number]; target: [number, number, number] } | undefined;
@@ -300,13 +302,22 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
         <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
-        {geometry && (
-          <Bounds fit clip observe margin={1.2}>
-            <mesh geometry={geometry}>
-              <meshStandardMaterial color="#4f8ff7" />
-            </mesh>
-          </Bounds>
-        )}
+        {/* The grid is drei's default Y-up floor; this app's model data is
+            Z-up (see diffVoxels.ts's gravity vector), so the displayed
+            content is rotated -90° around X to lay it flat on that floor.
+            Purely a presentation transform — doesn't touch the geometry
+            used for diffing/printability. */}
+        <group rotation={[-Math.PI / 2, 0, 0]}>
+          <axesHelper args={[30]} />
+          <AxisLabels />
+          {geometry && (
+            <Bounds fit clip observe margin={1.2}>
+              <mesh geometry={geometry}>
+                <meshStandardMaterial color="#4f8ff7" />
+              </mesh>
+            </Bounds>
+          )}
+        </group>
         <CameraSync
           syncedCameraState={syncedCameraState}
           onCameraChange={onCameraChange}
@@ -318,6 +329,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           }}
         />
       </Canvas>
+      <AxisLegend />
     </div>
   );
 });

@@ -1,131 +1,92 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { createProject, listProjects, type ProjectSummary } from "../lib/projectsApi";
-import { supabase } from "../lib/supabaseClient";
-import { useAuth } from "../lib/AuthProvider";
+import { Link } from "react-router-dom";
+import { listProjects, type ProjectSummary } from "../lib/projectsApi";
+import NewProjectModal from "../components/NewProjectModal";
+
+const PAGE_SIZE = 10;
+
+const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
+  pass: "bg-emerald-500",
+  warn: "bg-amber-500",
+  fail: "bg-red-500",
+};
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
-function NewProjectModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: (project: ProjectSummary) => void;
-}) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function FolderIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" className="h-10 w-10">
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+    </svg>
+  );
+}
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    const result = await createProject(name, description);
-    setIsSubmitting(false);
-    if (!result.success) {
-      setError(result.error);
-      return;
-    }
-    onCreated(result.data);
-  }
+function ProjectThumbnail({ project }: { project: ProjectSummary }) {
+  const [failed, setFailed] = useState(false);
+  const showImage = project.thumbnailUrl && !failed;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-lg border border-neutral-800 bg-neutral-900 p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h3 className="text-sm font-semibold text-white">New Project</h3>
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2">
-          <input
-            type="text"
-            required
-            autoFocus
-            placeholder="Project name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
-          />
-          <textarea
-            placeholder="Description (optional)"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={2}
-            className="rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
-          />
-          <div className="mt-2 flex gap-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-            >
-              {isSubmitting ? "Creating…" : "Create Project"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-300 hover:border-neutral-500"
-            >
-              Cancel
-            </button>
-          </div>
-          {error && <span className="text-xs text-red-400">{error}</span>}
-        </form>
-      </div>
+    <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-t-lg bg-neutral-950">
+      {showImage ? (
+        <img
+          src={project.thumbnailUrl!}
+          alt=""
+          className="h-full w-full object-contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-2 text-neutral-700">
+          <FolderIcon />
+          <span className="text-[11px] text-neutral-600">No model yet</span>
+        </div>
+      )}
+      {project.latestPrintabilityStatus && (
+        <span
+          className={`absolute right-2 top-2 h-2.5 w-2.5 rounded-full ${STATUS_DOT[project.latestPrintabilityStatus]}`}
+          title={`Latest printability: ${project.latestPrintabilityStatus}`}
+        />
+      )}
     </div>
   );
 }
 
 export default function ProjectsListPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    listProjects().then((result) => {
+    setProjects(null);
+    listProjects(page, PAGE_SIZE).then((result) => {
       if (result.success) {
-        setProjects(result.data);
+        setProjects(result.data.projects);
+        setTotal(result.data.total);
       } else {
         setError(result.error);
       }
     });
-  }, []);
+  }, [page]);
 
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    navigate("/login");
-  }
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Projects</h1>
           <p className="mt-1 text-sm text-neutral-400">Track and review 3D model versions</p>
         </div>
-        <div className="flex items-center gap-3">
-          {user && <span className="text-xs text-neutral-500">{user.email}</span>}
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-          >
-            + New Project
-          </button>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-300 hover:border-neutral-500"
-          >
-            Sign Out
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400"
+        >
+          + New Project
+        </button>
       </div>
 
       {error && (
@@ -145,35 +106,74 @@ export default function ProjectsListPage() {
       )}
 
       {projects && projects.length > 0 && (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <Link
               key={project.id}
               to={`/projects/${project.id}`}
-              className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 hover:border-neutral-600"
+              className="overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 hover:border-neutral-600"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-indigo-500/20 text-indigo-400">
-                ◈
+              <ProjectThumbnail project={project} />
+              <div className="p-4">
+                <h3 className="truncate font-semibold text-white">{project.name}</h3>
+                {project.latestFileName && (
+                  <p className="mt-0.5 truncate text-xs text-neutral-500">{project.latestFileName}</p>
+                )}
+                {project.description && (
+                  <p className="mt-2 line-clamp-2 text-xs text-neutral-400">{project.description}</p>
+                )}
+                <div className="mt-3 flex items-center justify-between text-[11px] text-neutral-600">
+                  <span>{project.versionCount} version{project.versionCount === 1 ? "" : "s"}</span>
+                  <span>{formatDate(project.updatedAt)}</span>
+                </div>
               </div>
-              <h3 className="mt-3 font-semibold text-white">{project.name}</h3>
-              {project.latestFileName && (
-                <p className="mt-0.5 text-xs text-neutral-500">{project.latestFileName}</p>
-              )}
-              {project.description && (
-                <p className="mt-2 line-clamp-2 text-xs text-neutral-400">{project.description}</p>
-              )}
-              <p className="mt-3 text-[11px] text-neutral-600">{formatDate(project.updatedAt)}</p>
             </Link>
           ))}
+        </div>
+      )}
+
+      {projects && total > PAGE_SIZE && (
+        <div className="mt-6 flex items-center justify-center gap-3 text-sm">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ← Prev
+          </button>
+          <span className="text-neutral-500">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next →
+          </button>
         </div>
       )}
 
       {isModalOpen && (
         <NewProjectModal
           onClose={() => setIsModalOpen(false)}
-          onCreated={(project) => {
-            setProjects((prev) => [project, ...(prev ?? [])]);
+          onCreated={() => {
             setIsModalOpen(false);
+            // A newly created project belongs on page 1 (list is sorted by
+            // updated_at desc) — jump there so it's visible immediately
+            // instead of leaving the user on whatever page they were on.
+            if (page === 1) {
+              listProjects(1, PAGE_SIZE).then((result) => {
+                if (result.success) {
+                  setProjects(result.data.projects);
+                  setTotal(result.data.total);
+                }
+              });
+            } else {
+              setPage(1);
+            }
           }}
         />
       )}
