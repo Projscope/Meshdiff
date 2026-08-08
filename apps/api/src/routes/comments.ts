@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
-import { isProjectOwner } from "../lib/ownership.js";
+import { getProjectAccess } from "../lib/ownership.js";
 
 interface CommentRow {
   id: string;
@@ -50,7 +50,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
@@ -112,7 +112,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }

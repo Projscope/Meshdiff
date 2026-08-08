@@ -7,7 +7,8 @@ import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
 import { computeVoxelDiff } from "@meshdiff/shared/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
-import { isProjectOwner } from "../lib/ownership.js";
+import { getProjectAccess } from "../lib/ownership.js";
+import { getStableVersion } from "../lib/stableVersion.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const MAX_FILE_BYTES = 200 * 1024 * 1024;
@@ -31,6 +32,7 @@ interface VersionRow {
   change_summary: string | null;
   printability_status: string | null;
   approval_status: string;
+  rejection_reason: string | null;
   created_at: string;
 }
 
@@ -45,6 +47,7 @@ function toVersionSummary(row: VersionRow) {
     changeSummary: row.change_summary,
     printabilityStatus: row.printability_status,
     approvalStatus: row.approval_status,
+    rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
   };
 }
@@ -79,7 +82,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
@@ -143,7 +146,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
@@ -241,12 +245,19 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         const changeSummary = generateChangeSummary(stats);
         const triangleCount = Math.round(stats.triangleDeltaB);
 
+        // Personal (Pro) projects don't have a review workflow — approval
+        // status would just be dead-weight "Pending" clutter with nothing
+        // to approve against, so auto-approve on upload. Team projects
+        // (team_id set) keep the default 'pending' from create_version()
+        // until an admin explicitly approves/rejects (see the two routes
+        // below).
         const { error: updateError } = await supabase
           .from("versions")
           .update({
             triangle_count: triangleCount,
             change_summary: changeSummary,
             printability_status: stats.printabilityStatus,
+            ...(access.teamId ? {} : { approval_status: "approved" }),
           })
           .eq("id", versionId);
         if (updateError) {
@@ -291,6 +302,131 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     },
   );
 
+  // Approve/reject only matter for Team projects (team_id set) — see plan.
+  // For personal (Pro) projects, finalize() already auto-approves, so
+  // these routes have nothing useful to do there; requiring 'admin' or
+  // 'approver' on a Team project but falling back to owner-only on a
+  // personal one keeps the check meaningful in both cases without a
+  // special-case error. 'approver' is an "upgraded member" — reviews only,
+  // no invite/remove rights (those stay admin/owner-only, see teams.ts).
+  function canReviewVersions(access: { role: string | null; teamId: string | null }): boolean {
+    if (!access.role) return false;
+    // The project owner can always review, team or not — getProjectAccess
+    // resolves 'owner' before checking team_members, so an owner who's
+    // also a team admin would otherwise be wrongly excluded here.
+    if (access.role === "owner") return true;
+    return access.teamId ? access.role === "admin" || access.role === "approver" : false;
+  }
+
+  app.post<{ Params: { projectId: string; versionId: string } }>(
+    "/projects/:projectId/versions/:versionId/approve",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Projects are not configured" };
+      }
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!canReviewVersions(access)) {
+          reply.code(403);
+          return { success: false, error: "Only a team admin can approve versions" };
+        }
+
+        const { data: row, error } = await supabase
+          .from("versions")
+          .update({
+            approval_status: "approved",
+            reviewed_by_user_id: request.userId,
+            reviewed_at: new Date().toISOString(),
+            rejection_reason: null,
+          })
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .select("*")
+          .maybeSingle();
+        if (error) {
+          app.log.error(error, "Failed to approve version");
+          reply.code(502);
+          return { success: false, error: "Failed to approve version" };
+        }
+        if (!row) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+
+        return { success: true, data: toVersionSummary(row as VersionRow) };
+      } catch (err) {
+        app.log.error(err, "Version approve threw");
+        reply.code(502);
+        return { success: false, error: "Failed to approve version" };
+      }
+    },
+  );
+
+  app.post<{ Params: { projectId: string; versionId: string }; Body: { reason?: string } }>(
+    "/projects/:projectId/versions/:versionId/reject",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const { reason } = request.body ?? {};
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Projects are not configured" };
+      }
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!canReviewVersions(access)) {
+          reply.code(403);
+          return { success: false, error: "Only a team admin can reject versions" };
+        }
+
+        const { data: row, error } = await supabase
+          .from("versions")
+          .update({
+            approval_status: "rejected",
+            reviewed_by_user_id: request.userId,
+            reviewed_at: new Date().toISOString(),
+            rejection_reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
+          })
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .select("*")
+          .maybeSingle();
+        if (error) {
+          app.log.error(error, "Failed to reject version");
+          reply.code(502);
+          return { success: false, error: "Failed to reject version" };
+        }
+        if (!row) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+
+        return { success: true, data: toVersionSummary(row as VersionRow) };
+      } catch (err) {
+        app.log.error(err, "Version reject threw");
+        reply.code(502);
+        return { success: false, error: "Failed to reject version" };
+      }
+    },
+  );
+
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/versions",
     { preHandler: requireAuth },
@@ -303,7 +439,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await isProjectOwner(supabase, request.params.projectId, request.userId!))) {
+        if (!(await getProjectAccess(supabase, request.params.projectId, request.userId!)).role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
@@ -341,7 +477,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
@@ -412,9 +548,14 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
+        }
+        if (access.role !== "owner" && access.role !== "admin") {
+          reply.code(403);
+          return { success: false, error: "Only project owners and team admins can delete versions" };
         }
 
         const { data: row, error: lookupError } = await supabase
@@ -473,7 +614,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         return { success: false, error: "Projects are not configured" };
       }
 
-      if (!(await isProjectOwner(supabase, projectId, request.userId!))) {
+      if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
         reply.code(404);
         return { success: false, error: "Project not found" };
       }
@@ -521,6 +662,62 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       await archive.finalize();
+    },
+  );
+
+  // "What's the current default file" — the last approved version, or the
+  // latest of any status if nothing's been approved yet. This is what
+  // sharing/export should point to for Team projects (see plan); for
+  // personal (Pro) projects it's just always the latest version, since
+  // finalize() auto-approves there.
+  app.get<{ Params: { projectId: string } }>(
+    "/projects/:projectId/stable-version",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Projects are not configured" };
+      }
+
+      try {
+        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+
+        const stable = await getStableVersion(supabase, projectId);
+        if (!stable) {
+          reply.code(404);
+          return { success: false, error: "No versions yet" };
+        }
+
+        const { data: download, error: downloadError } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(stable.file_path, DOWNLOAD_URL_TTL_SECONDS);
+        if (downloadError) {
+          app.log.error(downloadError, "Failed to create signed download URL for stable version");
+          reply.code(502);
+          return { success: false, error: "The stable version's file is unavailable" };
+        }
+
+        return {
+          success: true,
+          data: {
+            versionId: stable.id,
+            versionNumber: stable.version_number,
+            fileName: stable.file_name,
+            approvalStatus: stable.approval_status,
+            downloadUrl: download.signedUrl,
+          },
+        };
+      } catch (err) {
+        app.log.error(err, "Stable version lookup threw");
+        reply.code(502);
+        return { success: false, error: "Failed to load stable version" };
+      }
     },
   );
 }

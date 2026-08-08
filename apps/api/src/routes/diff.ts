@@ -3,7 +3,7 @@ import { getSupabase } from "../lib/supabase.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { computeVoxelDiff } from "@meshdiff/shared/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
-import { isProjectOwner } from "../lib/ownership.js";
+import { getProjectAccess } from "../lib/ownership.js";
 
 const BUCKET = "project-meshes";
 
@@ -51,7 +51,7 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           reply.code(400);
           return { success: false, error: "Versions must belong to the same project" };
         }
-        if (!(await isProjectOwner(supabase, versionA.project_id, request.userId!))) {
+        if (!(await getProjectAccess(supabase, versionA.project_id, request.userId!)).role) {
           reply.code(404);
           return { success: false, error: "One or both versions not found" };
         }
