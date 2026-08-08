@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { APP_VERSION } from "../lib/version";
+import { SHOW_MONETIZATION } from "../lib/featureFlags";
 
 export default function SiteFooter() {
   return (
@@ -19,9 +20,11 @@ export default function SiteFooter() {
           <Link to="/live" className="hover:text-neutral-300">
             Diff tool
           </Link>
-          <a href="/#pricing" className="hover:text-neutral-300">
-            Pricing
-          </a>
+          {SHOW_MONETIZATION && (
+            <a href="/#pricing" className="hover:text-neutral-300">
+              Pricing
+            </a>
+          )}
           <a href="/#faq" className="hover:text-neutral-300">
             FAQ
           </a>

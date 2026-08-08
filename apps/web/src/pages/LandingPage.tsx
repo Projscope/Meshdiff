@@ -3,6 +3,7 @@ import { Check, LinkSimple, User, Users, UsersThree } from "@phosphor-icons/reac
 import WaitlistForm from "../components/WaitlistForm";
 import FaqAccordion from "../components/FaqAccordion";
 import liveDiffPreview from "../assets/live-diff-preview.png";
+import { SHOW_MONETIZATION } from "../lib/featureFlags";
 
 const PLANNED_FEATURES = [
   "Version history for every model",
@@ -210,70 +211,72 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="border-t border-neutral-900 px-6 py-14">
-          <div className="mx-auto max-w-5xl">
-            <h2 className="text-center text-2xl font-semibold text-white">
-              Diff for free. Upgrade to save, review, and share.
-            </h2>
-            <p className="mx-auto mt-2 max-w-xl text-center text-sm text-neutral-400">
-              The comparison tool is free forever. Founding members get 50%
-              off Pro and Team for 3 months.
-            </p>
+        {/* Pricing (hidden until Stripe billing is wired up) */}
+        {SHOW_MONETIZATION && (
+          <section id="pricing" className="border-t border-neutral-900 px-6 py-14">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="text-center text-2xl font-semibold text-white">
+                Diff for free. Upgrade to save, review, and share.
+              </h2>
+              <p className="mx-auto mt-2 max-w-xl text-center text-sm text-neutral-400">
+                The comparison tool is free forever. Founding members get 50%
+                off Pro and Team for 3 months.
+              </p>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {PRICING_TIERS.map((tier) => (
-                <div
-                  key={tier.name}
-                  className={`rounded-xl border p-6 ${
-                    tier.highlighted
-                      ? "border-emerald-500 bg-neutral-900"
-                      : "border-neutral-800 bg-neutral-900"
-                  }`}
-                >
-                  <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-emerald-400" : "text-neutral-300"}`}>
-                    {tier.name}
-                  </h3>
-                  <div className="mt-2 flex items-baseline gap-1.5">
-                    <span className="text-3xl font-bold text-white">{tier.price}</span>
-                    {tier.period && <span className="text-xs text-neutral-500">{tier.period}</span>}
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
+                {PRICING_TIERS.map((tier) => (
+                  <div
+                    key={tier.name}
+                    className={`rounded-xl border p-6 ${
+                      tier.highlighted
+                        ? "border-emerald-500 bg-neutral-900"
+                        : "border-neutral-800 bg-neutral-900"
+                    }`}
+                  >
+                    <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-emerald-400" : "text-neutral-300"}`}>
+                      {tier.name}
+                    </h3>
+                    <div className="mt-2 flex items-baseline gap-1.5">
+                      <span className="text-3xl font-bold text-white">{tier.price}</span>
+                      {tier.period && <span className="text-xs text-neutral-500">{tier.period}</span>}
+                    </div>
+                    <p className="mt-1 text-xs text-neutral-500">{tier.audience}</p>
+
+                    {"to" in tier.cta ? (
+                      <Link
+                        to={tier.cta.to}
+                        className="mt-4 block w-full rounded-lg bg-emerald-500 py-2 text-center text-sm font-medium text-neutral-950 transition hover:bg-emerald-400"
+                      >
+                        {tier.cta.label}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={scrollToEarlyAccess}
+                        className={`mt-4 w-full rounded-lg py-2 text-sm font-medium transition ${
+                          tier.highlighted
+                            ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15"
+                            : "border border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                        }`}
+                      >
+                        {tier.cta.label}
+                      </button>
+                    )}
+
+                    <ul className="mt-5 flex flex-col gap-2 text-xs text-neutral-400">
+                      {tier.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-2">
+                          <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-emerald-400" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <p className="mt-1 text-xs text-neutral-500">{tier.audience}</p>
-
-                  {"to" in tier.cta ? (
-                    <Link
-                      to={tier.cta.to}
-                      className="mt-4 block w-full rounded-lg bg-emerald-500 py-2 text-center text-sm font-medium text-neutral-950 transition hover:bg-emerald-400"
-                    >
-                      {tier.cta.label}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={scrollToEarlyAccess}
-                      className={`mt-4 w-full rounded-lg py-2 text-sm font-medium transition ${
-                        tier.highlighted
-                          ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15"
-                          : "border border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                      }`}
-                    >
-                      {tier.cta.label}
-                    </button>
-                  )}
-
-                  <ul className="mt-5 flex flex-col gap-2 text-xs text-neutral-400">
-                    {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-emerald-400" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Early access / waitlist */}
         <section id="early-access" className="border-t border-neutral-900 px-6 py-16">
