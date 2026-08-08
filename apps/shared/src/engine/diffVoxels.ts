@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { MeshBVH } from "three-mesh-bvh";
 import type { Result } from "../types/diff.js";
 import { voxelizeGeometryIntoGrid } from "./voxelize.js";
 
@@ -98,30 +99,112 @@ function computeSurfaceArea(geometry: THREE.BufferGeometry): number {
   return area;
 }
 
+// Cap the number of sampled triangles so a dense mesh (tens of thousands of
+// triangles) still costs one bounded pass of BVH raycasts rather than one
+// per triangle.
+const MAX_WALL_THICKNESS_SAMPLES = 4000;
+// Nudge the ray origin this far inward off the originating triangle before
+// casting, so the BVH raycast doesn't immediately re-hit that same triangle
+// at t≈0 (which would report a false zero-thickness reading).
+const WALL_THICKNESS_RAY_EPSILON_MM = 1e-3;
+
+/**
+ * Opposing-normal raycast wall-thickness measurement (the same technique
+ * slicers like PrusaSlicer/Meshmixer use): for a sample of surface points,
+ * cast a ray inward along the negated face normal and take the distance to
+ * the first back-facing surface the ray hits. That distance is the local
+ * shell thickness at that point. Requires a closed, outward-facing manifold
+ * mesh — same assumption `isPointInsideMesh` (voxelize.ts) already makes for
+ * well-formed STL/3MF/OBJ prints.
+ */
 function computeWallThickness(geometry: THREE.BufferGeometry, resolutionMm: number): {
   minThickness: number;
   maxThickness: number;
   hasWarning: boolean;
 } {
-  // Simplified wall thickness: estimate from voxel density
-  // A more accurate approach would use distance field, but this is a good approximation
   const position = geometry.getAttribute("position");
   if (!position) {
     return { minThickness: 0, maxThickness: 0, hasWarning: false };
   }
 
-  // Estimate shell thickness by analyzing local density
-  // For now, return reasonable defaults based on resolution
-  const estimatedMinThickness = resolutionMm * 2;
-  const estimatedMaxThickness = resolutionMm * 8;
-  const hasWarning = estimatedMinThickness < FDM_MIN_WALL_THICKNESS_MM;
+  const index = geometry.getIndex();
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  if (triangleCount === 0) {
+    return { minThickness: 0, maxThickness: 0, hasWarning: false };
+  }
+
+  const bvh = new MeshBVH(geometry);
+  const stride = Math.max(1, Math.floor(triangleCount / MAX_WALL_THICKNESS_SAMPLES));
+
+  const v1 = new THREE.Vector3();
+  const v2 = new THREE.Vector3();
+  const v3 = new THREE.Vector3();
+  const edge1 = new THREE.Vector3();
+  const edge2 = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const centroid = new THREE.Vector3();
+  const rayOrigin = new THREE.Vector3();
+  const rayDirection = new THREE.Vector3();
+
+  let minThickness = Infinity;
+  let maxThickness = 0;
+  let sampleCount = 0;
+
+  for (let t = 0; t < triangleCount; t += stride) {
+    const i = t * 3;
+    const a = index ? index.getX(i) : i;
+    const b = index ? index.getX(i + 1) : i + 1;
+    const c = index ? index.getX(i + 2) : i + 2;
+    v1.fromBufferAttribute(position, a);
+    v2.fromBufferAttribute(position, b);
+    v3.fromBufferAttribute(position, c);
+
+    edge1.subVectors(v2, v1);
+    edge2.subVectors(v3, v1);
+    normal.crossVectors(edge1, edge2);
+    if (normal.lengthSq() === 0) continue; // degenerate triangle
+    normal.normalize();
+
+    centroid.copy(v1).add(v2).add(v3).divideScalar(3);
+    rayOrigin.copy(centroid).addScaledVector(normal, -WALL_THICKNESS_RAY_EPSILON_MM);
+    rayDirection.copy(normal).negate();
+
+    const hit = bvh.raycastFirst(new THREE.Ray(rayOrigin, rayDirection), THREE.DoubleSide);
+    if (hit && hit.distance > 0) {
+      minThickness = Math.min(minThickness, hit.distance);
+      maxThickness = Math.max(maxThickness, hit.distance);
+      sampleCount++;
+    }
+  }
+
+  if (sampleCount === 0) {
+    // Non-manifold/open mesh — no opposing surface for any sampled ray to
+    // hit. Fall back to the old voxel-resolution estimate rather than
+    // reporting a meaningless 0mm.
+    const estimatedMinThickness = resolutionMm * 2;
+    const estimatedMaxThickness = resolutionMm * 8;
+    return {
+      minThickness: estimatedMinThickness,
+      maxThickness: estimatedMaxThickness,
+      hasWarning: estimatedMinThickness < FDM_MIN_WALL_THICKNESS_MM,
+    };
+  }
 
   return {
-    minThickness: estimatedMinThickness,
-    maxThickness: estimatedMaxThickness,
-    hasWarning,
+    minThickness: Math.round(minThickness * 100) / 100,
+    maxThickness: Math.round(maxThickness * 100) / 100,
+    hasWarning: minThickness < FDM_MIN_WALL_THICKNESS_MM,
   };
 }
+
+// A face lying within this distance of the mesh's lowest Z is treated as
+// part of the model's own base — resting on and supported by the print bed
+// itself, not an unsupported overhang. Without this, every closed solid's
+// bottom shell (which necessarily faces "down") would register as the worst
+// possible overhang, which is what the previous version of this function
+// did — see the regression test this bug produced: a plain box and a plain
+// sphere both came back "fail" purely from their own flat/curved base.
+const BASE_PLANE_EPSILON_MM = 0.05;
 
 function computeOverhangAnalysis(
   geometry: THREE.BufferGeometry,
@@ -136,7 +219,16 @@ function computeOverhangAnalysis(
     return { maxAngle: 0, overhangArea: 0, overhangPercent: 0 };
   }
 
-  let maxAngle = 0;
+  geometry.computeBoundingBox();
+  const minZ = geometry.boundingBox?.min.z ?? 0;
+
+  // Overhang angle here is measured in degrees *past vertical* — 0° for a
+  // vertical wall (fine, no support needed), 90° for a horizontal ceiling
+  // facing straight down (worst case). Faces that face upward or are
+  // exactly vertical (angle from "up" <= 90°) need no support at all and
+  // are excluded entirely, matching how FDM overhangs actually work: a
+  // wall doesn't need support just because it isn't horizontal.
+  let maxOverhangAngle = 0;
   let overhangArea = 0;
   let totalArea = 0;
 
@@ -159,21 +251,39 @@ function computeOverhangAnalysis(
 
       const edge1 = v2.clone().sub(v1);
       const edge2 = v3.clone().sub(v1);
-      const normal = edge1.cross(edge2).normalize();
-      const faceArea = edge1.cross(edge2).length() * 0.5;
+      // NOTE: THREE.Vector3.cross() mutates the receiver and returns it, so
+      // a second edge1.cross(edge2) call (as the previous version of this
+      // code did, to get the un-normalized length for area) would silently
+      // re-cross the already-normalized `normal` against edge2 instead of
+      // recomputing the original raw cross product — corrupting the normal
+      // used for the angle check below. Compute area from the raw cross
+      // product first, then normalize a separate clone for the direction.
+      const rawNormal = edge1.clone().cross(edge2);
+      const faceArea = rawNormal.length() * 0.5;
       totalArea += faceArea;
+      if (faceArea === 0) continue; // degenerate triangle — no well-defined normal
+      const normal = rawNormal.clone().normalize();
 
-      const angle = Math.acos(Math.max(-1, Math.min(1, normal.dot(gravity)))) * (180 / Math.PI);
-      maxAngle = Math.max(maxAngle, angle);
+      const restsOnBuildPlate =
+        v1.z - minZ < BASE_PLANE_EPSILON_MM &&
+        v2.z - minZ < BASE_PLANE_EPSILON_MM &&
+        v3.z - minZ < BASE_PLANE_EPSILON_MM;
+      if (restsOnBuildPlate) continue;
 
-      if (angle > 45) {
+      const angleFromUp = Math.acos(Math.max(-1, Math.min(1, normal.dot(gravity)))) * (180 / Math.PI);
+      if (angleFromUp <= 90) continue; // upward-facing or vertical — no overhang risk
+
+      const overhangAngle = angleFromUp - 90;
+      maxOverhangAngle = Math.max(maxOverhangAngle, overhangAngle);
+
+      if (overhangAngle > 45) {
         overhangArea += faceArea;
       }
     }
   }
 
   return {
-    maxAngle: Math.round(maxAngle * 10) / 10,
+    maxAngle: Math.round(maxOverhangAngle * 10) / 10,
     overhangArea: Math.round(overhangArea * 10) / 10,
     overhangPercent: totalArea > 0 ? Math.round((overhangArea / totalArea) * 1000) / 10 : 0,
   };
