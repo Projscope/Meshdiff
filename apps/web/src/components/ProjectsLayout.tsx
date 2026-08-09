@@ -140,7 +140,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
           <nav className="flex-1 overflow-y-auto px-2 py-3">
             <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Projects</span>
+              <Link
+                to="/projects"
+                className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600 hover:text-neutral-300"
+              >
+                Projects
+              </Link>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
