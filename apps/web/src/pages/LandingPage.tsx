@@ -1,5 +1,16 @@
 import { Link } from "react-router-dom";
-import { Check, LinkSimple, User, Users, UsersThree } from "@phosphor-icons/react";
+import {
+  Check,
+  ChatCircle,
+  Cube,
+  GitBranch,
+  LinkSimple,
+  Palette,
+  ShieldCheck,
+  User,
+  Users,
+  UsersThree,
+} from "@phosphor-icons/react";
 import WaitlistForm from "../components/WaitlistForm";
 import FaqAccordion from "../components/FaqAccordion";
 import liveDiffPreview from "../assets/live-diff-preview.png";
@@ -68,6 +79,39 @@ const PRICING_TIERS: PricingTier[] = [
   },
 ];
 
+const FEATURES = [
+  {
+    icon: Cube,
+    title: "Voxel diff",
+    description: "Both meshes are voxelized into a shared grid — added geometry in green, removed in red.",
+  },
+  {
+    icon: Palette,
+    title: "Surface heatmap",
+    description: "A per-vertex signed-distance overlay shows exactly how far each surface point moved.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Printability gate",
+    description: "Real wall-thickness, overhang, and unsupported-area analysis, not a placeholder check.",
+  },
+  {
+    icon: LinkSimple,
+    title: "Shareable links",
+    description: "One link reproduces the exact comparison for anyone, no account or install required.",
+  },
+  {
+    icon: ChatCircle,
+    title: "3D-pinned comments",
+    description: "Click anywhere on a model to leave feedback right where it matters, in the Projects workspace.",
+  },
+  {
+    icon: GitBranch,
+    title: "Version history & approvals",
+    description: "Every upload keeps a traceable history, with team review before it becomes the stable version.",
+  },
+];
+
 export default function LandingPage() {
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
@@ -86,6 +130,16 @@ export default function LandingPage() {
               A real voxel comparison on STL, 3MF, and OBJ files. Added
               geometry in green, removed in red, reviewed in seconds.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["Runs in your browser", "No install", "Free forever"].map((label) => (
+                <span
+                  key={label}
+                  className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-[11px] text-neutral-400"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Link
                 to="/live"
@@ -121,6 +175,49 @@ export default function LandingPage() {
           </Link>
         </section>
 
+        {/* Contrast: what a binary diff gives you vs. what Meshdiff computes */}
+        <section className="border-t border-neutral-900 px-6 py-14">
+          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                  A binary diff
+                </p>
+                <p className="mt-2 text-sm text-neutral-400">
+                  "Files differ." That's it. No idea what changed, where, or by how much.
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-500/30 bg-neutral-900 p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+                  Meshdiff
+                </p>
+                <p className="mt-2 text-sm text-neutral-300">
+                  Voxel-level added/removed regions, volume delta, and a printability check, in seconds.
+                </p>
+              </div>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Same files, a real diff</h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-400">
+                Meshdiff never modifies your files. It reads them, computes the
+                comparison, and everything renders in your own browser.
+              </p>
+              <ul className="mt-5 flex flex-col gap-2 text-sm text-neutral-300">
+                {[
+                  "Your STL, 3MF, and OBJ files are never modified",
+                  "No install, no plugin, works in any modern browser",
+                  "Nothing is uploaded unless you explicitly create a share link",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <Check size={14} weight="bold" className="mt-1 shrink-0 text-emerald-400" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
         {/* Personas: asymmetric 1+2 grid, not three identical cards */}
         <section className="mx-auto max-w-6xl px-6 py-14">
           <h2 className="max-w-lg text-2xl font-semibold text-white">
@@ -152,6 +249,32 @@ export default function LandingPage() {
                   before a part fails on the bed.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Numbered feature list — what Meshdiff actually does, shipped today */}
+        <section id="features" className="border-t border-neutral-900 px-6 py-14">
+          <div className="mx-auto max-w-5xl">
+            <h2 className="text-2xl font-semibold text-white">What Meshdiff does</h2>
+            <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+              {FEATURES.map((feature, i) => {
+                const Icon = feature.icon;
+                return (
+                  <div key={feature.title} className="flex gap-4">
+                    <div className="flex shrink-0 flex-col items-center">
+                      <span className="font-mono text-xs text-neutral-600">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <Icon size={20} weight="light" className="mt-1.5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">{feature.title}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-400">{feature.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -279,7 +402,7 @@ export default function LandingPage() {
         )}
 
         {/* Early access / waitlist */}
-        <section id="early-access" className="border-t border-neutral-900 px-6 py-16">
+        <section id="early-access" className="px-6 py-20">
           <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2">
             <div>
               <h2 className="text-3xl font-bold leading-tight text-white md:text-4xl">
@@ -318,7 +441,7 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" className="border-t border-neutral-900 px-6 py-16">
+        <section id="faq" className="px-6 py-16">
           <h2 className="text-center text-2xl font-semibold text-white">
             Frequently asked
           </h2>
