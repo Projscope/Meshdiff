@@ -79,6 +79,13 @@ const PRICING_TIERS: PricingTier[] = [
   },
 ];
 
+const STATS = [
+  { value: "3", label: "File formats", detail: "STL, 3MF, and OBJ, parsed natively, no conversion step." },
+  { value: "100%", label: "Local", detail: "The Community diff runs entirely in your browser. Nothing uploads unless you share." },
+  { value: "3", label: "Print checks", detail: "Wall thickness, overhang, and unsupported area, computed for real, not a placeholder." },
+  { value: "$0", label: "To start", detail: "Free forever for the Community tier. No card, no account." },
+];
+
 const FEATURES = [
   {
     icon: Cube,
@@ -120,27 +127,17 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <main>
-        {/* Hero: asymmetric split, headline/CTA left, real product screenshot right */}
-        <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 pb-16 pt-16 md:grid-cols-[1.05fr_1fr] md:pt-20  bg-neutral-950">
-          <div>
-            <h1 className="mt-5 max-w-xl text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
+        {/* Hero: centered manifesto-style headline/CTA on top, full-width screenshot below */}
+        <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-neutral-950">
+          <div className="mx-auto max-w-2xl text-center">
+            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
               See exactly what changed between two meshes.
             </h1>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-neutral-400">
               A real voxel comparison on STL, 3MF, and OBJ files. Added
               geometry in green, removed in red, reviewed in seconds.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {["Runs in your browser", "No install", "Free forever"].map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-[11px] text-neutral-400"
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <Link
                 to="/live"
                 className="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
@@ -160,7 +157,7 @@ export default function LandingPage() {
           <Link
             to="/live"
             aria-label="Open the free diff tool"
-            className="group relative block overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
+            className="group relative mx-auto mt-12 block max-w-5xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
           >
             <img
               src={liveDiffPreview}
@@ -175,46 +172,16 @@ export default function LandingPage() {
           </Link>
         </section>
 
-        {/* Contrast: what a binary diff gives you vs. what Meshdiff computes */}
-        <section className="border-t border-neutral-900 px-6 py-14">
-          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                  A binary diff
-                </p>
-                <p className="mt-2 text-sm text-neutral-400">
-                  "Files differ." That's it. No idea what changed, where, or by how much.
-                </p>
+        {/* Stat band: quick, real credibility signals right after the hero */}
+        <section className="px-6">
+          <div className="mx-auto grid max-w-6xl grid-cols-2 divide-y divide-neutral-800 rounded-xl border border-neutral-800 bg-neutral-900 md:grid-cols-4 md:divide-x md:divide-y-0">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="p-6">
+                <p className="font-mono text-3xl font-bold text-white">{stat.value}</p>
+                <p className="mt-1 text-sm font-semibold text-neutral-300">{stat.label}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{stat.detail}</p>
               </div>
-              <div className="rounded-xl border border-emerald-500/30 bg-neutral-900 p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
-                  Meshdiff
-                </p>
-                <p className="mt-2 text-sm text-neutral-300">
-                  Voxel-level added/removed regions, volume delta, and a printability check, in seconds.
-                </p>
-              </div>
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">Same files, a real diff</h2>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-400">
-                Meshdiff never modifies your files. It reads them, computes the
-                comparison, and everything renders in your own browser.
-              </p>
-              <ul className="mt-5 flex flex-col gap-2 text-sm text-neutral-300">
-                {[
-                  "Your STL, 3MF, and OBJ files are never modified",
-                  "No install, no plugin, works in any modern browser",
-                  "Nothing is uploaded unless you explicitly create a share link",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
-                    <Check size={14} weight="bold" className="mt-1 shrink-0 text-emerald-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            ))}
           </div>
         </section>
 
