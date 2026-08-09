@@ -81,8 +81,8 @@ export default function SiteHeader() {
   return (
     <div className="sticky top-0 z-40">
       {SHOW_MONETIZATION && <AnnouncementBar />}
-      <header className="border-b border-neutral-800 bg-neutral-950 px-4 py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
+      <header className="bg-neutral-950 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between rounded-full border border-neutral-800 bg-neutral-900/60 px-5 py-2.5 backdrop-blur">
           <Link to="/" className="flex items-center gap-2.5">
             <LogoMark />
             <div className="flex items-center gap-1.5 leading-tight">
