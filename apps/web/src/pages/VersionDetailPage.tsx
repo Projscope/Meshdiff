@@ -12,7 +12,8 @@ import {
   type CommentSummary,
 } from "../lib/projectsApi";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
-import { loadMeshGeometry } from "../engine/loadMesh";
+import { extensionOf, loadMeshGeometry } from "../engine/loadMesh";
+import { extractThreeMFProperties, loadMeshForDisplay, type ThreeMFProperties } from "../engine/load3mfDisplayExtras";
 import PrintabilityBadge from "../components/PrintabilityBadge";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
@@ -20,6 +21,7 @@ import CommentsPanel from "../components/CommentsPanel";
 import CommentPin from "../components/CommentPin";
 import AxisLegend from "../components/AxisLegend";
 import AxisLabels from "../components/AxisLabels";
+import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
 
 export default function VersionDetailPage() {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
@@ -27,6 +29,8 @@ export default function VersionDetailPage() {
   const [diffStats, setDiffStats] = useState<VoxelDiffStats | null>(null);
   const [hasComparison, setHasComparison] = useState(false);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [hasVertexColors, setHasVertexColors] = useState(false);
+  const [threeMFProperties, setThreeMFProperties] = useState<ThreeMFProperties | null>(null);
   const [boundingBox, setBoundingBox] = useState<[number, number, number]>([0, 0, 0]);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,12 +63,31 @@ export default function VersionDetailPage() {
 
       const response = await fetch(result.data.downloadUrl);
       const blob = await response.blob();
-      const meshResult = await loadMeshGeometry(new File([blob], result.data.fileName));
+      const file = new File([blob], result.data.fileName);
+      const meshResult = await loadMeshGeometry(file);
       if (cancelled) return;
       if (meshResult.success) {
-        setGeometry(meshResult.data);
-        meshResult.data.computeBoundingBox();
-        const box = meshResult.data.boundingBox;
+        let displayGeometry = meshResult.data;
+
+        if (extensionOf(result.data.fileName) === "3mf") {
+          const [colored, properties] = await Promise.all([
+            loadMeshForDisplay(file),
+            extractThreeMFProperties(file),
+          ]);
+          if (!cancelled) {
+            if (colored.success && colored.data.hasColor) {
+              displayGeometry = colored.data.geometry;
+              setHasVertexColors(true);
+            }
+            if (properties && Object.keys(properties.metadata).length > 0) {
+              setThreeMFProperties(properties);
+            }
+          }
+        }
+
+        setGeometry(displayGeometry);
+        displayGeometry.computeBoundingBox();
+        const box = displayGeometry.boundingBox;
         if (box) {
           const size = box.getSize(new THREE.Vector3());
           setBoundingBox([size.x, size.y, size.z]);
@@ -131,7 +154,15 @@ export default function VersionDetailPage() {
             {geometry && (
               <Bounds fit clip observe margin={1.2}>
                 <mesh geometry={geometry} onClick={handleMeshClick}>
-                  <meshStandardMaterial color="#4f8ff7" />
+                  {/* key forces a fresh material instance when hasVertexColors
+                      flips — mutating vertexColors on an already-compiled
+                      material in place doesn't recompile its shader, so the
+                      color attribute would silently be ignored otherwise. */}
+                  <meshStandardMaterial
+                    key={hasVertexColors ? "vertex-colors" : "flat"}
+                    color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
+                    vertexColors={hasVertexColors}
+                  />
                 </mesh>
               </Bounds>
             )}
@@ -182,6 +213,12 @@ export default function VersionDetailPage() {
                 <PrintabilityBadge status={version.printabilityStatus} />
               </PrintabilityRulesTooltip>
             </div>
+
+            {threeMFProperties && (
+              <div className="mt-5">
+                <ThreeMFPropertiesPanel properties={threeMFProperties} />
+              </div>
+            )}
 
             <div className="mt-5">
               <DetailedStatsPanel
