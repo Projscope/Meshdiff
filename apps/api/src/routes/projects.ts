@@ -355,6 +355,62 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
     },
   );
 
+  // Owner or team admin only — everything else (versions, version_diffs,
+  // comments) cascades at the DB level (see migrations), but storage
+  // objects (mesh files, thumbnail) live outside Postgres and have to be
+  // cleaned up explicitly or they'd leak forever.
+  app.delete<{ Params: { projectId: string } }>(
+    "/projects/:projectId",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Projects are not configured" };
+      }
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (access.role !== "owner" && access.role !== "admin") {
+          reply.code(403);
+          return { success: false, error: "Only the project owner or a team admin can delete this project" };
+        }
+
+        const { data: versions } = await supabase
+          .from("versions")
+          .select("file_path")
+          .eq("project_id", projectId);
+
+        const paths = [...(versions ?? []).map((v) => v.file_path as string), thumbnailPath(projectId)];
+        if (paths.length > 0) {
+          const { error: removeError } = await supabase.storage.from(BUCKET).remove(paths);
+          if (removeError) {
+            app.log.warn(removeError, "Failed to remove some project files from storage");
+          }
+        }
+
+        const { error } = await supabase.from("projects").delete().eq("id", projectId);
+        if (error) {
+          app.log.error(error, "Failed to delete project");
+          reply.code(502);
+          return { success: false, error: "Failed to delete project, please try again" };
+        }
+
+        return { success: true, data: true };
+      } catch (err) {
+        app.log.error(err, "Project deletion threw");
+        reply.code(502);
+        return { success: false, error: "Failed to delete project, please try again" };
+      }
+    },
+  );
+
   // Called when the version the thumbnail depicted was deleted and no
   // versions remain to re-render from — removes the stale image so the list
   // page falls back to the "no model yet" placeholder instead of showing a
