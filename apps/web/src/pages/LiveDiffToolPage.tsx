@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import * as THREE from "three";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
@@ -62,6 +63,7 @@ export default function LiveDiffToolPage() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isRestoringShare, setIsRestoringShare] = useState(false);
+  const [isSharedView, setIsSharedView] = useState(false);
   const [syncedCameraState, setSyncedCameraState] = useState<{ position: [number, number, number]; target: [number, number, number] } | null>(null);
   const [isSyncEnabled, setIsSyncEnabled] = useState(true);
   const [selectedDemo, setSelectedDemo] = useState<"simple" | "bracket" | "gear">("simple");
@@ -97,6 +99,7 @@ export default function LiveDiffToolPage() {
       return;
     }
 
+    setIsSharedView(true);
     setIsRestoringShare(true);
     fetch(shareGetEndpoint(shareId))
       .then(async (response) => {
@@ -130,6 +133,7 @@ export default function LiveDiffToolPage() {
 
   function dismissShareError() {
     setRestoreError(null);
+    setIsSharedView(false);
     window.history.replaceState(null, "", window.location.pathname);
     viewerARef.current?.loadDemo();
     viewerBRef.current?.loadDemo();
@@ -256,6 +260,14 @@ export default function LiveDiffToolPage() {
       {isRestoringShare && (
         <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-400">
           Loading shared diff…
+        </div>
+      )}
+      {isSharedView && !isRestoringShare && !restoreError && (
+        <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-1.5 text-center text-[11px] text-neutral-400">
+          <b><i>Checking diffs is free. Want to have a workspaces, projects, versioning and approvals before shipping?{" "} </i></b>
+          <a href="/#early-access" className="font-medium text-emerald-400 hover:text-emerald-300">
+            Try Meshdiff Pro
+          </a>
         </div>
       )}
       <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
@@ -481,6 +493,16 @@ export default function LiveDiffToolPage() {
           shareUrl={shareUrl}
         />
       )}
+
+      <Link
+        to="/"
+        className="fixed bottom-3 right-3 z-40 flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-[11px] text-neutral-400 shadow-lg backdrop-blur hover:border-neutral-600 hover:text-neutral-200"
+      >
+        <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-[9px] font-bold leading-none text-neutral-950">
+          ^
+        </span>
+        Powered by Meshdiff
+      </Link>
     </div>
   );
 }
