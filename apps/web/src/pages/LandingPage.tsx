@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
 import {
+  ArrowRight,
   Check,
+  CheckCircle,
   ChatCircle,
+  ClockCounterClockwise,
   Cube,
   GitBranch,
   LinkSimple,
@@ -84,6 +87,13 @@ const STATS = [
   { value: "100%", label: "Local", detail: "The Community diff runs entirely in your browser. Nothing uploads unless you share." },
   { value: "3", label: "Print checks", detail: "Wall thickness, overhang, and unsupported area, computed for real, not a placeholder." },
   { value: "$0", label: "To start", detail: "Free forever for the Community tier. No card, no account." },
+];
+
+const TEAM_WORKFLOW = [
+  { icon: Cube, label: "Compare", detail: "Upload a new version, see the voxel diff instantly." },
+  { icon: ChatCircle, label: "Pin comment", detail: "Click a spot on the model, leave feedback right there." },
+  { icon: CheckCircle, label: "Approve or reject", detail: "An admin or approver signs off, with a reason if rejected." },
+  { icon: ClockCounterClockwise, label: "Preserve history", detail: "Every decision stays on the record, reversible any time." },
 ];
 
 const FEATURES = [
@@ -300,6 +310,37 @@ export default function LandingPage() {
             </a>
           </div>
         </section>
+
+        {/* Team workflow: compact proof block for what Team actually buys, right before pricing */}
+        {SHOW_MONETIZATION && (
+          <section className="border-t border-neutral-900 px-6 py-14">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="text-2xl font-bold text-white">What Team unlocks</h2>
+              <p className="mt-2 max-w-xl text-sm text-neutral-400">
+                Every upload goes through the same four steps before it becomes the version everyone builds on.
+              </p>
+              <div className="mt-8 grid gap-4 md:grid-cols-4">
+                {TEAM_WORKFLOW.map((step, i) => {
+                  const Icon = step.icon;
+                  return (
+                    <div key={step.label} className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+                      <Icon size={22} weight="light" className="text-emerald-400" />
+                      <h3 className="mt-3 text-sm font-semibold text-white">{step.label}</h3>
+                      <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{step.detail}</p>
+                      {i < TEAM_WORKFLOW.length - 1 && (
+                        <ArrowRight
+                          size={16}
+                          weight="bold"
+                          className="absolute -right-2.5 top-1/2 hidden -translate-y-1/2 text-neutral-700 md:block"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Pricing (hidden until Stripe billing is wired up) */}
         {SHOW_MONETIZATION && (
