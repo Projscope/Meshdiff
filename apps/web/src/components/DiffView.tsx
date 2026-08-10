@@ -1,7 +1,7 @@
 import {
   forwardRef,
   useImperativeHandle,
-  useMemo,
+  useState,
   useRef,
   useLayoutEffect,
   useEffect,
@@ -10,13 +10,13 @@ import * as THREE from "three";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
 import {
-  computeVoxelDiff,
   VOXEL_ADDED,
   VOXEL_REMOVED,
   VOXEL_UNCHANGED,
   type VoxelDiffResult,
   type VoxelDiffStats,
 } from "@meshdiff/shared/engine/diffVoxels";
+import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
@@ -216,13 +216,28 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
   }));
 
-  // TODO: Move this to a Web Worker to avoid blocking the render thread during diff computation
-  // The voxelization, BVH building, and dilation are expensive operations that should run off-thread
-  // See CLAUDE.md "3D Performance Rules": "All heavy computation runs in Web Workers"
-  const diff = useMemo(() => {
-    if (!geometryA || !geometryB) return null;
-    const result = computeVoxelDiff(geometryA, geometryB, { toleranceMm });
-    return result.success ? result.data : { error: result.error };
+  // Voxelization, BVH building, and dilation are expensive — they run in a
+  // Web Worker (see voxelDiffWorkerClient.ts) so this doesn't block the
+  // render thread while a diff computes, per CLAUDE.md "3D Performance
+  // Rules". `requestIdRef` guards against a stale response landing after a
+  // newer request was already fired (e.g. dragging the tolerance slider).
+  const [diff, setDiff] = useState<(VoxelDiffResult & { error?: undefined }) | { error: string } | null>(null);
+  const [isComputing, setIsComputing] = useState(false);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!geometryA || !geometryB) {
+      setDiff(null);
+      setIsComputing(false);
+      return;
+    }
+    const requestId = ++requestIdRef.current;
+    setIsComputing(true);
+    computeVoxelDiffOffThread(geometryA, geometryB, { toleranceMm }).then((result) => {
+      if (requestIdRef.current !== requestId) return; // superseded by a newer request
+      setDiff(result.success ? result.data : { error: result.error });
+      setIsComputing(false);
+    });
   }, [geometryA, geometryB, toleranceMm]);
 
   const isPending = !geometryA || !geometryB;
@@ -242,6 +257,12 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           {label}
         </span>
+        {isComputing && !isPending && (
+          <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
+            Computing…
+          </span>
+        )}
         {!isPending && !hasError && (
           <div className="flex overflow-hidden rounded border border-neutral-700 text-[11px]">
             <button
