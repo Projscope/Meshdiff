@@ -159,18 +159,16 @@ export default function ProjectsListPage() {
       {isModalOpen && (
         <NewProjectModal
           onClose={() => setIsModalOpen(false)}
-          onCreated={() => {
+          onCreated={(project) => {
             setIsModalOpen(false);
-            // A newly created project belongs on page 1 (list is sorted by
-            // updated_at desc) — jump there so it's visible immediately
-            // instead of leaving the user on whatever page they were on.
+            // Prepend the project the create call already returned instead
+            // of re-fetching page 1 — a re-fetch immediately after create
+            // is a race (nothing guarantees it lands after the write is
+            // visible), so it could momentarily come back without the new
+            // project or in the wrong order. This is instant and exact.
             if (page === 1) {
-              listProjects(1, PAGE_SIZE).then((result) => {
-                if (result.success) {
-                  setProjects(result.data.projects);
-                  setTotal(result.data.total);
-                }
-              });
+              setProjects((prev) => [project, ...(prev ?? [])].slice(0, PAGE_SIZE));
+              setTotal((prev) => prev + 1);
             } else {
               setPage(1);
             }

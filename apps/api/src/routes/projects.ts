@@ -118,7 +118,12 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
         teamIds.length > 0
           ? query.or(`owner_user_id.eq.${request.userId},team_id.in.(${teamIds.join(",")})`)
           : query.eq("owner_user_id", request.userId);
-      const { data: rows, error, count } = await query.order("updated_at", { ascending: false }).range(from, to);
+      // Explicitly creation date, not updated_at — nothing bumps updated_at
+      // today (renaming a project doesn't touch it), so the two happen to
+      // match right now, but ordering by the field that actually means
+      // "when was this created" keeps that true even if updated_at starts
+      // being maintained for real later.
+      const { data: rows, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
 
       if (error) {
         app.log.error(error, "Failed to list projects");
