@@ -92,6 +92,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const planBadgeClass =
     teams.length > 0 ? "bg-violet-500/15 text-violet-400" : "bg-emerald-500/15 text-emerald-400";
 
+  // The sidebar's own nav is alphabetical (unlike the /projects grid page,
+  // which is newest-first) — sort here at render time rather than in
+  // fetchProjects/onCreated's state updates, so every path that touches
+  // `projects` (fetch, optimistic prepend on create) stays correctly
+  // ordered without having to remember to re-sort in each one.
+  const sortedProjects = projects
+    ? [...projects].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+    : null;
+
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
       <div className="flex min-h-screen bg-neutral-950 text-neutral-100">
@@ -140,7 +149,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
           <nav className="flex-1 overflow-y-auto px-2 py-3">
             <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Projects</span>
+              <Link
+                to="/projects"
+                className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600 hover:text-neutral-300"
+              >
+                Projects
+              </Link>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
@@ -152,13 +166,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </div>
 
             <div className="mt-2 flex flex-col gap-0.5">
-              {projects === null && (
+              {sortedProjects === null && (
                 <p className="px-2 py-1.5 text-xs text-neutral-600">Loading…</p>
               )}
-              {projects?.length === 0 && (
+              {sortedProjects?.length === 0 && (
                 <p className="px-2 py-1.5 text-xs text-neutral-600">No projects yet.</p>
               )}
-              {projects?.map((project) => {
+              {sortedProjects?.map((project) => {
                 const isActive = project.id === projectId;
                 return (
                   <Link

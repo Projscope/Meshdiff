@@ -158,6 +158,10 @@ export function getProject(projectId: string): Promise<Result<ProjectDetail>> {
   return request(`/projects/${projectId}`);
 }
 
+export function deleteProject(projectId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}`, { method: "DELETE" });
+}
+
 export function setProjectTeam(projectId: string, teamId: string | null): Promise<Result<{ teamId: string | null }>> {
   return request(`/projects/${projectId}`, {
     method: "PATCH",

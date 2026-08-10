@@ -4,6 +4,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { ThreeMFLoader } from "three/examples/jsm/loaders/3MFLoader.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOMParser } from "linkedom";
+import { parseProductionThreeMF } from "@meshdiff/shared/engine/parseProductionThreeMF.js";
 import type { Result } from "@meshdiff/shared/types/diff.js";
 
 const stlLoader = new STLLoader();
@@ -23,14 +24,14 @@ const threeMFLoader = new ThreeMFLoader();
  * the client's merge-all-objects logic exactly (see loadMesh.ts's comment
  * for why: multiple mesh objects per file, world-space baking).
  *
- * TODO: three.js's stock ThreeMFLoader doesn't support the 3MF Production
+ * three.js's stock ThreeMFLoader doesn't support the 3MF Production
  * Extension (objects split across separate `3D/Objects/*.model` files,
  * referenced via a component's `p:path` attribute — used by BambuStudio,
- * PrusaSlicer, OrcaSlicer for multi-plate/multi-instance files). Uploading
- * one throws "Cannot read properties of undefined (reading 'mesh')" here
- * (and identically client-side, since it's the same loader) because the
- * referenced object IDs are never found in the main model file. Same
- * limitation exists in apps/web/src/engine/loadMesh.ts.
+ * PrusaSlicer, OrcaSlicer for multi-plate/multi-instance files) and throws
+ * "Cannot read properties of undefined (reading 'mesh')" on those. When
+ * that happens, parseProductionThreeMF re-parses the same buffer by
+ * actually following p:path across model parts. Same pattern in
+ * apps/web/src/engine/loadMesh.ts.
  */
 export async function loadMeshGeometryServer(
   buffer: ArrayBuffer,
@@ -75,7 +76,18 @@ export async function loadMeshGeometryServer(
     }
 
     // 3mf
-    const group = threeMFLoader.parse(buffer);
+    let group: THREE.Group;
+    try {
+      group = threeMFLoader.parse(buffer);
+    } catch {
+      // Stock ThreeMFLoader doesn't support the Production Extension (see
+      // parseProductionThreeMF's doc comment) — retry with the p:path-aware
+      // parser before giving up.
+      const fallback = parseProductionThreeMF(buffer);
+      if (!fallback.success) return fallback;
+      fallback.data.computeVertexNormals();
+      return { success: true, data: fallback.data };
+    }
     group.updateWorldMatrix(true, true);
 
     const geometries: THREE.BufferGeometry[] = [];

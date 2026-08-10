@@ -1,5 +1,19 @@
 import { Link } from "react-router-dom";
-import { Check, LinkSimple, User, Users, UsersThree } from "@phosphor-icons/react";
+import {
+  ArrowRight,
+  Check,
+  CheckCircle,
+  ChatCircle,
+  ClockCounterClockwise,
+  Cube,
+  GitBranch,
+  LinkSimple,
+  Palette,
+  ShieldCheck,
+  User,
+  Users,
+  UsersThree,
+} from "@phosphor-icons/react";
 import WaitlistForm from "../components/WaitlistForm";
 import FaqAccordion from "../components/FaqAccordion";
 import liveDiffPreview from "../assets/live-diff-preview.png";
@@ -68,6 +82,53 @@ const PRICING_TIERS: PricingTier[] = [
   },
 ];
 
+const STATS = [
+  { value: "3", label: "File formats", detail: "STL, 3MF, and OBJ, parsed natively, no conversion step." },
+  { value: "100%", label: "Local", detail: "The Community diff runs entirely in your browser. Nothing uploads unless you share." },
+  { value: "3", label: "Print checks", detail: "Wall thickness, overhang, and unsupported area, computed for real, not a placeholder." },
+  { value: "$0", label: "To start", detail: "Free forever for the Community tier. No card, no account." },
+];
+
+const TEAM_WORKFLOW = [
+  { icon: Cube, label: "Compare", detail: "Upload a new version, see the voxel diff instantly." },
+  { icon: ChatCircle, label: "Pin comment", detail: "Click a spot on the model, leave feedback right there." },
+  { icon: CheckCircle, label: "Approve or reject", detail: "An admin or approver signs off, with a reason if rejected." },
+  { icon: ClockCounterClockwise, label: "Preserve history", detail: "Every decision stays on the record, reversible any time." },
+];
+
+const FEATURES = [
+  {
+    icon: Cube,
+    title: "Voxel diff",
+    description: "Both meshes are voxelized into a shared grid — added geometry in green, removed in red.",
+  },
+  {
+    icon: Palette,
+    title: "Surface heatmap",
+    description: "A per-vertex signed-distance overlay shows exactly how far each surface point moved.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Printability gate",
+    description: "Real wall-thickness, overhang, and unsupported-area analysis, not a placeholder check.",
+  },
+  {
+    icon: LinkSimple,
+    title: "Shareable links",
+    description: "One link reproduces the exact comparison for anyone, no account or install required.",
+  },
+  {
+    icon: ChatCircle,
+    title: "3D-pinned comments",
+    description: "Click anywhere on a model to leave feedback right where it matters, in the Projects workspace.",
+  },
+  {
+    icon: GitBranch,
+    title: "Version history & approvals",
+    description: "Every upload keeps a traceable history, with team review before it becomes the stable version.",
+  },
+];
+
 export default function LandingPage() {
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
@@ -76,17 +137,17 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <main>
-        {/* Hero: asymmetric split, headline/CTA left, real product screenshot right */}
-        <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 pb-16 pt-16 md:grid-cols-[1.05fr_1fr] md:pt-20  bg-neutral-950">
-          <div>
-            <h1 className="mt-5 max-w-xl text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
+        {/* Hero: centered manifesto-style headline/CTA on top, full-width screenshot below */}
+        <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-neutral-950">
+          <div className="mx-auto max-w-2xl text-center">
+            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
               See exactly what changed between two meshes.
             </h1>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-neutral-400">
               A real voxel comparison on STL, 3MF, and OBJ files. Added
               geometry in green, removed in red, reviewed in seconds.
             </p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <Link
                 to="/live"
                 className="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
@@ -106,7 +167,7 @@ export default function LandingPage() {
           <Link
             to="/live"
             aria-label="Open the free diff tool"
-            className="group relative block overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
+            className="group relative mx-auto mt-12 block max-w-5xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
           >
             <img
               src={liveDiffPreview}
@@ -119,6 +180,19 @@ export default function LandingPage() {
               </span>
             </div>
           </Link>
+        </section>
+
+        {/* Stat band: quick, real credibility signals right after the hero */}
+        <section className="px-6">
+          <div className="mx-auto grid max-w-6xl grid-cols-2 divide-y divide-neutral-800 rounded-xl border border-neutral-800 bg-neutral-900 md:grid-cols-4 md:divide-x md:divide-y-0">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="p-6">
+                <p className="font-mono text-3xl font-bold text-white">{stat.value}</p>
+                <p className="mt-1 text-sm font-semibold text-neutral-300">{stat.label}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{stat.detail}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Personas: asymmetric 1+2 grid, not three identical cards */}
@@ -152,6 +226,32 @@ export default function LandingPage() {
                   before a part fails on the bed.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Numbered feature list — what Meshdiff actually does, shipped today */}
+        <section id="features" className="border-t border-neutral-900 px-6 py-14">
+          <div className="mx-auto max-w-5xl">
+            <h2 className="text-2xl font-semibold text-white">What Meshdiff does</h2>
+            <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+              {FEATURES.map((feature, i) => {
+                const Icon = feature.icon;
+                return (
+                  <div key={feature.title} className="flex gap-4">
+                    <div className="flex shrink-0 flex-col items-center">
+                      <span className="font-mono text-xs text-neutral-600">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <Icon size={20} weight="light" className="mt-1.5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">{feature.title}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-400">{feature.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -210,6 +310,37 @@ export default function LandingPage() {
             </a>
           </div>
         </section>
+
+        {/* Team workflow: compact proof block for what Team actually buys, right before pricing */}
+        {SHOW_MONETIZATION && (
+          <section className="border-t border-neutral-900 px-6 py-14">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="text-2xl font-bold text-white">What Team unlocks</h2>
+              <p className="mt-2 max-w-xl text-sm text-neutral-400">
+                Every upload goes through the same four steps before it becomes the version everyone builds on.
+              </p>
+              <div className="mt-8 grid gap-4 md:grid-cols-4">
+                {TEAM_WORKFLOW.map((step, i) => {
+                  const Icon = step.icon;
+                  return (
+                    <div key={step.label} className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+                      <Icon size={22} weight="light" className="text-emerald-400" />
+                      <h3 className="mt-3 text-sm font-semibold text-white">{step.label}</h3>
+                      <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{step.detail}</p>
+                      {i < TEAM_WORKFLOW.length - 1 && (
+                        <ArrowRight
+                          size={16}
+                          weight="bold"
+                          className="absolute -right-2.5 top-1/2 hidden -translate-y-1/2 text-neutral-700 md:block"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Pricing (hidden until Stripe billing is wired up) */}
         {SHOW_MONETIZATION && (
@@ -279,7 +410,7 @@ export default function LandingPage() {
         )}
 
         {/* Early access / waitlist */}
-        <section id="early-access" className="border-t border-neutral-900 px-6 py-16">
+        <section id="early-access" className="px-6 py-20">
           <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2">
             <div>
               <h2 className="text-3xl font-bold leading-tight text-white md:text-4xl">
@@ -318,7 +449,7 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" className="border-t border-neutral-900 px-6 py-16">
+        <section id="faq" className="px-6 py-16">
           <h2 className="text-center text-2xl font-semibold text-white">
             Frequently asked
           </h2>

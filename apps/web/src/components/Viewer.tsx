@@ -4,6 +4,7 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { loadMeshGeometry } from "../engine/loadMesh";
+import { loadMeshForDisplay } from "../engine/load3mfDisplayExtras";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 
@@ -144,6 +145,8 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   ref,
 ) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [displayGeometry, setDisplayGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [hasVertexColors, setHasVertexColors] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
@@ -157,8 +160,21 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     const result = await loadMeshGeometry(file);
     if (result.success) {
       setGeometry(result.data);
+      setDisplayGeometry(result.data);
+      setHasVertexColors(false);
       setError(null);
+      // The diff engine gets the stripped position-only geometry regardless
+      // of color — only the mesh actually rendered in this viewer swaps to
+      // the colored version, and only if the file is 3MF with real color.
       onGeometryLoaded?.(result.data, file);
+
+      if (file.name.toLowerCase().endsWith(".3mf")) {
+        const colored = await loadMeshForDisplay(file);
+        if (colored.success && colored.data.hasColor) {
+          setDisplayGeometry(colored.data.geometry);
+          setHasVertexColors(true);
+        }
+      }
     } else {
       setError(result.error);
     }
@@ -310,10 +326,18 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         <group rotation={[-Math.PI / 2, 0, 0]}>
           <axesHelper args={[30]} />
           <AxisLabels />
-          {geometry && (
+          {displayGeometry && (
             <Bounds fit clip observe margin={1.2}>
-              <mesh geometry={geometry}>
-                <meshStandardMaterial color="#4f8ff7" />
+              <mesh geometry={displayGeometry}>
+                {/* key forces a fresh material instance when hasVertexColors
+                    flips — mutating vertexColors on an already-compiled
+                    material in place doesn't recompile its shader, so the
+                    color attribute would silently be ignored otherwise. */}
+                <meshStandardMaterial
+                  key={hasVertexColors ? "vertex-colors" : "flat"}
+                  color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
+                  vertexColors={hasVertexColors}
+                />
               </mesh>
             </Bounds>
           )}

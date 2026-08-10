@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   getProject,
   getVersion,
@@ -8,6 +8,7 @@ import {
   uploadVersion,
   downloadVersionFile,
   deleteVersion,
+  deleteProject,
   getDiff,
   approveVersion,
   rejectVersion,
@@ -62,6 +63,7 @@ function StatCard({ label, value, accent }: { label: string; value: React.ReactN
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
@@ -78,6 +80,8 @@ export default function ProjectDetailPage() {
   const [compareAId, setCompareAId] = useState("");
   const [compareBId, setCompareBId] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteProjectOpen, setIsDeleteProjectOpen] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const refreshSidebar = useRefreshProjectsSidebar();
 
@@ -235,6 +239,19 @@ export default function ProjectDetailPage() {
     setTimeout(() => setShareCopied(false), 2000);
   }
 
+  async function handleDeleteProject() {
+    if (!projectId) return;
+    setIsDeletingProject(true);
+    const result = await deleteProject(projectId);
+    setIsDeletingProject(false);
+    if (!result.success) {
+      setIsDeleteProjectOpen(false);
+      setError(result.error);
+      return;
+    }
+    navigate("/projects");
+  }
+
   async function handleApprove(versionId: string) {
     if (!projectId) return;
     const result = await approveVersion(projectId, versionId);
@@ -376,6 +393,16 @@ export default function ProjectDetailPage() {
           >
             {isUploading ? "Uploading…" : "+ New Model"}
           </button>
+          {project && (project.myRole === "owner" || project.myRole === "admin") && (
+            <button
+              type="button"
+              onClick={() => setIsDeleteProjectOpen(true)}
+              title="Delete this project"
+              className="rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-red-400 hover:border-red-500/60 hover:bg-red-500/10"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -672,6 +699,18 @@ export default function ProjectDetailPage() {
             setIsEditModalOpen(false);
             refreshSidebar();
           }}
+        />
+      )}
+
+      {isDeleteProjectOpen && project && (
+        <ConfirmDialog
+          title={`Delete "${project.name}"?`}
+          message="This can't be undone. Every version, comment, and cached comparison in this project will be permanently deleted."
+          confirmLabel="Delete Project"
+          isDestructive
+          isConfirming={isDeletingProject}
+          onConfirm={() => void handleDeleteProject()}
+          onCancel={() => setIsDeleteProjectOpen(false)}
         />
       )}
     </div>

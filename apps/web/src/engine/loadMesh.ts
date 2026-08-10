@@ -3,13 +3,14 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { ThreeMFLoader } from "three/examples/jsm/loaders/3MFLoader.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { parseProductionThreeMF } from "@meshdiff/shared/engine/parseProductionThreeMF";
 import type { Result } from "@meshdiff/shared/types/diff";
 
 const stlLoader = new STLLoader();
 const objLoader = new OBJLoader();
 const threeMFLoader = new ThreeMFLoader();
 
-function extensionOf(filename: string): string {
+export function extensionOf(filename: string): string {
   const dot = filename.lastIndexOf(".");
   return dot === -1 ? "" : filename.slice(dot + 1).toLowerCase();
 }
@@ -25,11 +26,13 @@ function extensionOf(filename: string): string {
  * consistent across objects, and normals are recomputed on the merged
  * result anyway.
  *
- * TODO: ThreeMFLoader doesn't support the 3MF Production Extension
- * (objects split across separate `3D/Objects/*.model` files, referenced
- * via a component's `p:path` attribute — used by BambuStudio, PrusaSlicer,
- * OrcaSlicer for multi-plate/multi-instance files). Those throw "Cannot
- * read properties of undefined (reading 'mesh')" here. Same limitation in
+ * ThreeMFLoader doesn't support the 3MF Production Extension (objects
+ * split across separate `3D/Objects/*.model` files, referenced via a
+ * component's `p:path` attribute — used by BambuStudio, PrusaSlicer,
+ * OrcaSlicer for multi-plate/multi-instance files) and throws "Cannot
+ * read properties of undefined (reading 'mesh')" on those. When that
+ * happens, parseProductionThreeMF re-parses the same bytes by actually
+ * following p:path across model parts. Same pattern in
  * apps/api/src/lib/loadMeshServer.ts (identical loader).
  */
 export async function loadMeshGeometry(
@@ -82,7 +85,19 @@ export async function loadMeshGeometry(
 
     if (extension === "3mf") {
       const buffer = await file.arrayBuffer();
-      const group = threeMFLoader.parse(buffer);
+
+      let group: THREE.Group;
+      try {
+        group = threeMFLoader.parse(buffer);
+      } catch {
+        // Stock ThreeMFLoader doesn't understand the Production Extension
+        // (see the function-level comment above) — retry with the
+        // p:path-aware parser before giving up.
+        const fallback = parseProductionThreeMF(buffer);
+        if (!fallback.success) return fallback;
+        fallback.data.computeVertexNormals();
+        return { success: true, data: fallback.data };
+      }
       group.updateWorldMatrix(true, true);
 
       const geometries: THREE.BufferGeometry[] = [];
