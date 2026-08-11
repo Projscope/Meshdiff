@@ -10,10 +10,13 @@ import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import MeasurementOverlay from "./MeasurementOverlay";
+import RadiusOverlay from "./RadiusOverlay";
 import PrintabilityBadge from "./PrintabilityBadge";
 import PrintabilityRulesTooltip from "./PrintabilityRulesTooltip";
 import ThreeMFPropertiesPanel from "./ThreeMFPropertiesPanel";
 import DetailedStatsPanel from "./DetailedStatsPanel";
+import { fitCircleThroughThreePoints, type CircleFit } from "../lib/circleFit";
+import { findBoundaryLoops, findNearestLoop, fitCircleLeastSquares, type BoundaryLoop } from "../lib/circleDetect";
 
 // Same rotation the group below applies to lay the Z-up model flat on
 // drei's Y-up grid — see VersionDetailPage.tsx, where this exact fix (and
@@ -56,16 +59,24 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
   const [axisOrigin, setAxisOrigin] = useState<[number, number, number]>([0, 0, 0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [measureMode, setMeasureMode] = useState<"distance" | "radius">("distance");
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measureA, setMeasureA] = useState<[number, number, number] | null>(null);
   const [measureB, setMeasureB] = useState<[number, number, number] | null>(null);
+  const [radiusPoints, setRadiusPoints] = useState<Array<[number, number, number]>>([]);
   const [measureHover, setMeasureHover] = useState<[number, number, number] | null>(null);
+  const [boundaryLoops, setBoundaryLoops] = useState<BoundaryLoop[]>([]);
+  const [radiusPreviewFit, setRadiusPreviewFit] = useState<CircleFit | null>(null);
+  const [radiusCommittedFit, setRadiusCommittedFit] = useState<CircleFit | null>(null);
 
   async function handleFile(file: File) {
     setIsLoading(true);
     setIsMeasuring(false);
     setMeasureA(null);
     setMeasureB(null);
+    setRadiusPoints([]);
+    setRadiusPreviewFit(null);
+    setRadiusCommittedFit(null);
     setMeasureHover(null);
     setThreeMFProperties(null);
     setStats(null);
@@ -92,6 +103,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
       }
     }
     setDisplayGeometry(display);
+    setBoundaryLoops(findBoundaryLoops(display));
     setError(null);
 
     display.computeBoundingBox();
@@ -176,27 +188,82 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
     if (!isMeasuring) return;
     event.stopPropagation();
     const snapped = nearestTriangleVertex(event);
+
+    if (measureMode === "radius" && snapped) {
+      const loop = findNearestLoop(boundaryLoops, snapped, 1e-3);
+      if (loop) {
+        setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
+        setMeasureHover(null);
+        return;
+      }
+      setRadiusPreviewFit(null);
+    }
+
     setMeasureHover(snapped ? [snapped.x, snapped.y, snapped.z] : null);
   }
 
   function handleMeshClick(event: ThreeEvent<MouseEvent>) {
     if (!isMeasuring) return;
     event.stopPropagation();
-    const snapped = nearestTriangleVertex(event);
-    if (!snapped) return;
-    if (!measureA) {
-      setMeasureA([snapped.x, snapped.y, snapped.z]);
-    } else {
-      setMeasureB([snapped.x, snapped.y, snapped.z]);
+
+    if (measureMode === "radius" && radiusPreviewFit) {
+      // Hovering a detected hole/rim — one click confirms its full-loop fit
+      // instead of requiring 3 manual points.
+      setRadiusCommittedFit(radiusPreviewFit);
+      setRadiusPreviewFit(null);
       setIsMeasuring(false);
       setMeasureHover(null);
+      return;
+    }
+
+    const snapped = nearestTriangleVertex(event);
+    if (!snapped) return;
+    const point: [number, number, number] = [snapped.x, snapped.y, snapped.z];
+    if (measureMode === "distance") {
+      if (!measureA) {
+        setMeasureA(point);
+      } else {
+        setMeasureB(point);
+        setIsMeasuring(false);
+        setMeasureHover(null);
+      }
+    } else {
+      setRadiusPoints((prev) => {
+        const next = [...prev, point];
+        if (next.length >= 3) {
+          setRadiusCommittedFit(
+            fitCircleThroughThreePoints(
+              new THREE.Vector3(...next[0]),
+              new THREE.Vector3(...next[1]),
+              new THREE.Vector3(...next[2]),
+            ),
+          );
+          setIsMeasuring(false);
+          setMeasureHover(null);
+        }
+        return next;
+      });
     }
   }
 
-  function toggleMeasuring() {
-    setIsMeasuring((prev) => !prev);
+  function startMeasuring(mode: "distance" | "radius") {
+    setMeasureMode(mode);
+    setIsMeasuring(true);
     setMeasureA(null);
     setMeasureB(null);
+    setRadiusPoints([]);
+    setRadiusPreviewFit(null);
+    setRadiusCommittedFit(null);
+    setMeasureHover(null);
+  }
+
+  function clearMeasurement() {
+    setIsMeasuring(false);
+    setMeasureA(null);
+    setMeasureB(null);
+    setRadiusPoints([]);
+    setRadiusPreviewFit(null);
+    setRadiusCommittedFit(null);
     setMeasureHover(null);
   }
 
@@ -204,7 +271,13 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
     <div className="flex h-full w-full gap-3">
       <div
         className={`relative h-full flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${
-          isDragOver ? "border-blue-500" : isMeasuring ? "border-amber-500" : "border-neutral-800"
+          isDragOver
+            ? "border-blue-500"
+            : isMeasuring && measureMode === "radius"
+              ? "border-sky-500"
+              : isMeasuring
+                ? "border-amber-500"
+                : "border-neutral-800"
         }`}
         onDragOver={(event) => {
           event.preventDefault();
@@ -283,7 +356,10 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                   geometry={displayGeometry}
                   onClick={handleMeshClick}
                   onPointerMove={handleMeasureHover}
-                  onPointerOut={() => setMeasureHover(null)}
+                  onPointerOut={() => {
+                    setMeasureHover(null);
+                    setRadiusPreviewFit(null);
+                  }}
                 >
                   {/* key forces a fresh material instance when hasVertexColors
                       flips — mutating vertexColors on an already-compiled
@@ -296,7 +372,16 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                 </mesh>
               </Bounds>
             )}
-            <MeasurementOverlay pointA={measureA} pointB={measureB} hoverPoint={measureHover} />
+            {measureMode === "distance" ? (
+              <MeasurementOverlay pointA={measureA} pointB={measureB} hoverPoint={measureHover} />
+            ) : (
+              <RadiusOverlay
+                manualPoints={radiusPoints}
+                hoverPoint={measureHover}
+                fit={radiusCommittedFit ?? radiusPreviewFit}
+                isPreview={!radiusCommittedFit && radiusPreviewFit !== null}
+              />
+            )}
           </group>
           <OrbitControls makeDefault />
         </Canvas>
@@ -343,42 +428,62 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
             <div className="mt-5">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Measure</h3>
-                <div className="flex items-center gap-2">
-                  {(measureA || measureB) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMeasureA(null);
-                        setMeasureB(null);
-                        setMeasureHover(null);
-                        setIsMeasuring(false);
-                      }}
-                      className="text-[11px] text-neutral-500 hover:text-neutral-300"
-                    >
-                      Clear
-                    </button>
-                  )}
+                {(measureA || measureB || radiusPoints.length > 0 || radiusCommittedFit) && (
                   <button
                     type="button"
-                    onClick={toggleMeasuring}
-                    className={`rounded border px-2 py-1 text-[11px] font-medium ${
-                      isMeasuring
-                        ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                        : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                    }`}
+                    onClick={clearMeasurement}
+                    className="text-[11px] text-neutral-500 hover:text-neutral-300"
                   >
-                    {isMeasuring ? "Click two points…" : "Measure distance"}
+                    Clear
                   </button>
-                </div>
+                )}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => startMeasuring("distance")}
+                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${
+                    isMeasuring && measureMode === "distance"
+                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                      : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                  }`}
+                >
+                  {isMeasuring && measureMode === "distance" ? "Click two points…" : "Distance"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startMeasuring("radius")}
+                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${
+                    isMeasuring && measureMode === "radius"
+                      ? "border-sky-500 bg-sky-500/10 text-sky-400"
+                      : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                  }`}
+                >
+                  {isMeasuring && measureMode === "radius"
+                    ? radiusPreviewFit
+                      ? "Click to confirm…"
+                      : `Click point ${radiusPoints.length + 1} of 3…`
+                    : "Radius"}
+                </button>
               </div>
               <p className="mt-1.5 text-xs text-neutral-500">
-                {measureA && measureB
-                  ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected vertices.`
-                  : isMeasuring
-                    ? measureA
-                      ? "First point set — click a second vertex."
-                      : "Click a vertex on the model to start."
-                    : "Click two vertices on the model to measure the distance between them."}
+                {measureMode === "distance"
+                  ? measureA && measureB
+                    ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected vertices.`
+                    : isMeasuring
+                      ? measureA
+                        ? "First point set — click a second vertex."
+                        : "Click a vertex on the model to start."
+                      : "Click two vertices on the model to measure the distance between them."
+                  : radiusCommittedFit
+                    ? `R ${radiusCommittedFit.radius.toFixed(2)} mm, ⌀ ${(radiusCommittedFit.radius * 2).toFixed(2)} mm.`
+                    : radiusPreviewFit
+                      ? `Detected hole — R ${radiusPreviewFit.radius.toFixed(2)} mm, ⌀ ${(radiusPreviewFit.radius * 2).toFixed(2)} mm. Click to confirm.`
+                      : isMeasuring
+                        ? radiusPoints.length > 0
+                          ? `Click ${3 - radiusPoints.length} more vertex${3 - radiusPoints.length === 1 ? "" : "es"} on the rim, or hover a hole to auto-detect it.`
+                          : "Hover a hole or boss to auto-detect its edge, or click 3 points on it manually."
+                        : "Click a hole/boss to measure its radius (auto-detected), or click 3 points manually."}
               </p>
             </div>
           </>
