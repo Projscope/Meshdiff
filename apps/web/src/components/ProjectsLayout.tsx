@@ -44,6 +44,15 @@ export function useRefreshProjectsSidebar(): () => void {
   return useContext(ProjectsSidebarRefreshContext);
 }
 
+// Lets nested pages (currently just ProjectsListPage, the one page that
+// still renders normally for a restricted account — see the route-level
+// lock below) react to trial/subscription state without a second
+// GET /billing/subscription call of their own.
+const AccountStatusContext = createContext<{ isRestricted: boolean }>({ isRestricted: false });
+export function useAccountStatus(): { isRestricted: boolean } {
+  return useContext(AccountStatusContext);
+}
+
 export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -174,8 +183,26 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // GET /billing/subscription.
   const isTeamMember = teams.length > 0;
   const isPro = subscription?.tier === "pro";
-  const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : "Free";
-  const planTextClass = isTeamMember ? "text-violet-400" : isPro ? "text-emerald-400" : "text-neutral-300";
+  const isTrialing = subscription?.accountStatus === "trialing";
+  const isRestricted = subscription?.accountStatus === "restricted";
+  const planLabel = isTeamMember
+    ? "Team"
+    : isPro
+      ? "Pro"
+      : isRestricted
+        ? "Trial expired"
+        : isTrialing
+          ? "Trial"
+          : "Free";
+  const planTextClass = isTeamMember
+    ? "text-violet-400"
+    : isPro
+      ? "text-emerald-400"
+      : isRestricted
+        ? "text-red-400"
+        : isTrialing
+          ? "text-amber-400"
+          : "text-neutral-300";
 
   // The sidebar's own nav is alphabetical (unlike the /projects grid page,
   // which is newest-first) — sort here at render time rather than in
@@ -188,6 +215,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
+    <AccountStatusContext.Provider value={{ isRestricted }}>
       <div className="flex min-h-screen bg-neutral-950 text-neutral-100">
         <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-800">
           <Link to="/" className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
@@ -231,7 +259,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   <button
                     type="button"
                     onClick={() => setShowUpgradeToPro(true)}
-                    className="shrink-0 text-[11px] font-medium text-emerald-400 hover:text-emerald-300"
+                    className={`shrink-0 text-[11px] font-medium ${
+                      isRestricted ? "text-red-400 hover:text-red-300" : "text-emerald-400 hover:text-emerald-300"
+                    }`}
                   >
                     Upgrade
                   </button>
@@ -244,7 +274,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     ? subscription?.cancelAtPeriodEnd
                       ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
                       : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
-                    : "Project workspaces, version history, and comment pins — $15/mo."}
+                    : isRestricted
+                      ? "Subscribe to keep using Meshdiff — you can still sign in and delete projects."
+                      : isTrialing
+                        ? `${subscription?.trialDaysRemaining ?? 0} day${subscription?.trialDaysRemaining === 1 ? "" : "s"} left in your trial.`
+                        : "Project workspaces, version history, and comment pins — $15/mo."}
               </p>
               {isPro && (
                 <div className="mt-2 flex items-center gap-3">
@@ -286,14 +320,16 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               >
                 Projects
               </Link>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                title="New project"
-                className="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-white"
-              >
-                +
-              </button>
+              {!isRestricted && (
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(true)}
+                  title="New project"
+                  className="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-white"
+                >
+                  +
+                </button>
+              )}
             </div>
 
             <div className="mt-2 flex flex-col gap-0.5">
@@ -323,14 +359,16 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
             <div className="mt-4 flex items-center justify-between px-2">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Teams</span>
-              <button
-                type="button"
-                onClick={handleCreateTeamClick}
-                title="New team"
-                className="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-white"
-              >
-                +
-              </button>
+              {!isRestricted && (
+                <button
+                  type="button"
+                  onClick={handleCreateTeamClick}
+                  title="New team"
+                  className="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-white"
+                >
+                  +
+                </button>
+              )}
             </div>
             <div className="mt-2 flex flex-col gap-0.5">
               {teams.length === 0 && (
@@ -377,7 +415,37 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-y-auto">
+          {isRestricted && location.pathname !== "/projects" ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+              <span className="rounded bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
+                Trial expired
+              </span>
+              <h2 className="text-lg font-semibold text-white">Subscribe to keep using Meshdiff</h2>
+              <p className="max-w-sm text-sm text-neutral-400">
+                Your 7-day trial has ended. You can still sign in and delete your own projects, but viewing and
+                editing project content needs a Pro subscription.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeToPro(true)}
+                  className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400"
+                >
+                  Upgrade to Pro
+                </button>
+                <Link
+                  to="/projects"
+                  className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300 hover:border-neutral-500"
+                >
+                  Back to projects
+                </Link>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
 
         {notice && (
           <div
@@ -456,6 +524,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           />
         )}
       </div>
+    </AccountStatusContext.Provider>
     </ProjectsSidebarRefreshContext.Provider>
   );
 }

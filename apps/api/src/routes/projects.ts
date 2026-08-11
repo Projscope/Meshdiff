@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
 
 const BUCKET = "project-meshes";
@@ -31,7 +32,7 @@ interface ListProjectsQuery {
 export default async function projectsRoute(app: FastifyInstance): Promise<void> {
   app.post<{ Body: CreateProjectBody }>(
     "/projects",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { name, description } = request.body ?? {};
 
@@ -174,7 +175,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const supabase = getSupabase();
       if (!supabase) {
@@ -228,7 +229,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
   app.patch<{ Params: { projectId: string }; Body: UpdateProjectBody }>(
     "/projects/:projectId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const body = request.body ?? {};
@@ -326,7 +327,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
   // DB column to track it — each new upload just overwrites the same object.
   app.post<{ Params: { projectId: string } }>(
     "/projects/:projectId/thumbnail-upload-url",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();
@@ -422,7 +423,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
   // deleted model.
   app.delete<{ Params: { projectId: string } }>(
     "/projects/:projectId/thumbnail",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();

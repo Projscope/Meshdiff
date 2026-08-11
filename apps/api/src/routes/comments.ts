@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
 
 interface CommentRow {
@@ -39,7 +40,7 @@ function toCommentSummary(row: CommentRow) {
 export default async function commentsRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/comments",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -77,7 +78,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string }; Body: CreateCommentBody }>(
     "/projects/:projectId/versions/:versionId/comments",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { body, position, normal } = request.body ?? {};

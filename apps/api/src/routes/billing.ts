@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { getStripe, getFrontendUrl } from "../lib/stripe.js";
-import { getUserTier } from "../lib/subscription.js";
+import { getUserTier, getAccountAccess } from "../lib/subscription.js";
 
 async function getOrCreateStripeCustomer(
   supabase: NonNullable<ReturnType<typeof getSupabase>>,
@@ -69,7 +69,10 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     }
 
     try {
-      const { tier, row } = await getUserTier(supabase, request.userId!);
+      const [{ tier, row }, access] = await Promise.all([
+        getUserTier(supabase, request.userId!),
+        getAccountAccess(supabase, request.userId!),
+      ]);
       return {
         success: true,
         data: {
@@ -77,6 +80,9 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
           status: row?.status ?? null,
           currentPeriodEnd: row?.current_period_end ?? null,
           cancelAtPeriodEnd: row?.cancel_at_period_end ?? false,
+          accountStatus: access.status,
+          trialEndsAt: access.trialEndsAt,
+          trialDaysRemaining: access.trialDaysRemaining,
         },
       };
     } catch (err) {

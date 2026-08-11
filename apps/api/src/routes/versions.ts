@@ -7,6 +7,7 @@ import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
 import { computeVoxelDiff } from "@meshdiff/shared/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { getStableVersion } from "../lib/stableVersion.js";
 
@@ -55,7 +56,7 @@ function toVersionSummary(row: VersionRow) {
 export default async function versionsRoute(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { projectId: string }; Body: CreateVersionBody }>(
     "/projects/:projectId/versions",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { fileName, fileSize } = request.body ?? {};
       const { projectId } = request.params;
@@ -135,7 +136,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/finalize",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -320,7 +321,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/approve",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -374,7 +375,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string }; Body: { reason?: string } }>(
     "/projects/:projectId/versions/:versionId/reject",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { reason } = request.body ?? {};
@@ -429,7 +430,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/versions",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const supabase = getSupabase();
       if (!supabase) {
@@ -466,7 +467,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -537,7 +538,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.delete<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -604,7 +605,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/versions.zip",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();
@@ -672,7 +673,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
   // finalize() auto-approves there.
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/stable-version",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();

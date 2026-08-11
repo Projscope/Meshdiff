@@ -213,6 +213,11 @@ export interface SubscriptionStatus {
   status: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+  /** "pro" (real subscription) | "trialing" (within the 7-day trial) |
+   * "restricted" (trial lapsed, no subscription — most routes 403). */
+  accountStatus: "pro" | "trialing" | "restricted";
+  trialEndsAt: string | null;
+  trialDaysRemaining: number | null;
 }
 
 export function getSubscription(): Promise<Result<SubscriptionStatus>> {
