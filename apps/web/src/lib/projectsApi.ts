@@ -227,9 +227,20 @@ export function startProCheckout(): Promise<Result<{ url: string }>> {
 }
 
 /** Same shape as startProCheckout() — a URL to redirect to, this time for
- * Stripe's hosted Billing Portal (manage/cancel an existing subscription). */
+ * Stripe's hosted Billing Portal (manage payment method, view invoices). */
 export function openBillingPortal(): Promise<Result<{ url: string }>> {
   return request("/billing/portal", { method: "POST" });
+}
+
+/** Cancels at the end of the current billing period — Pro access continues
+ * through what's already been paid for. */
+export function cancelSubscription(): Promise<Result<{ cancelAtPeriodEnd: boolean; currentPeriodEnd: string }>> {
+  return request("/billing/cancel", { method: "POST" });
+}
+
+/** Undoes a pending cancel-at-period-end, before the period actually ends. */
+export function resumeSubscription(): Promise<Result<{ cancelAtPeriodEnd: boolean; currentPeriodEnd: string }>> {
+  return request("/billing/resume", { method: "POST" });
 }
 
 export function approveVersion(projectId: string, versionId: string): Promise<Result<VersionSummary>> {

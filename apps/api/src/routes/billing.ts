@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type Stripe from "stripe";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
@@ -148,6 +148,57 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
       return { success: false, error: "Failed to open billing portal, please try again" };
     }
   });
+
+  // Shared by /cancel and /resume — both just flip cancel_at_period_end on
+  // the same Stripe subscription and write the result straight back to our
+  // own table, rather than waiting on the customer.subscription.updated
+  // webhook to eventually catch up (it will too, redundantly — upserting
+  // twice from the same subscription state is harmless).
+  async function setCancelAtPeriodEnd(request: FastifyRequest, reply: FastifyReply, cancelAtPeriodEnd: boolean) {
+    const supabase = getSupabase();
+    const stripe = getStripe();
+    if (!supabase || !stripe) {
+      reply.code(500);
+      return { success: false, error: "Billing is not configured" };
+    }
+
+    try {
+      const { data: existing } = await supabase
+        .from("subscriptions")
+        .select("stripe_subscription_id")
+        .eq("user_id", request.userId)
+        .maybeSingle();
+      if (!existing) {
+        reply.code(404);
+        return { success: false, error: "No subscription to update" };
+      }
+
+      const subscription = await stripe.subscriptions.update(existing.stripe_subscription_id, {
+        cancel_at_period_end: cancelAtPeriodEnd,
+      });
+      await upsertSubscriptionRow(supabase, request.userId!, subscription);
+
+      return {
+        success: true,
+        data: {
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          currentPeriodEnd: new Date(subscription.items.data[0]!.current_period_end * 1000).toISOString(),
+        },
+      };
+    } catch (err) {
+      app.log.error(err, cancelAtPeriodEnd ? "Failed to cancel subscription" : "Failed to resume subscription");
+      reply.code(502);
+      return { success: false, error: "Failed to update subscription, please try again" };
+    }
+  }
+
+  // Cancels at the end of the current billing period (not immediately) —
+  // the user keeps Pro access through what they already paid for, matching
+  // how the Stripe Portal's own cancel flow behaves.
+  app.post("/billing/cancel", { preHandler: requireAuth }, (request, reply) => setCancelAtPeriodEnd(request, reply, true));
+
+  // Undoes a pending cancel-at-period-end before the period actually ends.
+  app.post("/billing/resume", { preHandler: requireAuth }, (request, reply) => setCancelAtPeriodEnd(request, reply, false));
 
   // Stripe calls this directly (no bearer token) — authenticity comes from
   // the signature check below, not requireAuth. Registered in its own

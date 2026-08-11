@@ -7,6 +7,8 @@ import {
   getWorkspace,
   getSubscription,
   openBillingPortal,
+  cancelSubscription,
+  resumeSubscription,
   type ProjectSummary,
   type SubscriptionStatus,
 } from "../lib/projectsApi";
@@ -17,6 +19,7 @@ import TeamModal from "./TeamModal";
 import UpgradeToTeamModal from "./UpgradeToTeamModal";
 import UpgradeToProModal from "./UpgradeToProModal";
 import EditWorkspaceModal from "./EditWorkspaceModal";
+import ConfirmDialog from "./ConfirmDialog";
 
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
   pass: "bg-emerald-500",
@@ -58,6 +61,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
 
   // Creating a team is a Team-plan feature. Until Stripe billing is wired up,
   // use existing team membership as a stand-in signal for "already on Team" —
@@ -132,6 +138,34 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     }
   }
 
+  async function handleConfirmCancel() {
+    setIsCancelling(true);
+    const result = await cancelSubscription();
+    setIsCancelling(false);
+    setShowCancelConfirm(false);
+    if (result.success) {
+      setSubscription((prev) => (prev ? { ...prev, cancelAtPeriodEnd: true, currentPeriodEnd: result.data.currentPeriodEnd } : prev));
+      setNotice({
+        type: "info",
+        message: `Your Pro plan will end on ${formatRenewalDate(result.data.currentPeriodEnd)}. You can resume any time before then.`,
+      });
+    } else {
+      setNotice({ type: "error", message: result.error });
+    }
+  }
+
+  async function handleResume() {
+    setIsResuming(true);
+    const result = await resumeSubscription();
+    setIsResuming(false);
+    if (result.success) {
+      setSubscription((prev) => (prev ? { ...prev, cancelAtPeriodEnd: false, currentPeriodEnd: result.data.currentPeriodEnd } : prev));
+      setNotice({ type: "success", message: "Subscription resumed — your Pro plan will keep renewing." });
+    } else {
+      setNotice({ type: "error", message: result.error });
+    }
+  }
+
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
 
   // Team membership is still a proxy for "Team plan" (Team billing isn't
@@ -193,15 +227,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
-                {isPro && (
-                  <button
-                    type="button"
-                    onClick={() => void handleManageBilling()}
-                    className="shrink-0 text-[11px] font-medium text-neutral-400 hover:text-neutral-200"
-                  >
-                    Manage
-                  </button>
-                )}
                 {!isTeamMember && !isPro && (
                   <button
                     type="button"
@@ -221,6 +246,35 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
                     : "Project workspaces, version history, and comment pins — $15/mo."}
               </p>
+              {isPro && (
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleManageBilling()}
+                    className="text-[11px] font-medium text-neutral-400 hover:text-neutral-200"
+                  >
+                    Manage
+                  </button>
+                  {subscription?.cancelAtPeriodEnd ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleResume()}
+                      disabled={isResuming}
+                      className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                    >
+                      {isResuming ? "Resuming…" : "Resume"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowCancelConfirm(true)}
+                      className="text-[11px] font-medium text-neutral-500 hover:text-red-400"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -373,6 +427,23 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         {showUpgrade && <UpgradeToTeamModal onClose={() => setShowUpgrade(false)} />}
 
         {showUpgradeToPro && <UpgradeToProModal onClose={() => setShowUpgradeToPro(false)} />}
+
+        {showCancelConfirm && (
+          <ConfirmDialog
+            title="Cancel Pro plan?"
+            message={
+              subscription?.currentPeriodEnd
+                ? `You'll keep Pro access until ${formatRenewalDate(subscription.currentPeriodEnd)}, then move to the Free plan. You can resume any time before then.`
+                : "You'll keep Pro access until the end of the current billing period, then move to the Free plan."
+            }
+            confirmLabel="Cancel plan"
+            cancelLabel="Keep Pro"
+            isDestructive
+            isConfirming={isCancelling}
+            onConfirm={() => void handleConfirmCancel()}
+            onCancel={() => setShowCancelConfirm(false)}
+          />
+        )}
 
         {isEditWorkspaceOpen && (
           <EditWorkspaceModal
