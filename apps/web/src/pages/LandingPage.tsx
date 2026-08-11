@@ -16,6 +16,9 @@ import {
 } from "@phosphor-icons/react";
 import WaitlistForm from "../components/WaitlistForm";
 import FaqAccordion from "../components/FaqAccordion";
+import SectionHeader from "../components/SectionHeader";
+import { useCountUp } from "../hooks/useCountUp";
+import { useScrollReveal } from "../hooks/useScrollReveal";
 import liveDiffPreview from "../assets/live-diff-preview.png";
 import { SHOW_MONETIZATION } from "../lib/featureFlags";
 
@@ -82,11 +85,41 @@ const PRICING_TIERS: PricingTier[] = [
   },
 ];
 
-const STATS = [
-  { value: "3", label: "File formats", detail: "STL, 3MF, and OBJ, parsed natively, no conversion step." },
-  { value: "100%", label: "Local", detail: "The Community diff runs entirely in your browser. Nothing uploads unless you share." },
-  { value: "3", label: "Print checks", detail: "Wall thickness, overhang, and unsupported area, computed for real, not a placeholder." },
-  { value: "$0", label: "To start", detail: "Free forever for the Community tier. No card, no account." },
+interface HeroStat {
+  target: number;
+  prefix?: string;
+  suffix: string;
+  label: string;
+}
+
+const HERO_STATS: HeroStat[] = [
+  { target: 3, suffix: "", label: "File formats" },
+  { target: 100, suffix: "%", label: "Local, private" },
+  { target: 3, suffix: "", label: "Print checks" },
+  { target: 0, prefix: "$", suffix: "", label: "To start" },
+];
+
+const PROCESS_STEPS = [
+  {
+    number: "01",
+    title: "Drop your files",
+    description: "Upload two STL, 3MF, or OBJ versions — parsed entirely in your browser, nothing leaves your machine unless you share.",
+  },
+  {
+    number: "02",
+    title: "Instant voxel diff",
+    description: "Meshdiff voxelizes both meshes and aligns them automatically — added geometry in green, removed in red.",
+  },
+  {
+    number: "03",
+    title: "Check printability",
+    description: "Real wall-thickness, overhang, and unsupported-area analysis flags problems before you waste filament.",
+  },
+  {
+    number: "04",
+    title: "Share or approve",
+    description: "Send a link for a quick review, or — on Team — route it through comments and approval before it ships.",
+  },
 ];
 
 const TEAM_WORKFLOW = [
@@ -101,35 +134,58 @@ const FEATURES = [
     icon: Cube,
     title: "Voxel diff",
     description: "Both meshes are voxelized into a shared grid — added geometry in green, removed in red.",
+    tags: ["STL", "3MF", "OBJ"],
   },
   {
     icon: Palette,
     title: "Surface heatmap",
     description: "A per-vertex signed-distance overlay shows exactly how far each surface point moved.",
+    tags: ["SDF", "Per-vertex"],
   },
   {
     icon: ShieldCheck,
     title: "Printability gate",
     description: "Real wall-thickness, overhang, and unsupported-area analysis, not a placeholder check.",
+    tags: ["FDM", "Pass / Warn / Fail"],
   },
   {
     icon: LinkSimple,
     title: "Shareable links",
     description: "One link reproduces the exact comparison for anyone, no account or install required.",
+    tags: ["No signup", "1–7 day expiry"],
   },
   {
     icon: ChatCircle,
     title: "3D-pinned comments",
     description: "Click anywhere on a model to leave feedback right where it matters, in the Projects workspace.",
+    tags: ["Projects"],
   },
   {
     icon: GitBranch,
     title: "Version history & approvals",
     description: "Every upload keeps a traceable history, with team review before it becomes the stable version.",
+    tags: ["Team"],
   },
 ];
 
+function HeroStatItem({ stat }: { stat: HeroStat }) {
+  const { value, ref } = useCountUp(stat.target);
+  return (
+    <div className="text-center">
+      <span className="font-mono text-2xl font-bold text-white">
+        {stat.prefix}
+        <span ref={ref}>{value}</span>
+        <span className="text-emerald-400">{stat.suffix}</span>
+      </span>
+      <span className="mt-1 block text-xs text-neutral-500">{stat.label}</span>
+    </div>
+  );
+}
+
 export default function LandingPage() {
+  const servicesRef = useScrollReveal<HTMLDivElement>();
+  const processRef = useScrollReveal<HTMLDivElement>();
+
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
   }
@@ -137,17 +193,22 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <main>
-        {/* Hero: centered manifesto-style headline/CTA on top, full-width screenshot below */}
+        {/* Hero: eyebrow, accent-split headline, dual CTAs, animated stat row */}
         <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-neutral-950">
           <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
-              See exactly what changed between two meshes.
+            <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+              Diff &middot; Review &middot; Approve
+            </p>
+            <h1 className="mt-4 text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
+              See exactly what changed
+              <br />
+              <span className="text-emerald-400">between two meshes.</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-5 max-w-lg text-[15px] leading-relaxed text-neutral-400">
               A real voxel comparison on STL, 3MF, and OBJ files. Added
               geometry in green, removed in red, reviewed in seconds.
             </p>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
                 to="/live"
                 className="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
@@ -161,6 +222,12 @@ export default function LandingPage() {
               >
                 Join early access
               </button>
+            </div>
+
+            <div className="mx-auto mt-12 grid max-w-lg grid-cols-4 gap-4 border-t border-neutral-900 pt-8">
+              {HERO_STATS.map((stat) => (
+                <HeroStatItem key={stat.label} stat={stat} />
+              ))}
             </div>
           </div>
 
@@ -180,19 +247,6 @@ export default function LandingPage() {
               </span>
             </div>
           </Link>
-        </section>
-
-        {/* Stat band: quick, real credibility signals right after the hero */}
-        <section className="px-6">
-          <div className="mx-auto grid max-w-6xl grid-cols-2 divide-y divide-neutral-800 rounded-xl border border-neutral-800 bg-neutral-900 md:grid-cols-4 md:divide-x md:divide-y-0">
-            {STATS.map((stat) => (
-              <div key={stat.label} className="p-6">
-                <p className="font-mono text-3xl font-bold text-white">{stat.value}</p>
-                <p className="mt-1 text-sm font-semibold text-neutral-300">{stat.label}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{stat.detail}</p>
-              </div>
-            ))}
-          </div>
         </section>
 
         {/* Personas: asymmetric 1+2 grid, not three identical cards */}
@@ -230,28 +284,69 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Numbered feature list — what Meshdiff actually does, shipped today */}
-        <section id="features" className="border-t border-neutral-900 px-6 py-14">
-          <div className="mx-auto max-w-5xl">
-            <h2 className="text-2xl font-semibold text-white">What Meshdiff does</h2>
-            <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
-              {FEATURES.map((feature, i) => {
+        {/* Services: what Meshdiff actually does, shipped today */}
+        <section id="features" className="border-t border-neutral-900 px-6 py-16">
+          <div className="mx-auto max-w-6xl">
+            <SectionHeader
+              tag="What It Does"
+              title="What Meshdiff does"
+              description="Everything below runs on real geometry, computed for real — no placeholders, no fake mockups."
+            />
+            <div ref={servicesRef} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map((feature) => {
                 const Icon = feature.icon;
                 return (
-                  <div key={feature.title} className="flex gap-4">
-                    <div className="flex shrink-0 flex-col items-center">
-                      <span className="font-mono text-xs text-neutral-600">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <Icon size={20} weight="light" className="mt-1.5 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-white">{feature.title}</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-neutral-400">{feature.description}</p>
-                    </div>
+                  <div
+                    key={feature.title}
+                    data-animate
+                    className="reveal rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition hover:-translate-y-0.5 hover:border-neutral-700"
+                  >
+                    <Icon size={28} weight="light" className="text-emerald-400" />
+                    <h3 className="mt-4 text-base font-semibold text-white">{feature.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-neutral-400">{feature.description}</p>
+                    <ul className="mt-4 flex flex-wrap gap-2">
+                      {feature.tags.map((tag) => (
+                        <li
+                          key={tag}
+                          className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-[11px] text-neutral-500"
+                        >
+                          {tag}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        {/* Process: how a comparison actually flows, start to finish */}
+        <section id="process" className="border-t border-neutral-900 px-6 py-16">
+          <div className="mx-auto max-w-3xl">
+            <SectionHeader
+              tag="How It Works"
+              title="From upload to approved"
+              description="A proven path from a raw file to a decision your team can stand behind."
+            />
+            <div ref={processRef} className="relative">
+              <div
+                aria-hidden="true"
+                className="absolute bottom-0 left-6 top-0 w-px bg-gradient-to-b from-emerald-500 to-neutral-900"
+              />
+              <div className="flex flex-col gap-10">
+                {PROCESS_STEPS.map((step) => (
+                  <div key={step.number} data-animate className="reveal relative flex gap-6">
+                    <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-neutral-700 bg-neutral-900 font-mono text-sm font-bold text-emerald-400">
+                      {step.number}
+                    </div>
+                    <div className="pt-1.5">
+                      <h3 className="text-base font-semibold text-white">{step.title}</h3>
+                      <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{step.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -315,11 +410,12 @@ export default function LandingPage() {
         {SHOW_MONETIZATION && (
           <section className="border-t border-neutral-900 px-6 py-14">
             <div className="mx-auto max-w-5xl">
-              <h2 className="text-2xl font-bold text-white">What Team unlocks</h2>
-              <p className="mt-2 max-w-xl text-sm text-neutral-400">
-                Every upload goes through the same four steps before it becomes the version everyone builds on.
-              </p>
-              <div className="mt-8 grid gap-4 md:grid-cols-4">
+              <SectionHeader
+                tag="For Teams"
+                title="What Team unlocks"
+                description="Every upload goes through the same four steps before it becomes the version everyone builds on."
+              />
+              <div className="grid gap-4 md:grid-cols-4">
                 {TEAM_WORKFLOW.map((step, i) => {
                   const Icon = step.icon;
                   return (
@@ -346,15 +442,12 @@ export default function LandingPage() {
         {SHOW_MONETIZATION && (
           <section id="pricing" className="border-t border-neutral-900 px-6 py-14">
             <div className="mx-auto max-w-5xl">
-              <h2 className="text-center text-2xl font-semibold text-white">
-                Diff for free. Upgrade to save, review, and share.
-              </h2>
-              <p className="mx-auto mt-2 max-w-xl text-center text-sm text-neutral-400">
-                The comparison tool is free forever. Founding members get 50%
-                off Pro and Team for 3 months.
-              </p>
-
-              <div className="mt-8 grid gap-4 md:grid-cols-3">
+              <SectionHeader
+                tag="Pricing"
+                title="Diff for free. Upgrade to save, review, and share."
+                description="The comparison tool is free forever. Founding members get 50% off Pro and Team for 3 months."
+              />
+              <div className="grid gap-4 md:grid-cols-3">
                 {PRICING_TIERS.map((tier) => (
                   <div
                     key={tier.name}
@@ -413,6 +506,9 @@ export default function LandingPage() {
         <section id="early-access" className="px-6 py-20">
           <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2">
             <div>
+              <span className="mb-3 block text-xs font-semibold uppercase tracking-widest text-emerald-500">
+                Get Started
+              </span>
               <h2 className="text-3xl font-bold leading-tight text-white md:text-4xl">
                 Save projects, track versions, and review with your team.
               </h2>
@@ -450,9 +546,7 @@ export default function LandingPage() {
 
         {/* FAQ */}
         <section id="faq" className="px-6 py-16">
-          <h2 className="text-center text-2xl font-semibold text-white">
-            Frequently asked
-          </h2>
+          <SectionHeader tag="Questions" title="Frequently asked" />
           <div className="mt-8">
             <FaqAccordion />
           </div>
