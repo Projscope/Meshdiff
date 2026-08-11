@@ -23,6 +23,14 @@ import AxisLabels from "./AxisLabels";
 
 export type DiffMode = "voxel" | "surface";
 
+// A coarse first pass on a new mesh pair — cheap enough to land almost
+// immediately, giving the viewer something to show while the real
+// (default ~32/axis, see diffVoxels.ts) resolution computes in the
+// background. Coarse enough to visibly differ from the fine pass (so it
+// reads as "still loading", not as the final answer) without being so
+// coarse it's a meaningless blob.
+const COARSE_TARGET_VOXELS_PER_AXIS = 12;
+
 interface DiffViewProps {
   geometryA: THREE.BufferGeometry | null;
   geometryB: THREE.BufferGeometry | null;
@@ -223,33 +231,76 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
   // newer request was already fired (e.g. dragging the tolerance slider).
   const [diff, setDiff] = useState<(VoxelDiffResult & { error?: undefined }) | { error: string } | null>(null);
   const [isComputing, setIsComputing] = useState(false);
+  // Whether the currently-shown `diff` is the coarse preview or the final,
+  // full-resolution result — drives the "Refining…" label below and gates
+  // onStatsChange (the sidebar's numbers shouldn't flash the coarse grid's
+  // less-accurate volume delta before settling on the real one).
+  const [diffQuality, setDiffQuality] = useState<"coarse" | "fine" | null>(null);
   const requestIdRef = useRef(0);
+  const lastGeometryPairRef = useRef<{ a: THREE.BufferGeometry | null; b: THREE.BufferGeometry | null }>({
+    a: null,
+    b: null,
+  });
 
   useEffect(() => {
     if (!geometryA || !geometryB) {
+      lastGeometryPairRef.current = { a: null, b: null };
       setDiff(null);
+      setDiffQuality(null);
       setIsComputing(false);
       return;
     }
+
+    // A brand-new mesh pair gets a coarse pass first — CLAUDE.md's
+    // "Implement progressive loading: coarse voxel diff first, refine"
+    // — so there's something on screen almost immediately instead of a
+    // blank viewer for however long the full-resolution grid takes on a
+    // big mesh. A tolerance-only change on the *same* pair skips straight
+    // to the fine pass: it's already cheap (see computeVoxelDiffBase/
+    // classifyVoxelDiff's split in diffVoxels.ts) and re-showing a coarser
+    // grid on every slider tick would be a downgrade, not a preview.
+    const isNewGeometryPair = geometryA !== lastGeometryPairRef.current.a || geometryB !== lastGeometryPairRef.current.b;
+    lastGeometryPairRef.current = { a: geometryA, b: geometryB };
+
     const requestId = ++requestIdRef.current;
     setIsComputing(true);
-    computeVoxelDiffOffThread(geometryA, geometryB, { toleranceMm }).then((result) => {
+
+    async function run() {
+      if (isNewGeometryPair) {
+        const coarse = await computeVoxelDiffOffThread(geometryA!, geometryB!, {
+          toleranceMm,
+          targetVoxelsPerAxis: COARSE_TARGET_VOXELS_PER_AXIS,
+        });
+        if (requestIdRef.current !== requestId) return; // superseded before the coarse pass even landed
+        setDiff(coarse.success ? coarse.data : { error: coarse.error });
+        setDiffQuality("coarse");
+        if (!coarse.success) {
+          setIsComputing(false);
+          return; // don't bother refining a failed coarse pass
+        }
+      }
+
+      const fine = await computeVoxelDiffOffThread(geometryA!, geometryB!, { toleranceMm });
       if (requestIdRef.current !== requestId) return; // superseded by a newer request
-      setDiff(result.success ? result.data : { error: result.error });
+      setDiff(fine.success ? fine.data : { error: fine.error });
+      setDiffQuality("fine");
       setIsComputing(false);
-    });
+    }
+    void run();
   }, [geometryA, geometryB, toleranceMm]);
 
   const isPending = !geometryA || !geometryB;
   const hasError = diff && "error" in diff;
 
   useEffect(() => {
-    if (diff && !("error" in diff)) {
+    // Only the fine/final pass's numbers are accurate enough to surface —
+    // the coarse preview exists purely for the 3D view's early feedback.
+    if (diffQuality === "fine" && diff && !("error" in diff)) {
       onStatsChange?.({ ...diff.stats, toleranceMm });
-    } else {
+    } else if (!diff) {
       onStatsChange?.(null);
     }
-  }, [diff, toleranceMm, onStatsChange]);
+  }, [diff, diffQuality, toleranceMm, onStatsChange]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
@@ -260,7 +311,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         {isComputing && !isPending && (
           <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
             <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
-            Computing…
+            {diffQuality === "coarse" ? "Refining…" : "Computing…"}
           </span>
         )}
         {!isPending && !hasError && (
