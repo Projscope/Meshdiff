@@ -12,9 +12,19 @@ import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 
 type LiveTool = "compare" | "measure";
-const TOOLS: Array<{ id: LiveTool; label: string }> = [
-  { id: "compare", label: "Compare Diff" },
-  { id: "measure", label: "View & Measure" },
+const TOOLS: Array<{ id: LiveTool; icon: string; label: string; description: string }> = [
+  {
+    id: "compare",
+    icon: "🔀",
+    label: "Compare Diff",
+    description: "Diff two versions side-by-side — see what was added, removed, or changed.",
+  },
+  {
+    id: "measure",
+    icon: "📏",
+    label: "View & Measure",
+    description: "Inspect one model — properties, printability, and click-to-measure distances.",
+  },
 ];
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
@@ -231,6 +241,37 @@ export default function LiveDiffToolPage() {
         Community diff tool — free, runs in your browser
       </div>
 
+      <div className="border-b border-neutral-800 bg-neutral-900/40 px-4 py-3">
+        <div className="mx-auto grid max-w-2xl grid-cols-2 gap-3">
+          {TOOLS.map((tool) => {
+            const isActive = activeTool === tool.id;
+            return (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => setActiveTool(tool.id)}
+                aria-pressed={isActive}
+                className={`flex items-start gap-3 rounded-lg border p-3 text-left transition ${
+                  isActive
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-neutral-800 bg-neutral-900 hover:border-neutral-600"
+                }`}
+              >
+                <span className="text-xl leading-none">{tool.icon}</span>
+                <span className="min-w-0">
+                  <span className={`block text-sm font-semibold ${isActive ? "text-emerald-300" : "text-white"}`}>
+                    {tool.label}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-neutral-400">
+                    {tool.description}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {activeTool === "compare" && (
         <section className="border-b border-neutral-800 px-6 py-6">
           <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
@@ -283,23 +324,6 @@ export default function LiveDiffToolPage() {
       )}
       <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
         <div className="flex items-center gap-3">
-          <div className="flex overflow-hidden rounded border border-neutral-700">
-            {TOOLS.map((tool) => (
-              <button
-                key={tool.id}
-                type="button"
-                onClick={() => setActiveTool(tool.id)}
-                className={`px-2.5 py-1 font-medium ${
-                  activeTool === tool.id
-                    ? "bg-emerald-500 text-neutral-950"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                {tool.label}
-              </button>
-            ))}
-          </div>
-
           {activeTool === "compare" ? (
             <>
               <button

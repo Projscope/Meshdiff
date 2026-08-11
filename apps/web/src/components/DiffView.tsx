@@ -231,6 +231,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
   // newer request was already fired (e.g. dragging the tolerance slider).
   const [diff, setDiff] = useState<(VoxelDiffResult & { error?: undefined }) | { error: string } | null>(null);
   const [isComputing, setIsComputing] = useState(false);
+  const [gridFadeDistance, setGridFadeDistance] = useState(100);
   // Whether the currently-shown `diff` is the coarse preview or the final,
   // full-resolution result — drives the "Refining…" label below and gates
   // onStatsChange (the sidebar's numbers shouldn't flash the coarse grid's
@@ -241,6 +242,24 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     a: null,
     b: null,
   });
+
+  useEffect(() => {
+    // drei's Grid fades out with distance from the camera's projection onto
+    // the grid plane (fixed 100-unit default) — scale it to the combined
+    // pair's own diagonal so the visible patch always reaches past every
+    // corner, with a floor so a small pair doesn't look cropped. Computed
+    // separately from the diff itself so it updates immediately rather
+    // than waiting on voxelization.
+    if (!geometryA || !geometryB) return;
+    geometryA.computeBoundingBox();
+    geometryB.computeBoundingBox();
+    const boxA = geometryA.boundingBox;
+    const boxB = geometryB.boundingBox;
+    if (boxA && boxB) {
+      const union = boxA.clone().union(boxB);
+      setGridFadeDistance(Math.max(union.getSize(new THREE.Vector3()).length() * 1.5, 50));
+    }
+  }, [geometryA, geometryB]);
 
   useEffect(() => {
     if (!geometryA || !geometryB) {
@@ -387,7 +406,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
-        <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
+        <Grid infiniteGrid fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />
         {/* The grid is drei's default Y-up floor; this app's model data is
             Z-up (see diffVoxels.ts's gravity vector), so the displayed
             content is rotated -90° around X to lay it flat on that floor.
