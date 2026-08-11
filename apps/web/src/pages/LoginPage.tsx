@@ -3,6 +3,14 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthProvider";
 
+// Where Supabase should send the browser back to after a confirmation-email
+// link is clicked. Passed explicitly (not relying solely on config.toml's
+// site_url) so this keeps working even if that config value ever drifts
+// from wherever the app actually happens to be running.
+function emailRedirectTo(): string {
+  return `${window.location.origin}/login`;
+}
+
 export default function LoginPage() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -12,6 +20,13 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [signupMessage, setSignupMessage] = useState<string | null>(null);
+  // Set whenever the user needs to confirm their email before they can sign
+  // in — either right after signing up, or after a sign-in attempt was
+  // rejected for exactly that reason. Drives the "Resend" button, which
+  // needs to know which address to resend to.
+  const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   if (!isLoading && user) {
     return <Navigate to="/projects" replace />;
@@ -22,25 +37,59 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setError(null);
     setSignupMessage(null);
+    setResendMessage(null);
+    setPendingConfirmationEmail(null);
 
     if (mode === "signin") {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       setIsSubmitting(false);
       if (signInError) {
-        setError(signInError.message);
+        // Supabase's own message ("Email not confirmed") is accurate but
+        // gives no way forward — swap in a dedicated state with a resend
+        // action instead of just echoing it.
+        if (signInError.code === "email_not_confirmed") {
+          setError("Confirm your email before signing in.");
+          setPendingConfirmationEmail(email);
+        } else {
+          setError(signInError.message);
+        }
         return;
       }
       navigate("/projects");
     } else {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: emailRedirectTo() },
+      });
       setIsSubmitting(false);
       if (signUpError) {
         setError(signUpError.message);
         return;
       }
+      if (data.session) {
+        // Confirmations are off (or Supabase auto-confirmed) — already
+        // signed in, same as a normal sign-in.
+        navigate("/projects");
+        return;
+      }
       setSignupMessage("Check your email to confirm your account, then sign in.");
+      setPendingConfirmationEmail(email);
       setMode("signin");
     }
+  }
+
+  async function handleResendConfirmation() {
+    if (!pendingConfirmationEmail) return;
+    setIsResending(true);
+    setResendMessage(null);
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: pendingConfirmationEmail,
+      options: { emailRedirectTo: emailRedirectTo() },
+    });
+    setIsResending(false);
+    setResendMessage(resendError ? resendError.message : "Sent — check your inbox.");
   }
 
   return (
@@ -87,6 +136,19 @@ export default function LoginPage() {
           </button>
           {error && <span className="text-xs text-red-400">{error}</span>}
           {signupMessage && <span className="text-xs text-emerald-400">{signupMessage}</span>}
+          {pendingConfirmationEmail && (
+            <div className="mt-1 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleResendConfirmation()}
+                disabled={isResending}
+                className="text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-50"
+              >
+                {isResending ? "Sending…" : "Resend confirmation email"}
+              </button>
+              {resendMessage && <span className="text-xs text-neutral-500">{resendMessage}</span>}
+            </div>
+          )}
         </form>
 
         <button
@@ -95,6 +157,8 @@ export default function LoginPage() {
             setMode(mode === "signin" ? "signup" : "signin");
             setError(null);
             setSignupMessage(null);
+            setPendingConfirmationEmail(null);
+            setResendMessage(null);
           }}
           className="mt-4 text-xs text-neutral-500 hover:text-neutral-300"
         >
