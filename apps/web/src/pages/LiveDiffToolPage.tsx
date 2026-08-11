@@ -4,11 +4,18 @@ import * as THREE from "three";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
 import DiffView, { type DiffViewHandle, type DiffMode } from "../components/DiffView";
+import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureViewer";
 import ReportGateModal from "../components/ReportGateModal";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
+
+type LiveTool = "compare" | "measure";
+const TOOLS: Array<{ id: LiveTool; label: string }> = [
+  { id: "compare", label: "Compare Diff" },
+  { id: "measure", label: "View & Measure" },
+];
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
 
@@ -44,6 +51,8 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 }
 
 export default function LiveDiffToolPage() {
+  const [activeTool, setActiveTool] = useState<LiveTool>("compare");
+  const measureViewerRef = useRef<MeasureViewerHandle>(null);
   const [geometryA, setGeometryA] = useState<THREE.BufferGeometry | null>(null);
   const [geometryB, setGeometryB] = useState<THREE.BufferGeometry | null>(null);
   const [fileA, setFileA] = useState<File | null>(null);
@@ -222,40 +231,42 @@ export default function LiveDiffToolPage() {
         Community diff tool — free, runs in your browser
       </div>
 
-      <section className="border-b border-neutral-800 px-6 py-6">
-        <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
-          How it works
-        </span>
-        <h3 className="mt-1 text-center text-lg font-semibold text-white">
-          From two files to a shared review in seconds
-        </h3>
-        <div className="mx-auto mt-4 grid max-w-4xl gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-            <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">01</div>
-            <h4 className="mt-1.5 text-xs font-semibold text-white">Drop two models</h4>
-            <p className="mt-1 text-[11px] text-neutral-400">
-              Drag-and-drop a new version — STL, 3MF, or OBJ — and Meshdiff
-              instantly formats both meshes for review.
-            </p>
+      {activeTool === "compare" && (
+        <section className="border-b border-neutral-800 px-6 py-6">
+          <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
+            How it works
+          </span>
+          <h3 className="mt-1 text-center text-lg font-semibold text-white">
+            From two files to a shared review in seconds
+          </h3>
+          <div className="mx-auto mt-4 grid max-w-4xl gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+              <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">01</div>
+              <h4 className="mt-1.5 text-xs font-semibold text-white">Drop two models</h4>
+              <p className="mt-1 text-[11px] text-neutral-400">
+                Drag-and-drop a new version — STL, 3MF, or OBJ — and Meshdiff
+                instantly formats both meshes for review.
+              </p>
+            </div>
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+              <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">02</div>
+              <h4 className="mt-1.5 text-xs font-semibold text-white">Auto-align &amp; voxel diff</h4>
+              <p className="mt-1 text-[11px] text-neutral-400">
+                Meshdiff voxelizes both meshes — added geometry turns green,
+                removed turns red. Tune the tolerance to taste.
+              </p>
+            </div>
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+              <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">03</div>
+              <h4 className="mt-1.5 text-xs font-semibold text-white">Read &amp; share</h4>
+              <p className="mt-1 text-[11px] text-neutral-400">
+                See exact voxel counts and volume delta, then share a
+                self-explaining link so anyone can spot the diff.
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-            <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">02</div>
-            <h4 className="mt-1.5 text-xs font-semibold text-white">Auto-align &amp; voxel diff</h4>
-            <p className="mt-1 text-[11px] text-neutral-400">
-              Meshdiff voxelizes both meshes — added geometry turns green,
-              removed turns red. Tune the tolerance to taste.
-            </p>
-          </div>
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-            <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">03</div>
-            <h4 className="mt-1.5 text-xs font-semibold text-white">Read &amp; share</h4>
-            <p className="mt-1 text-[11px] text-neutral-400">
-              See exact voxel counts and volume delta, then share a
-              self-explaining link so anyone can spot the diff.
-            </p>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {isRestoringShare && (
         <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-400">
@@ -272,51 +283,77 @@ export default function LiveDiffToolPage() {
       )}
       <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
         <div className="flex items-center gap-3">
-          <span className="font-semibold uppercase tracking-wide text-neutral-300">
-            Live Diff
-          </span>
-          <button
-            type="button"
-            onClick={() => viewerARef.current?.openFileDialog()}
-            className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
-          >
-            + Version A
-          </button>
-          <button
-            type="button"
-            onClick={() => viewerBRef.current?.openFileDialog()}
-            className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
-          >
-            + Version B
-          </button>
-          <select
-            value={selectedDemo}
-            onChange={(e) => setSelectedDemo(e.target.value as "simple" | "bracket" | "gear")}
-            className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
-          >
-            <option value="simple">Simple Bracket</option>
-            <option value="bracket">Complex Bracket</option>
-            <option value="gear">Gear Assembly</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => {
-              viewerARef.current?.loadDemo();
-              viewerBRef.current?.loadDemo();
-            }}
-            className="rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-emerald-300 hover:border-emerald-400"
-          >
-            Load Demo
-          </button>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isSyncEnabled}
-              onChange={(e) => setIsSyncEnabled(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-700 bg-neutral-950 accent-emerald-500"
-            />
-            <span className="text-xs text-neutral-300">Locked views</span>
-          </label>
+          <div className="flex overflow-hidden rounded border border-neutral-700">
+            {TOOLS.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => setActiveTool(tool.id)}
+                className={`px-2.5 py-1 font-medium ${
+                  activeTool === tool.id
+                    ? "bg-emerald-500 text-neutral-950"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                {tool.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTool === "compare" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => viewerARef.current?.openFileDialog()}
+                className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+              >
+                + Version A
+              </button>
+              <button
+                type="button"
+                onClick={() => viewerBRef.current?.openFileDialog()}
+                className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+              >
+                + Version B
+              </button>
+              <select
+                value={selectedDemo}
+                onChange={(e) => setSelectedDemo(e.target.value as "simple" | "bracket" | "gear")}
+                className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+              >
+                <option value="simple">Simple Bracket</option>
+                <option value="bracket">Complex Bracket</option>
+                <option value="gear">Gear Assembly</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  viewerARef.current?.loadDemo();
+                  viewerBRef.current?.loadDemo();
+                }}
+                className="rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-emerald-300 hover:border-emerald-400"
+              >
+                Load Demo
+              </button>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isSyncEnabled}
+                  onChange={(e) => setIsSyncEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-neutral-700 bg-neutral-950 accent-emerald-500"
+                />
+                <span className="text-xs text-neutral-300">Locked views</span>
+              </label>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => measureViewerRef.current?.openFileDialog()}
+              className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+            >
+              + Load Model
+            </button>
+          )}
           <span className="text-neutral-500">
             STL · 3MF · OBJ — parsed locally, in-browser
           </span>
@@ -324,18 +361,29 @@ export default function LiveDiffToolPage() {
       </div>
 
       <div className="border-b border-emerald-500/20 bg-emerald-500/5 px-4 py-1.5 text-center text-[11px]">
-        <span className="font-medium text-emerald-300">🔒 Diffing runs entirely client-side.</span>{" "}
+        <span className="font-medium text-emerald-300">
+          🔒 {activeTool === "compare" ? "Diffing" : "Viewing"} runs entirely client-side.
+        </span>{" "}
         <span className="text-emerald-300/60">
-          Nothing you drop here is uploaded unless you explicitly create a share link — that's the only action that sends your files anywhere.
+          {activeTool === "compare"
+            ? "Nothing you drop here is uploaded unless you explicitly create a share link — that's the only action that sends your files anywhere."
+            : "Nothing you drop here is ever uploaded."}
         </span>
       </div>
 
       <section className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
-        {sameFileWarning && (
+        {activeTool === "measure" && (
+          <div className="min-h-0 flex-1">
+            <MeasureViewer ref={measureViewerRef} demoUrl={currentDemo.a} />
+          </div>
+        )}
+        {activeTool === "compare" && sameFileWarning && (
           <div className="rounded border border-amber-800 bg-amber-950/50 px-3 py-2 text-sm text-amber-300">
             ⚠ {sameFileWarning}
           </div>
         )}
+        {activeTool === "compare" && (
+        <>
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
           <Viewer
             ref={viewerARef}
@@ -463,6 +511,8 @@ export default function LiveDiffToolPage() {
             Download Report
           </button>
         </div>
+        </>
+        )}
       </section>
 
       {isReportModalOpen && (
