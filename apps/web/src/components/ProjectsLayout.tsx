@@ -28,6 +28,10 @@ function ProjectStatusDot({ status }: { status: "pass" | "warn" | "fail" | null 
   return <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status ? STATUS_DOT[status] : "bg-neutral-600"}`} />;
 }
 
+function formatRenewalDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 // The sidebar's project list (including each project's status dot) is only
 // re-fetched when the route changes, so it goes stale after in-place
 // mutations that don't navigate — e.g. deleting a project's last version.
@@ -137,11 +141,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const isTeamMember = teams.length > 0;
   const isPro = subscription?.tier === "pro";
   const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : "Free";
-  const planBadgeClass = isTeamMember
-    ? "bg-violet-500/15 text-violet-400"
-    : isPro
-      ? "bg-emerald-500/15 text-emerald-400"
-      : "bg-neutral-700/50 text-neutral-400";
+  const planTextClass = isTeamMember ? "text-violet-400" : isPro ? "text-emerald-400" : "text-neutral-300";
 
   // The sidebar's own nav is alphabetical (unlike the /projects grid page,
   // which is newest-first) — sort here at render time rather than in
@@ -185,23 +185,42 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 {emailInitial}
               </div>
               <span className="min-w-0 flex-1 truncate text-xs text-neutral-300">{user?.email ?? "…"}</span>
-              {isTeamMember || isPro ? (
-                <span
-                  title={isTeamMember ? "Belongs to a team — Team billing isn't wired up yet" : "Pro plan active"}
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${planBadgeClass}`}
-                >
-                  {planLabel}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowUpgradeToPro(true)}
-                  title="Upgrade to Pro"
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:brightness-110 ${planBadgeClass}`}
-                >
-                  Free · Upgrade
-                </button>
-              )}
+            </div>
+          </div>
+
+          <div className="border-b border-neutral-800 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Billing</p>
+            <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
+                {isPro && (
+                  <button
+                    type="button"
+                    onClick={() => void handleManageBilling()}
+                    className="shrink-0 text-[11px] font-medium text-neutral-400 hover:text-neutral-200"
+                  >
+                    Manage
+                  </button>
+                )}
+                {!isTeamMember && !isPro && (
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeToPro(true)}
+                    className="shrink-0 text-[11px] font-medium text-emerald-400 hover:text-emerald-300"
+                  >
+                    Upgrade
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+                {isTeamMember
+                  ? "Belongs to a team — Team billing isn't wired up yet."
+                  : isPro
+                    ? subscription?.cancelAtPeriodEnd
+                      ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
+                      : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
+                    : "Project workspaces, version history, and comment pins — $15/mo."}
+              </p>
             </div>
           </div>
 
@@ -292,15 +311,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </button>
             {isMenuOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 shadow-xl">
-                {isPro && (
-                  <button
-                    type="button"
-                    onClick={() => void handleManageBilling()}
-                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-800"
-                  >
-                    Manage billing
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={() => void handleSignOut()}
