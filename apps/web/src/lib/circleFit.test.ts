@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { fitCircleThroughThreePoints, sampleCircle } from "./circleFit";
+import { fitCircleLeastSquares, fitCircleThroughThreePoints, sampleCircle } from "./circleFit";
 
 function pointOnCircle(center: THREE.Vector3, radius: number, angleRad: number): THREE.Vector3 {
   return new THREE.Vector3(
@@ -8,6 +8,13 @@ function pointOnCircle(center: THREE.Vector3, radius: number, angleRad: number):
     center.y + radius * Math.sin(angleRad),
     center.z,
   );
+}
+
+function pointOnCircleWithNormal(center: THREE.Vector3, radius: number, angle: number, normal: THREE.Vector3): THREE.Vector3 {
+  const seed = Math.abs(normal.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  const u = seed.clone().sub(normal.clone().multiplyScalar(seed.dot(normal))).normalize();
+  const v = normal.clone().cross(u).normalize();
+  return center.clone().addScaledVector(u, radius * Math.cos(angle)).addScaledVector(v, radius * Math.sin(angle));
 }
 
 describe("fitCircleThroughThreePoints", () => {
@@ -100,5 +107,49 @@ describe("sampleCircle", () => {
     )!;
     const samples = sampleCircle(fit, 16);
     expect(samples[0].distanceTo(samples[samples.length - 1])).toBeCloseTo(0, 9);
+  });
+});
+
+describe("fitCircleLeastSquares", () => {
+  it("recovers the exact center/radius for many points exactly on a known circle", () => {
+    const center = new THREE.Vector3(5, -3, 12);
+    const radius = 7.5;
+    const normal = new THREE.Vector3(0.2, 0.4, 1).normalize();
+    const points = Array.from({ length: 24 }, (_, i) =>
+      pointOnCircleWithNormal(center, radius, (i / 24) * Math.PI * 2, normal),
+    );
+
+    const fit = fitCircleLeastSquares(points);
+    expect(fit).not.toBeNull();
+    expect(fit!.center.distanceTo(center)).toBeCloseTo(0, 4);
+    expect(fit!.radius).toBeCloseTo(radius, 4);
+    expect(Math.abs(fit!.normal.dot(normal))).toBeCloseTo(1, 4);
+  });
+
+  it("stays close to the true circle when points have small random noise (robustness over an exact 3-point fit)", () => {
+    const center = new THREE.Vector3(0, 0, 0);
+    const radius = 10;
+    const normal = new THREE.Vector3(0, 0, 1);
+    let seed = 42;
+    const rand = () => {
+      // Deterministic PRNG so the test is stable.
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return (seed / 0x7fffffff) * 2 - 1;
+    };
+    const points = Array.from({ length: 40 }, (_, i) => {
+      const p = pointOnCircleWithNormal(center, radius, (i / 40) * Math.PI * 2, normal);
+      p.x += rand() * 0.05;
+      p.y += rand() * 0.05;
+      return p;
+    });
+
+    const fit = fitCircleLeastSquares(points);
+    expect(fit).not.toBeNull();
+    expect(fit!.center.distanceTo(center)).toBeLessThan(0.05);
+    expect(Math.abs(fit!.radius - radius)).toBeLessThan(0.05);
+  });
+
+  it("returns null for fewer than 3 points", () => {
+    expect(fitCircleLeastSquares([new THREE.Vector3(), new THREE.Vector3(1, 0, 0)])).toBeNull();
   });
 });

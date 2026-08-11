@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { CircleFit } from "./circleFit";
+import { fitCircleLeastSquares as fitCircleLeastSquaresImpl, type CircleFit } from "./circleFit";
 
 export interface BoundaryLoop {
   /** Vertices around the loop, in mesh-local space, in connection order. */
@@ -20,25 +20,76 @@ export interface BoundaryLoop {
 // synthetic ring mesh before this ever touched a real model.
 function roundForKey(n: number): number {
   const rounded = Math.round(n * 10000);
-  return rounded === 0 ? 0 : rounded; // still an integer (0.0001mm units) — see below
+  return rounded === 0 ? 0 : rounded; // still an integer (0.0001mm units)
+}
+
+const DEFAULT_CREASE_ANGLE_DEGREES = 25;
+// A real mesh's rim isn't a mathematical circle (finite triangulation, and
+// real prints have some waviness) — this bounds how far a candidate loop's
+// vertices can stray from its own best-fit circle, as a fraction of that
+// circle's radius, before it's rejected as "not actually circular" (e.g. a
+// square logo's crease, or a mesh corner that slipped past the degree
+// filter below).
+const DEFAULT_MAX_RELATIVE_FIT_ERROR = 0.08;
+
+// Any 3 non-collinear points sit exactly on *some* circle by construction —
+// the circularity check above can never reject a 3-point loop, no matter
+// how sharp or arbitrary its corner really is. Real-file testing against a
+// 441k-triangle mesh confirmed this: 28 of 30 "loops" found were 3-vertex
+// noise (tiny unrelated creases), alongside the 2 real rims (1103 and 1198
+// points each). A genuine rim/hole is traced through many triangulated
+// segments, never just a handful — this floor rejects the trivially-
+// concyclic small cases without needing shape-specific logic.
+const MIN_LOOP_POINTS = 8;
+
+/** RMS distance of `points` from `fit`'s circle, as a fraction of its
+ * radius — ~0 for points that actually lie on a circle, large for e.g. a
+ * square's 4 corners fit to their best circle. Exported mainly so this
+ * specific judgment call is directly testable without needing to build a
+ * full mesh with a known non-circular crease. */
+export function loopCircularityRelativeError(points: THREE.Vector3[], fit: CircleFit): number {
+  if (fit.radius <= 0) return Infinity;
+  const rms = Math.sqrt(
+    points.reduce((sum, p) => sum + (p.distanceTo(fit.center) - fit.radius) ** 2, 0) / points.length,
+  );
+  return rms / fit.radius;
 }
 
 /**
- * Finds every boundary loop in a mesh — the edges of any open region (a
- * hole through the part, or the rim of a cup/bowl) where geometry doesn't
- * continue on the other side. A triangle edge shared by exactly one
- * triangle (instead of the usual two, for a closed manifold surface) is a
- * boundary edge; boundary edges chain into loops.
+ * Finds circular features on a mesh — holes, rims, bosses — by tracing
+ * *feature edges* into loops and keeping only the loops that are actually
+ * circular. A feature edge is either a naked boundary edge (belongs to
+ * only one triangle — an actual hole through an open/non-manifold surface)
+ * or a *crease* edge (belongs to two triangles whose faces meet at a sharp
+ * angle — e.g. where a cup's vertical wall meets its rim).
+ *
+ * Naked-edge-only detection (this function's original approach) turned out
+ * to almost never fire on this app's real files: printable meshes are
+ * watertight by construction, so even an obviously "open" cup rim has no
+ * naked edges at all — there's always a thin closing wall, just a sharp
+ * one. Crease-angle detection is what actually finds those rims.
+ *
+ * A real mesh has plenty of *other* crease edges too (every hard corner,
+ * decorative detail, logo) that aren't circular holes — two filters keep
+ * only genuine circular loops: (1) only vertices with exactly two feature-
+ * edge neighbors can be part of a loop (a simple closed curve is always
+ * 2-regular; a cube's corners, where 3 edges meet, are naturally excluded
+ * without needing to special-case them), and (2) the loop's vertices must
+ * actually lie close to their own best-fit circle (rejects a square
+ * logo's crease, which is 2-regular but not remotely round).
  *
  * Runs once per loaded mesh (not per mouse move) — the caller should cache
  * the result and just search it on hover. Vertex/edge bookkeeping uses
  * integer vertex IDs and numeric Map keys throughout rather than string
  * keys — measured ~4.4s on a real 441k-triangle mesh with string keys
- * (`toFixed` + template-literal concatenation per triangle corner/edge,
- * ~1.3M times each), which is far too slow to run synchronously on mesh
- * load; this version stays well under that.
+ * (`toFixed` + template-literal concatenation ~4M times), which is far too
+ * slow to run synchronously on mesh load; this stays well under that.
  */
-export function findBoundaryLoops(geometry: THREE.BufferGeometry): BoundaryLoop[] {
+export function findCircularFeatureLoops(
+  geometry: THREE.BufferGeometry,
+  creaseAngleDegrees = DEFAULT_CREASE_ANGLE_DEGREES,
+  maxRelativeFitError = DEFAULT_MAX_RELATIVE_FIT_ERROR,
+): BoundaryLoop[] {
   const position = geometry.getAttribute("position");
   const index = geometry.getIndex();
   const triangleCount = index ? index.count / 3 : position.count / 3;
@@ -58,9 +109,6 @@ export function findBoundaryLoops(geometry: THREE.BufferGeometry): BoundaryLoop[
     const rx = roundForKey(position.getX(i));
     const ry = roundForKey(position.getY(i));
     const rz = roundForKey(position.getZ(i));
-    // Combine 3 coordinates (each comfortably within ±2^20 for any
-    // reasonable model size at 0.0001mm precision) into one safe-integer
-    // key via a fixed-radix mix — cheaper than a string join per corner.
     const key = (rx + 1_048_576) * 4_398_046_511_104 + (ry + 1_048_576) * 2_097_152 + (rz + 1_048_576);
     let vertexId = vertexIdByKey.get(key);
     if (vertexId === undefined) {
@@ -72,32 +120,96 @@ export function findBoundaryLoops(geometry: THREE.BufferGeometry): BoundaryLoop[
   }
   const vertexCount = vertexPositions.length;
 
-  // Pass 2: count each edge (by its two deduped vertex IDs). Edge key packs
-  // (min, max) vertex IDs into one number — safe as long as vertexCount² is
-  // under Number.MAX_SAFE_INTEGER, true for any mesh this app parses.
-  const edgeCount = new Map<number, number>();
+  // Pass 2: per-triangle unit normal — needed to test the dihedral angle
+  // at each shared edge.
+  const triangleNormals = new Float32Array(triangleCount * 3);
+  {
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const normal = new THREE.Vector3();
+    for (let t = 0; t < triangleCount; t++) {
+      const base = t * 3;
+      a.fromBufferAttribute(position, vertexIndexAt(base));
+      b.fromBufferAttribute(position, vertexIndexAt(base + 1));
+      c.fromBufferAttribute(position, vertexIndexAt(base + 2));
+      normal.subVectors(b, a).cross(c.clone().sub(a));
+      if (normal.lengthSq() > 1e-12) normal.normalize();
+      triangleNormals[base] = normal.x;
+      triangleNormals[base + 1] = normal.y;
+      triangleNormals[base + 2] = normal.z;
+    }
+  }
+
+  // Pass 3: edge -> every triangle that references it (usually 1, for a
+  // naked edge, or 2, for a normal manifold edge; more means a non-manifold
+  // edge, unusual but not invalid).
+  const edgeTriangles = new Map<number, number[]>();
   for (let t = 0; t < triangleCount; t++) {
     const base = t * 3;
     const ids = [cornerVertexId[base], cornerVertexId[base + 1], cornerVertexId[base + 2]];
     for (let c = 0; c < 3; c++) {
-      const a = ids[c];
-      const b = ids[(c + 1) % 3];
-      const edgeKey = a < b ? a * vertexCount + b : b * vertexCount + a;
-      edgeCount.set(edgeKey, (edgeCount.get(edgeKey) ?? 0) + 1);
+      const va = ids[c];
+      const vb = ids[(c + 1) % 3];
+      const edgeKey = va < vb ? va * vertexCount + vb : vb * vertexCount + va;
+      let list = edgeTriangles.get(edgeKey);
+      if (!list) {
+        list = [];
+        edgeTriangles.set(edgeKey, list);
+      }
+      list.push(t);
     }
   }
 
-  // Pass 3: boundary edges (count === 1) become adjacency between vertex IDs.
-  const adjacency = new Map<number, number[]>();
-  for (const [edgeKey, count] of edgeCount) {
-    if (count !== 1) continue;
+  // Pass 4: classify feature edges (naked, or a sharp-enough crease) into
+  // adjacency between vertex IDs.
+  const cosCreaseThreshold = Math.cos((creaseAngleDegrees * Math.PI) / 180);
+  const rawAdjacency = new Map<number, number[]>();
+  const addAdjacency = (a: number, b: number) => {
+    if (a === b) return;
+    let listA = rawAdjacency.get(a);
+    if (!listA) {
+      listA = [];
+      rawAdjacency.set(a, listA);
+    }
+    listA.push(b);
+    let listB = rawAdjacency.get(b);
+    if (!listB) {
+      listB = [];
+      rawAdjacency.set(b, listB);
+    }
+    listB.push(a);
+  };
+
+  for (const [edgeKey, triangles] of edgeTriangles) {
+    let isFeature: boolean;
+    if (triangles.length === 1) {
+      isFeature = true; // naked boundary edge
+    } else if (triangles.length === 2) {
+      const i0 = triangles[0] * 3;
+      const i1 = triangles[1] * 3;
+      const dot =
+        triangleNormals[i0] * triangleNormals[i1] +
+        triangleNormals[i0 + 1] * triangleNormals[i1 + 1] +
+        triangleNormals[i0 + 2] * triangleNormals[i1 + 2];
+      isFeature = dot < cosCreaseThreshold;
+    } else {
+      isFeature = true; // non-manifold edge (3+ triangles) — treat as a feature rather than silently ignore
+    }
+    if (!isFeature) continue;
     const b = edgeKey % vertexCount;
     const a = (edgeKey - b) / vertexCount;
-    if (a === b) continue; // degenerate edge
-    if (!adjacency.has(a)) adjacency.set(a, []);
-    if (!adjacency.has(b)) adjacency.set(b, []);
-    adjacency.get(a)!.push(b);
-    adjacency.get(b)!.push(a);
+    addAdjacency(a, b);
+  }
+
+  // Only vertices with *exactly* two feature-edge neighbors can be part of
+  // a simple closed loop — this is what keeps a cube's corners (3 edges
+  // meet there), a decorative detail's branch points, etc. from corrupting
+  // the walk below, without needing to special-case any particular shape.
+  const adjacency = new Map<number, [number, number]>();
+  for (const [vertexId, neighbors] of rawAdjacency) {
+    const unique = Array.from(new Set(neighbors));
+    if (unique.length === 2) adjacency.set(vertexId, [unique[0], unique[1]]);
   }
 
   const visited = new Set<number>();
@@ -111,31 +223,31 @@ export function findBoundaryLoops(geometry: THREE.BufferGeometry): BoundaryLoop[
     let prev = -1;
     let closed = false;
 
-    // A clean boundary loop is a simple cycle — every vertex on it has
-    // exactly two boundary neighbors. Walk forward, always choosing the
-    // neighbor that isn't where we just came from, until back at the start.
     for (let steps = 0; steps < 200_000; steps++) {
+      const pair = adjacency.get(current);
+      if (!pair) break; // walked into a vertex that didn't pass the degree-2 filter
       visited.add(current);
       loopIds.push(current);
-      const neighbors = adjacency.get(current);
-      if (!neighbors) break;
-      const next = neighbors.find((n) => n !== prev) ?? (neighbors.length === 1 ? undefined : neighbors[0]);
-      if (next === undefined) break; // dead end — not a clean closed loop, stop here
+      const next = pair[0] === prev ? pair[1] : pair[0];
       if (next === startId && loopIds.length >= 3) {
         closed = true;
         break;
       }
-      if (visited.has(next) && next !== startId) break; // ran into another loop — malformed mesh, bail
+      if (visited.has(next) && next !== startId) break; // ran into another loop — bail
       prev = current;
       current = next;
     }
 
-    if (closed && loopIds.length >= 3) {
-      const points = loopIds.map((id) => vertexPositions[id]);
-      const centroid = points.reduce((acc, p) => acc.add(p), new THREE.Vector3()).divideScalar(points.length);
-      const boundingRadius = points.reduce((max, p) => Math.max(max, p.distanceTo(centroid)), 0);
-      loops.push({ points, centroid, boundingRadius });
-    }
+    if (!closed || loopIds.length < MIN_LOOP_POINTS) continue;
+
+    const points = loopIds.map((id) => vertexPositions[id]);
+    const fit = fitCircleLeastSquaresImpl(points);
+    if (!fit || fit.radius <= 0) continue;
+    if (loopCircularityRelativeError(points, fit) > maxRelativeFitError) continue; // not actually circular
+
+    const centroid = points.reduce((acc, p) => acc.add(p), new THREE.Vector3()).divideScalar(points.length);
+    const boundingRadius = points.reduce((max, p) => Math.max(max, p.distanceTo(centroid)), 0);
+    loops.push({ points, centroid, boundingRadius });
   }
 
   return loops;
@@ -166,90 +278,5 @@ export function findNearestLoop(loops: BoundaryLoop[], point: THREE.Vector3, max
   return best;
 }
 
-/** Area-weighted average normal of a near-planar polygon loop (Newell's
- * method) — robust to individual noisy vertices, unlike deriving a normal
- * from just 3 of the points. */
-function newellNormal(points: THREE.Vector3[]): THREE.Vector3 {
-  const normal = new THREE.Vector3();
-  for (let i = 0; i < points.length; i++) {
-    const curr = points[i];
-    const next = points[(i + 1) % points.length];
-    normal.x += (curr.y - next.y) * (curr.z + next.z);
-    normal.y += (curr.z - next.z) * (curr.x + next.x);
-    normal.z += (curr.x - next.x) * (curr.y + next.y);
-  }
-  return normal.normalize();
-}
-
-function determinant3x3(m: number[][]): number {
-  return (
-    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
-    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
-  );
-}
-
-function solve3x3(a: number[][], b: number[]): [number, number, number] | null {
-  const det = determinant3x3(a);
-  if (Math.abs(det) < 1e-9) return null;
-  const withCol = (col: number) => a.map((row, i) => row.map((v, j) => (j === col ? b[i] : v)));
-  return [determinant3x3(withCol(0)) / det, determinant3x3(withCol(1)) / det, determinant3x3(withCol(2)) / det];
-}
-
-/**
- * Least-squares circle fit through any number (3+) of points — the robust
- * counterpart to fitCircleThroughThreePoints in circleFit.ts. A real mesh's
- * boundary loop is only *approximately* circular (finite triangulation,
- * not a mathematical curve), so this fits the best circle through every
- * loop vertex instead of trusting 3 arbitrary ones exactly.
- *
- * Method: fit the best-fit plane via Newell's method, project every point
- * into that plane, then solve the classic Kåsa linear least-squares circle
- * fit (x²+y² = Dx + Ey + F) via a 3×3 normal-equations solve.
- */
-export function fitCircleLeastSquares(points: THREE.Vector3[]): CircleFit | null {
-  if (points.length < 3) return null;
-
-  const centroid = points.reduce((acc, p) => acc.add(p), new THREE.Vector3()).divideScalar(points.length);
-  const normal = newellNormal(points);
-  if (normal.lengthSq() < 1e-9) return null;
-
-  const seed = Math.abs(normal.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
-  const u = seed.clone().sub(normal.clone().multiplyScalar(seed.dot(normal))).normalize();
-  const v = normal.clone().cross(u).normalize();
-
-  let sumX = 0, sumY = 0, sumXX = 0, sumYY = 0, sumXY = 0, sumXZ = 0, sumYZ = 0, sumZ = 0;
-  const rel = new THREE.Vector3();
-  for (const p of points) {
-    rel.copy(p).sub(centroid);
-    const x = rel.dot(u);
-    const y = rel.dot(v);
-    const z = x * x + y * y;
-    sumX += x;
-    sumY += y;
-    sumXX += x * x;
-    sumYY += y * y;
-    sumXY += x * y;
-    sumXZ += x * z;
-    sumYZ += y * z;
-    sumZ += z;
-  }
-
-  const solved = solve3x3(
-    [
-      [sumXX, sumXY, sumX],
-      [sumXY, sumYY, sumY],
-      [sumX, sumY, points.length],
-    ],
-    [sumXZ, sumYZ, sumZ],
-  );
-  if (!solved) return null;
-  const [d, e, f] = solved;
-  const cx = d / 2;
-  const cy = e / 2;
-  const radiusSquared = f + cx * cx + cy * cy;
-  if (radiusSquared <= 0) return null;
-
-  const center = centroid.clone().addScaledVector(u, cx).addScaledVector(v, cy);
-  return { center, radius: Math.sqrt(radiusSquared), normal };
-}
+export { fitCircleLeastSquaresImpl as fitCircleLeastSquares };
+export type { CircleFit };

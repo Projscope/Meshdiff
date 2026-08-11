@@ -73,3 +73,91 @@ export function sampleCircle(fit: CircleFit, segments = 64): THREE.Vector3[] {
   }
   return points;
 }
+
+/** Area-weighted average normal of a near-planar polygon loop (Newell's
+ * method) — robust to individual noisy vertices, unlike deriving a normal
+ * from just 3 of the points. */
+function newellNormal(points: THREE.Vector3[]): THREE.Vector3 {
+  const normal = new THREE.Vector3();
+  for (let i = 0; i < points.length; i++) {
+    const curr = points[i];
+    const next = points[(i + 1) % points.length];
+    normal.x += (curr.y - next.y) * (curr.z + next.z);
+    normal.y += (curr.z - next.z) * (curr.x + next.x);
+    normal.z += (curr.x - next.x) * (curr.y + next.y);
+  }
+  return normal.normalize();
+}
+
+function determinant3x3(m: number[][]): number {
+  return (
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+  );
+}
+
+function solve3x3(a: number[][], b: number[]): [number, number, number] | null {
+  const det = determinant3x3(a);
+  if (Math.abs(det) < 1e-9) return null;
+  const withCol = (col: number) => a.map((row, i) => row.map((v, j) => (j === col ? b[i] : v)));
+  return [determinant3x3(withCol(0)) / det, determinant3x3(withCol(1)) / det, determinant3x3(withCol(2)) / det];
+}
+
+/**
+ * Least-squares circle fit through any number (3+) of points — the robust
+ * counterpart to fitCircleThroughThreePoints above. A real mesh's boundary
+ * loop is only *approximately* circular (finite triangulation, not a
+ * mathematical curve), so this fits the best circle through every loop
+ * vertex instead of trusting 3 arbitrary ones exactly.
+ *
+ * Method: fit the best-fit plane via Newell's method, project every point
+ * into that plane, then solve the classic Kåsa linear least-squares circle
+ * fit (x²+y² = Dx + Ey + F) via a 3×3 normal-equations solve.
+ */
+export function fitCircleLeastSquares(points: THREE.Vector3[]): CircleFit | null {
+  if (points.length < 3) return null;
+
+  const centroid = points.reduce((acc, p) => acc.add(p), new THREE.Vector3()).divideScalar(points.length);
+  const normal = newellNormal(points);
+  if (normal.lengthSq() < 1e-9) return null;
+
+  const seed = Math.abs(normal.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  const u = seed.clone().sub(normal.clone().multiplyScalar(seed.dot(normal))).normalize();
+  const v = normal.clone().cross(u).normalize();
+
+  let sumX = 0, sumY = 0, sumXX = 0, sumYY = 0, sumXY = 0, sumXZ = 0, sumYZ = 0, sumZ = 0;
+  const rel = new THREE.Vector3();
+  for (const p of points) {
+    rel.copy(p).sub(centroid);
+    const x = rel.dot(u);
+    const y = rel.dot(v);
+    const z = x * x + y * y;
+    sumX += x;
+    sumY += y;
+    sumXX += x * x;
+    sumYY += y * y;
+    sumXY += x * y;
+    sumXZ += x * z;
+    sumYZ += y * z;
+    sumZ += z;
+  }
+
+  const solved = solve3x3(
+    [
+      [sumXX, sumXY, sumX],
+      [sumXY, sumYY, sumY],
+      [sumX, sumY, points.length],
+    ],
+    [sumXZ, sumYZ, sumZ],
+  );
+  if (!solved) return null;
+  const [d, e, f] = solved;
+  const cx = d / 2;
+  const cy = e / 2;
+  const radiusSquared = f + cx * cx + cy * cy;
+  if (radiusSquared <= 0) return null;
+
+  const center = centroid.clone().addScaledVector(u, cx).addScaledVector(v, cy);
+  return { center, radius: Math.sqrt(radiusSquared), normal };
+}

@@ -16,7 +16,7 @@ import PrintabilityRulesTooltip from "./PrintabilityRulesTooltip";
 import ThreeMFPropertiesPanel from "./ThreeMFPropertiesPanel";
 import DetailedStatsPanel from "./DetailedStatsPanel";
 import { fitCircleThroughThreePoints, type CircleFit } from "../lib/circleFit";
-import { findBoundaryLoops, findNearestLoop, fitCircleLeastSquares, type BoundaryLoop } from "../lib/circleDetect";
+import { findCircularFeatureLoops, findNearestLoop, fitCircleLeastSquares, type BoundaryLoop } from "../lib/circleDetect";
 
 // Same rotation the group below applies to lay the Z-up model flat on
 // drei's Y-up grid — see VersionDetailPage.tsx, where this exact fix (and
@@ -68,6 +68,8 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
   const [boundaryLoops, setBoundaryLoops] = useState<BoundaryLoop[]>([]);
   const [radiusPreviewFit, setRadiusPreviewFit] = useState<CircleFit | null>(null);
   const [radiusCommittedFit, setRadiusCommittedFit] = useState<CircleFit | null>(null);
+  const [radiusPreviewLoopPoints, setRadiusPreviewLoopPoints] = useState<Array<[number, number, number]> | null>(null);
+  const [radiusCommittedLoopPoints, setRadiusCommittedLoopPoints] = useState<Array<[number, number, number]> | null>(null);
 
   async function handleFile(file: File) {
     setIsLoading(true);
@@ -103,7 +105,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
       }
     }
     setDisplayGeometry(display);
-    setBoundaryLoops(findBoundaryLoops(display));
+    setBoundaryLoops(findCircularFeatureLoops(display));
     setError(null);
 
     display.computeBoundingBox();
@@ -193,10 +195,12 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
       const loop = findNearestLoop(boundaryLoops, snapped, 1e-3);
       if (loop) {
         setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
+        setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
         setMeasureHover(null);
         return;
       }
       setRadiusPreviewFit(null);
+      setRadiusPreviewLoopPoints(null);
     }
 
     setMeasureHover(snapped ? [snapped.x, snapped.y, snapped.z] : null);
@@ -210,7 +214,9 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
       // Hovering a detected hole/rim — one click confirms its full-loop fit
       // instead of requiring 3 manual points.
       setRadiusCommittedFit(radiusPreviewFit);
+      setRadiusCommittedLoopPoints(radiusPreviewLoopPoints);
       setRadiusPreviewFit(null);
+      setRadiusPreviewLoopPoints(null);
       setIsMeasuring(false);
       setMeasureHover(null);
       return;
@@ -231,6 +237,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
       setRadiusPoints((prev) => {
         const next = [...prev, point];
         if (next.length >= 3) {
+          setRadiusCommittedLoopPoints(null); // manual 3-point fit — no real loop backs it
           setRadiusCommittedFit(
             fitCircleThroughThreePoints(
               new THREE.Vector3(...next[0]),
@@ -253,7 +260,9 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
     setMeasureB(null);
     setRadiusPoints([]);
     setRadiusPreviewFit(null);
+    setRadiusPreviewLoopPoints(null);
     setRadiusCommittedFit(null);
+    setRadiusCommittedLoopPoints(null);
     setMeasureHover(null);
   }
 
@@ -263,7 +272,9 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
     setMeasureB(null);
     setRadiusPoints([]);
     setRadiusPreviewFit(null);
+    setRadiusPreviewLoopPoints(null);
     setRadiusCommittedFit(null);
+    setRadiusCommittedLoopPoints(null);
     setMeasureHover(null);
   }
 
@@ -359,6 +370,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                   onPointerOut={() => {
                     setMeasureHover(null);
                     setRadiusPreviewFit(null);
+                    setRadiusPreviewLoopPoints(null);
                   }}
                 >
                   {/* key forces a fresh material instance when hasVertexColors
@@ -379,6 +391,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                 manualPoints={radiusPoints}
                 hoverPoint={measureHover}
                 fit={radiusCommittedFit ?? radiusPreviewFit}
+                loopPoints={radiusCommittedLoopPoints ?? radiusPreviewLoopPoints}
                 isPreview={!radiusCommittedFit && radiusPreviewFit !== null}
               />
             )}
