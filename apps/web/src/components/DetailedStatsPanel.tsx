@@ -1,4 +1,5 @@
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
+import CollapsibleSection, { PropertyList, PropertyRow } from "./CollapsibleSection";
 
 interface DetailedStatsPanelProps {
   /**
@@ -22,153 +23,100 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
 
   return (
     <div className="space-y-6 text-sm">
-      {/* GEOMETRIC DELTA */}
-      <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          Geometric Delta
-        </h3>
+      <CollapsibleSection title="Geometric Delta">
         {!stats || !hasComparison ? (
-          <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
             Single version — no diff available
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Volume</span>
-              <span className={stats.approxVolumeDeltaMm3 < 0 ? "text-red-400" : "text-emerald-400"}>
-                {stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}
-                {Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Volume Change</span>
-              <span className={stats.approxVolumeDeltaPercent < 0 ? "text-red-400" : "text-emerald-400"}>
-                {stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}
-                {Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Size Δ X</span>
-              <span className={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-neutral-500"}>
-                {stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}
-                {Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Size Δ Y</span>
-              <span className={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-neutral-500"}>
-                {stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}
-                {Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Size Δ Z</span>
-              <span className={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-neutral-500"}>
-                {stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}
-                {Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Triangles</span>
-              <span
-                className={
+          <>
+            <PropertyList>
+              <PropertyRow
+                label="Volume"
+                value={`${stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³`}
+                valueClassName={stats.approxVolumeDeltaMm3 < 0 ? "text-red-400" : "text-emerald-400"}
+              />
+              <PropertyRow
+                label="Volume Change"
+                value={`${stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%`}
+                valueClassName={stats.approxVolumeDeltaPercent < 0 ? "text-red-400" : "text-emerald-400"}
+              />
+              <PropertyRow
+                label="Size Δ X"
+                value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
+                valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-neutral-500"}
+              />
+              <PropertyRow
+                label="Size Δ Y"
+                value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
+                valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-neutral-500"}
+              />
+              <PropertyRow
+                label="Size Δ Z"
+                value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
+                valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-neutral-500"}
+              />
+              <PropertyRow
+                label="Triangles"
+                value={`${stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}${stats.triangleDelta}`}
+                valueClassName={
                   stats.triangleDelta > 0
                     ? "text-emerald-400"
                     : stats.triangleDelta < 0
                       ? "text-red-400"
                       : "text-neutral-500"
                 }
-              >
-                {stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}
-                {stats.triangleDelta}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Surface Area</span>
-              <span className={stats.surfaceAreaDelta < 0 ? "text-red-400" : "text-emerald-400"}>
-                {stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}
-                {Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²
-              </span>
-            </div>
+              />
+              <PropertyRow
+                label="Surface Area"
+                value={`${stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}${Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²`}
+                valueClassName={stats.surfaceAreaDelta < 0 ? "text-red-400" : "text-emerald-400"}
+              />
+            </PropertyList>
             {stats.thinWallWarning && (
-              <div className="mt-2 rounded bg-amber-950/50 px-2 py-1 text-xs text-amber-300">
+              <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
                 ⚠ Thin walls detected (&lt; 0.8mm)
               </div>
             )}
             {stats.maxOverhangAngle > 45 && (
-              <div className="mt-2 rounded bg-amber-950/50 px-2 py-1 text-xs text-amber-300">
+              <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
                 ⚠ Overhangs detected ({stats.maxOverhangAngle.toFixed(1)}°)
               </div>
             )}
-          </div>
+          </>
         )}
-      </div>
+      </CollapsibleSection>
 
-      {/* VERSION STATS */}
-      <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          Version Stats
-        </h3>
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span className="text-neutral-400">Volume</span>
-            <span className="text-neutral-200">{stats ? `${volumeB.toFixed(0)} mm³` : "—"}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-neutral-400">Bounding Box</span>
-            <span className="text-neutral-200">
-              {boundingBoxB[0].toFixed(0)} × {boundingBoxB[1].toFixed(0)} × {boundingBoxB[2].toFixed(0)} mm
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-neutral-400">Triangles</span>
-            <span className="text-neutral-200">{stats ? Math.round(stats.triangleDeltaB) : "—"}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-neutral-400">Surface Area</span>
-            <span className="text-neutral-200">{stats ? `${stats.surfaceAreaB.toFixed(0)} mm²` : "—"}</span>
-          </div>
-          {stats?.fileFormatB && (
-            <div className="flex justify-between">
-              <span className="text-neutral-400">File Format</span>
-              <span className="text-neutral-200">{stats.fileFormatB.toUpperCase()}</span>
+      <CollapsibleSection title="Version Stats">
+        <PropertyList>
+          <PropertyRow label="Volume" value={stats ? `${volumeB.toFixed(0)} mm³` : "—"} />
+          <PropertyRow
+            label="Bounding Box"
+            value={`${boundingBoxB[0].toFixed(0)} × ${boundingBoxB[1].toFixed(0)} × ${boundingBoxB[2].toFixed(0)} mm`}
+          />
+          <PropertyRow label="Triangles" value={stats ? Math.round(stats.triangleDeltaB) : "—"} />
+          <PropertyRow label="Surface Area" value={stats ? `${stats.surfaceAreaB.toFixed(0)} mm²` : "—"} />
+          {stats?.fileFormatB && <PropertyRow label="File Format" value={stats.fileFormatB.toUpperCase()} />}
+        </PropertyList>
+      </CollapsibleSection>
+
+      {stats && (
+        <CollapsibleSection title="Printability Details">
+          {stats.printabilityIssues.length > 0 && (
+            <div className="space-y-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2">
+              {stats.printabilityIssues.map((issue, i) => (
+                <div key={i} className="text-xs text-amber-300">
+                  • {issue}
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* PRINTABILITY */}
-      {stats && (
-        <div>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Printability Details
-          </h3>
-          <div className="space-y-2">
-            {stats.printabilityIssues.length > 0 && (
-              <div className="space-y-1 rounded bg-neutral-900 px-2 py-1">
-                {stats.printabilityIssues.map((issue, i) => (
-                  <div key={i} className="text-xs text-amber-300">
-                    • {issue}
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Wall Thickness</span>
-              <span className="text-neutral-200">
-                {stats.minWallThickness.toFixed(2)} – {stats.maxWallThickness.toFixed(2)} mm
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Max Overhang</span>
-              <span className="text-neutral-200">{stats.maxOverhangAngle.toFixed(1)}°</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Unsupported Area</span>
-              <span className="text-neutral-200">{stats.overhangAreaPercent.toFixed(1)}%</span>
-            </div>
-          </div>
-        </div>
+          <PropertyList>
+            <PropertyRow label="Wall Thickness" value={`${stats.minWallThickness.toFixed(2)} – ${stats.maxWallThickness.toFixed(2)} mm`} />
+            <PropertyRow label="Max Overhang" value={`${stats.maxOverhangAngle.toFixed(1)}°`} />
+            <PropertyRow label="Unsupported Area" value={`${stats.overhangAreaPercent.toFixed(1)}%`} />
+          </PropertyList>
+        </CollapsibleSection>
       )}
     </div>
   );

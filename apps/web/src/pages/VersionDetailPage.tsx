@@ -22,6 +22,7 @@ import CommentPin from "../components/CommentPin";
 import AxisLegend from "../components/AxisLegend";
 import AxisLabels from "../components/AxisLabels";
 import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
+import CollapsibleSection, { PropertyList, PropertyRow } from "../components/CollapsibleSection";
 import MeasurementOverlay from "../components/MeasurementOverlay";
 import RadiusOverlay from "../components/RadiusOverlay";
 import { fitCircleThroughThreePoints, type CircleFit } from "../lib/circleFit";
@@ -428,21 +429,26 @@ export default function VersionDetailPage() {
             </div>
 
             <div className="mt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Summary
-              </h3>
-              <p className="mt-1.5 text-sm text-neutral-300">
-                {version.changeSummary ?? "No summary available."}
-              </p>
+              <CollapsibleSection title="Summary">
+                <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs leading-relaxed text-neutral-300">
+                  {version.changeSummary ?? "No summary available."}
+                </div>
+              </CollapsibleSection>
             </div>
 
             <div className="mt-4">
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Printability Gate
-              </h3>
-              <PrintabilityRulesTooltip>
-                <PrintabilityBadge status={version.printabilityStatus} />
-              </PrintabilityRulesTooltip>
+              <CollapsibleSection title="Printability Gate">
+                <PropertyList>
+                  <PropertyRow
+                    label="Status"
+                    value={
+                      <PrintabilityRulesTooltip>
+                        <PrintabilityBadge status={version.printabilityStatus} />
+                      </PrintabilityRulesTooltip>
+                    }
+                  />
+                </PropertyList>
+              </CollapsibleSection>
             </div>
 
             {threeMFProperties && (

@@ -1,4 +1,5 @@
 import type { ThreeMFProperties } from "../engine/load3mfDisplayExtras";
+import CollapsibleSection, { PropertyList, PropertyRow } from "./CollapsibleSection";
 
 const FIELD_LABELS: Record<string, string> = {
   Title: "Title",
@@ -78,15 +79,9 @@ export default function ThreeMFPropertiesPanel({ properties }: ThreeMFProperties
   const entries = Object.entries(properties.metadata);
 
   return (
-    <div>
-      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-        3MF Properties
-      </h3>
-      <div className="divide-y divide-neutral-800 rounded-lg border border-neutral-800 bg-neutral-900">
-        <div className="flex items-center justify-between px-3 py-2 text-xs">
-          <span className="text-neutral-500">Unit</span>
-          <span className="text-neutral-200">{properties.unit}</span>
-        </div>
+    <CollapsibleSection title="3MF Properties">
+      <PropertyList>
+        <PropertyRow label="Unit" value={properties.unit} />
         {entries.map(([key, value]) => (
           <div key={key} className="px-3 py-2 text-xs">
             <span className="block text-neutral-500">{FIELD_LABELS[key] ?? key}</span>
@@ -95,7 +90,7 @@ export default function ThreeMFPropertiesPanel({ properties }: ThreeMFProperties
             </span>
           </div>
         ))}
-      </div>
-    </div>
+      </PropertyList>
+    </CollapsibleSection>
   );
 }

@@ -15,6 +15,7 @@ import PrintabilityBadge from "./PrintabilityBadge";
 import PrintabilityRulesTooltip from "./PrintabilityRulesTooltip";
 import ThreeMFPropertiesPanel from "./ThreeMFPropertiesPanel";
 import DetailedStatsPanel from "./DetailedStatsPanel";
+import CollapsibleSection, { PropertyList, PropertyRow } from "./CollapsibleSection";
 import { fitCircleThroughThreePoints, type CircleFit } from "../lib/circleFit";
 import { findCircularFeatureLoops, findNearestLoop, fitCircleLeastSquares, type BoundaryLoop } from "../lib/circleDetect";
 
@@ -420,12 +421,18 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
             <h1 className="truncate text-sm font-semibold text-white">{fileName}</h1>
 
             <div className="mt-4">
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                Printability Gate
-              </h3>
-              <PrintabilityRulesTooltip>
-                <PrintabilityBadge status={stats?.printabilityStatus ?? null} />
-              </PrintabilityRulesTooltip>
+              <CollapsibleSection title="Printability Gate">
+                <PropertyList>
+                  <PropertyRow
+                    label="Status"
+                    value={
+                      <PrintabilityRulesTooltip>
+                        <PrintabilityBadge status={stats?.printabilityStatus ?? null} />
+                      </PrintabilityRulesTooltip>
+                    }
+                  />
+                </PropertyList>
+              </CollapsibleSection>
             </div>
 
             {threeMFProperties && (
