@@ -56,7 +56,7 @@ const PRICING_TIERS: PricingTier[] = [
   },
   {
     name: "Pro",
-    price: "$7.50",
+    price: "$15",
     period: "/mo",
     audience: "CAD and print engineers",
     cta: { label: "Join early access", scroll: true },

@@ -10,6 +10,7 @@ import versionsRoute from "./routes/versions.js";
 import commentsRoute from "./routes/comments.js";
 import teamsRoute from "./routes/teams.js";
 import workspaceRoute from "./routes/workspace.js";
+import billingRoute from "./routes/billing.js";
 
 const app = Fastify({ logger: true });
 
@@ -33,6 +34,7 @@ app.register(versionsRoute);
 app.register(commentsRoute);
 app.register(teamsRoute);
 app.register(workspaceRoute);
+app.register(billingRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

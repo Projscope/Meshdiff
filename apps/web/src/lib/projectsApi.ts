@@ -208,6 +208,30 @@ export function removeTeamMember(teamId: string, userId: string): Promise<Result
   return request(`/teams/${teamId}/members/${userId}`, { method: "DELETE" });
 }
 
+export interface SubscriptionStatus {
+  tier: "free" | "pro";
+  status: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export function getSubscription(): Promise<Result<SubscriptionStatus>> {
+  return request("/billing/subscription");
+}
+
+/** Returns a Stripe Checkout URL to redirect the browser to — Checkout is a
+ * Stripe-hosted page, not Stripe Elements (see CLAUDE.md), so there's
+ * nothing to render here beyond the redirect itself. */
+export function startProCheckout(): Promise<Result<{ url: string }>> {
+  return request("/billing/checkout", { method: "POST" });
+}
+
+/** Same shape as startProCheckout() — a URL to redirect to, this time for
+ * Stripe's hosted Billing Portal (manage/cancel an existing subscription). */
+export function openBillingPortal(): Promise<Result<{ url: string }>> {
+  return request("/billing/portal", { method: "POST" });
+}
+
 export function approveVersion(projectId: string, versionId: string): Promise<Result<VersionSummary>> {
   return request(`/projects/${projectId}/versions/${versionId}/approve`, { method: "POST" });
 }

@@ -1,12 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { listProjects, listMyTeams, getWorkspace, type ProjectSummary } from "../lib/projectsApi";
+import {
+  listProjects,
+  listMyTeams,
+  getWorkspace,
+  getSubscription,
+  openBillingPortal,
+  type ProjectSummary,
+  type SubscriptionStatus,
+} from "../lib/projectsApi";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthProvider";
 import NewProjectModal from "./NewProjectModal";
 import TeamModal from "./TeamModal";
 import UpgradeToTeamModal from "./UpgradeToTeamModal";
+import UpgradeToProModal from "./UpgradeToProModal";
 import EditWorkspaceModal from "./EditWorkspaceModal";
 
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
@@ -40,8 +49,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // null = closed, "new" = create-team modal, otherwise a team id to manage.
   const [teamModal, setTeamModal] = useState<"new" | string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showUpgradeToPro, setShowUpgradeToPro] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("My Workspace");
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
   // Creating a team is a Team-plan feature. Until Stripe billing is wired up,
   // use existing team membership as a stand-in signal for "already on Team" —
@@ -75,22 +87,61 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     getWorkspace().then((result) => {
       if (result.success) setWorkspaceName(result.data.name);
     });
+    getSubscription().then((result) => {
+      if (result.success) setSubscription(result.data);
+    });
   }, []);
+
+  // Stripe Checkout redirects back to /projects?checkout=success|cancelled
+  // (see UpgradeToProModal). Only depends on location.search, not
+  // location.pathname, so stripping the param via navigate() below doesn't
+  // re-trigger the sidebar's project/team refetch effect above.
+  useEffect(() => {
+    const checkout = new URLSearchParams(location.search).get("checkout");
+    if (!checkout) return;
+
+    if (checkout === "success") {
+      setNotice({ type: "success", message: "You're now on the Pro plan." });
+      // The webhook that actually records the subscription can land a
+      // moment after this redirect — a brief race is an acceptable v1
+      // limitation, not worth blocking the redirect on.
+      getSubscription().then((result) => {
+        if (result.success) setSubscription(result.data);
+      });
+    } else if (checkout === "cancelled") {
+      setNotice({ type: "info", message: "Checkout cancelled — no charge was made." });
+    }
+    navigate(location.pathname, { replace: true });
+  }, [location.search, location.pathname, navigate]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
     navigate("/login");
   }
 
+  async function handleManageBilling() {
+    const result = await openBillingPortal();
+    if (result.success) {
+      window.location.href = result.data.url;
+    } else {
+      setNotice({ type: "error", message: result.error });
+    }
+  }
+
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
 
-  // No billing/subscriptions table exists yet (see CLAUDE.md — Stripe isn't
-  // wired up), so there's no real "tier" to read. Team membership is the one
-  // real, observable signal in the data model right now — same proxy
-  // handleCreateTeamClick() above already uses to gate team creation.
-  const planLabel = teams.length > 0 ? "Team" : "Pro";
-  const planBadgeClass =
-    teams.length > 0 ? "bg-violet-500/15 text-violet-400" : "bg-emerald-500/15 text-emerald-400";
+  // Team membership is still a proxy for "Team plan" (Team billing isn't
+  // built yet — see handleCreateTeamClick() above, same signal). Pro is now
+  // real: subscription.tier comes straight from the subscriptions table via
+  // GET /billing/subscription.
+  const isTeamMember = teams.length > 0;
+  const isPro = subscription?.tier === "pro";
+  const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : "Free";
+  const planBadgeClass = isTeamMember
+    ? "bg-violet-500/15 text-violet-400"
+    : isPro
+      ? "bg-emerald-500/15 text-emerald-400"
+      : "bg-neutral-700/50 text-neutral-400";
 
   // The sidebar's own nav is alphabetical (unlike the /projects grid page,
   // which is newest-first) — sort here at render time rather than in
@@ -134,16 +185,23 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 {emailInitial}
               </div>
               <span className="min-w-0 flex-1 truncate text-xs text-neutral-300">{user?.email ?? "…"}</span>
-              <span
-                title={
-                  planLabel === "Team"
-                    ? "Belongs to a team — billing enforcement isn't wired up yet"
-                    : "No team membership — billing enforcement isn't wired up yet"
-                }
-                className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${planBadgeClass}`}
-              >
-                {planLabel}
-              </span>
+              {isTeamMember || isPro ? (
+                <span
+                  title={isTeamMember ? "Belongs to a team — Team billing isn't wired up yet" : "Pro plan active"}
+                  className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${planBadgeClass}`}
+                >
+                  {planLabel}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeToPro(true)}
+                  title="Upgrade to Pro"
+                  className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:brightness-110 ${planBadgeClass}`}
+                >
+                  Free · Upgrade
+                </button>
+              )}
             </div>
           </div>
 
@@ -234,6 +292,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </button>
             {isMenuOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 shadow-xl">
+                {isPro && (
+                  <button
+                    type="button"
+                    onClick={() => void handleManageBilling()}
+                    className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-800"
+                  >
+                    Manage billing
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => void handleSignOut()}
@@ -247,6 +314,29 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         </aside>
 
         <main className="flex-1 overflow-y-auto">{children}</main>
+
+        {notice && (
+          <div
+            className={`fixed right-4 top-4 z-40 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg ${
+              notice.type === "success"
+                ? "border-emerald-800 bg-emerald-950/90 text-emerald-300"
+                : notice.type === "error"
+                  ? "border-red-800 bg-red-950/90 text-red-300"
+                  : "border-neutral-700 bg-neutral-900/95 text-neutral-300"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span>{notice.message}</span>
+              <button
+                type="button"
+                onClick={() => setNotice(null)}
+                className="shrink-0 text-neutral-500 hover:text-neutral-300"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
 
         {isModalOpen && (
           <NewProjectModal
@@ -271,6 +361,8 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         )}
 
         {showUpgrade && <UpgradeToTeamModal onClose={() => setShowUpgrade(false)} />}
+
+        {showUpgradeToPro && <UpgradeToProModal onClose={() => setShowUpgradeToPro(false)} />}
 
         {isEditWorkspaceOpen && (
           <EditWorkspaceModal
