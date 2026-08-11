@@ -1,10 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import * as THREE from "three";
-import {
-  buildGhostOverlayColors,
-  computeSurfaceDeviation,
-  REMOVED_COLOR,
-} from "../engine/surfaceDeviation";
+import { buildGhostOverlayColors, REMOVED_COLOR } from "../engine/surfaceDeviation";
+import { computeSurfaceDeviationOffThread } from "../lib/surfaceDeviationWorkerClient";
 
 interface SurfaceHeatmapProps {
   /** The surface shown to the user, heat-colored by its deviation from base. */
@@ -25,31 +22,46 @@ interface SurfaceHeatmapProps {
  * a hole cut through) has no surface here to color on its own — to make
  * that visible anyway, a translucent "ghost" of baseGeometry is layered on
  * top, rendered only where it sticks out beyond geometry past tolerance.
+ *
+ * The actual per-vertex BVH distance query runs off the main thread (see
+ * surfaceDeviationWorkerClient.ts) — it used to run synchronously here,
+ * which could visibly stall the viewer on a large mesh. The previously
+ * computed geometry/ghost stay on screen while a new result is in flight,
+ * rather than flashing to blank, and a stale response (e.g. the user
+ * dragged the tolerance slider again before the first request finished) is
+ * dropped instead of momentarily showing outdated colors.
  */
 export default function SurfaceHeatmap({ geometry, baseGeometry, toleranceMm }: SurfaceHeatmapProps) {
-  const colored = useMemo(() => {
-    const result = computeSurfaceDeviation(geometry, baseGeometry, { toleranceMm });
-    if (!result.success) return null;
+  const [colored, setColored] = useState<{ geometry: THREE.BufferGeometry; maxAbsDeviationMm: number } | null>(null);
+  const [ghost, setGhost] = useState<THREE.BufferGeometry | null>(null);
 
-    // Never mutate the loaded geometry in place — clone before attaching
-    // per-vertex diff colors.
-    const clone = geometry.clone();
-    clone.setAttribute("color", new THREE.BufferAttribute(result.data.colors, 3));
-    return { geometry: clone, maxAbsDeviationMm: result.data.maxAbsDeviationMm };
+  useEffect(() => {
+    let cancelled = false;
+    computeSurfaceDeviationOffThread(geometry, baseGeometry, { toleranceMm }).then((result) => {
+      if (cancelled || !result.success) return;
+      // Never mutate the loaded geometry in place — clone before attaching
+      // per-vertex diff colors.
+      const clone = geometry.clone();
+      clone.setAttribute("color", new THREE.BufferAttribute(result.data.colors, 3));
+      setColored({ geometry: clone, maxAbsDeviationMm: result.data.maxAbsDeviationMm });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [geometry, baseGeometry, toleranceMm]);
 
-  const ghost = useMemo(() => {
-    const result = computeSurfaceDeviation(baseGeometry, geometry, { toleranceMm });
-    if (!result.success) return null;
-
-    const rgba = buildGhostOverlayColors(
-      result.data.signedDistancesMm,
-      toleranceMm ?? 0,
-      REMOVED_COLOR,
-    );
-    const clone = baseGeometry.clone();
-    clone.setAttribute("color", new THREE.BufferAttribute(rgba, 4));
-    return clone;
+  useEffect(() => {
+    let cancelled = false;
+    computeSurfaceDeviationOffThread(baseGeometry, geometry, { toleranceMm }).then((result) => {
+      if (cancelled || !result.success) return;
+      const rgba = buildGhostOverlayColors(result.data.signedDistancesMm, toleranceMm ?? 0, REMOVED_COLOR);
+      const clone = baseGeometry.clone();
+      clone.setAttribute("color", new THREE.BufferAttribute(rgba, 4));
+      setGhost(clone);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [geometry, baseGeometry, toleranceMm]);
 
   if (!colored) return null;
