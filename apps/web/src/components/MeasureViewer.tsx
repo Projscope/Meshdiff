@@ -420,31 +420,6 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
           <>
             <h1 className="truncate text-sm font-semibold text-white">{fileName}</h1>
 
-            <div className="mt-4">
-              <CollapsibleSection title="Printability Gate">
-                <PropertyList>
-                  <PropertyRow
-                    label="Status"
-                    value={
-                      <PrintabilityRulesTooltip>
-                        <PrintabilityBadge status={stats?.printabilityStatus ?? null} />
-                      </PrintabilityRulesTooltip>
-                    }
-                  />
-                </PropertyList>
-              </CollapsibleSection>
-            </div>
-
-            {threeMFProperties && (
-              <div className="mt-5">
-                <ThreeMFPropertiesPanel properties={threeMFProperties} />
-              </div>
-            )}
-
-            <div className="mt-5">
-              <DetailedStatsPanel stats={stats} hasComparison={false} boundingBoxB={boundingBox} />
-            </div>
-
             <div className="mt-5">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Measure</h3>
@@ -505,6 +480,31 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                           : "Hover a hole or boss to auto-detect its edge, or click 3 points on it manually."
                         : "Click a hole/boss to measure its radius (auto-detected), or click 3 points manually."}
               </p>
+            </div>
+            
+            <div className="mt-4">
+              <CollapsibleSection title="Printability Gate">
+                <PropertyList>
+                  <PropertyRow
+                    label="Status"
+                    value={
+                      <PrintabilityRulesTooltip>
+                        <PrintabilityBadge status={stats?.printabilityStatus ?? null} />
+                      </PrintabilityRulesTooltip>
+                    }
+                  />
+                </PropertyList>
+              </CollapsibleSection>
+            </div>
+
+            {threeMFProperties && (
+              <div className="mt-5">
+                <ThreeMFPropertiesPanel properties={threeMFProperties} />
+              </div>
+            )}
+
+            <div className="mt-5">
+              <DetailedStatsPanel stats={stats} hasComparison={false} boundingBoxB={boundingBox} />
             </div>
           </>
         )}

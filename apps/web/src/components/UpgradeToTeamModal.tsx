@@ -18,10 +18,12 @@ export default function UpgradeToTeamModal({ onClose }: { onClose: () => void })
         <div className="mt-5 flex gap-2">
           <Link
             to="/#pricing"
-            onClick={onClose}
+            //onClick={onClose}
+            onClick={(e) => e.preventDefault()} // Blocks navigation & onClose
+            tabIndex={-1} // Removes keyboard focus
             className="flex-1 rounded bg-emerald-500 px-4 py-2 text-center text-sm font-medium text-neutral-950 hover:bg-emerald-400"
           >
-            View pricing
+            Comming soon
           </Link>
           <button
             type="button"

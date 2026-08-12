@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   Check,
@@ -14,27 +15,25 @@ import {
   Users,
   UsersThree,
 } from "@phosphor-icons/react";
-import WaitlistForm from "../components/WaitlistForm";
 import FaqAccordion from "../components/FaqAccordion";
 import SectionHeader from "../components/SectionHeader";
 import { useCountUp } from "../hooks/useCountUp";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import liveDiffPreview from "../assets/live-diff-preview.png";
 import { SHOW_MONETIZATION } from "../lib/featureFlags";
+import { supabase } from "../lib/supabaseClient";
+import { startProCheckout } from "../lib/projectsApi";
 
-const PLANNED_FEATURES = [
-  "Version history for every model",
-  "Comment pins directly on 3D models",
-  "Slicer profile snapshots",
-  "Team approvals and PDF export",
-];
+import teamsImg from '../assets/teams.png';
+import proImg from '../assets/pro.jpeg';
+import soloImg from '../assets/solo.png';
 
 interface PricingTier {
   name: string;
   price: string;
   period: string | null;
   audience: string;
-  cta: { label: string; to: string } | { label: string; scroll: true };
+  cta: { label: string; to: string } | { label: string; scroll: true } | { label: string; checkout: true };
   highlighted: boolean;
   features: string[];
 }
@@ -49,6 +48,7 @@ const PRICING_TIERS: PricingTier[] = [
     highlighted: false,
     features: [
       "Compare OBJ, STL, and 3MF files",
+      "Measure distances and radiuses tools",
       "Voxel diff, added and removed",
       "Adjustable tolerance and cross-section",
       "Shareable links, 1, 3, or 7 days",
@@ -59,13 +59,12 @@ const PRICING_TIERS: PricingTier[] = [
     price: "$15",
     period: "/mo",
     audience: "CAD and print engineers",
-    cta: { label: "Join early access", scroll: true },
+    cta: { label: "Upgrade to Pro", checkout: true },
     highlighted: true,
     features: [
       "Everything in Community",
       "Project workspaces",
       "Version history for every model",
-      "Comment pins on 3D models",
       "PDF diff reports for client review",
     ],
   },
@@ -79,6 +78,7 @@ const PRICING_TIERS: PricingTier[] = [
     features: [
       "Everything in Pro",
       "Team approvals workflow",
+      "Comment pins on 3D models",
       "Slicer profile snapshots and print logs",
       "Centralized billing and roles",
     ],
@@ -93,10 +93,10 @@ interface HeroStat {
 }
 
 const HERO_STATS: HeroStat[] = [
-  { target: 3, suffix: "", label: "File formats" },
-  { target: 100, suffix: "%", label: "Local, private" },
-  { target: 3, suffix: "", label: "Print checks" },
-  { target: 0, prefix: "$", suffix: "", label: "To start" },
+  { target: 3, suffix: "", label: "File formats: STL, 3MF, OBJ" },
+  { target: 100, suffix: "%", label: "Local, private for the Community version" },
+  { target: 3, suffix: "", label: "Print checks: Stable, Warn, Fail" },
+  { target: 0, prefix: "$", suffix: "/free", label: "No credit card required - 7 days free" },
 ];
 
 const PROCESS_STEPS = [
@@ -185,14 +185,41 @@ function HeroStatItem({ stat }: { stat: HeroStat }) {
 export default function LandingPage() {
   const servicesRef = useScrollReveal<HTMLDivElement>();
   const processRef = useScrollReveal<HTMLDivElement>();
+  const navigate = useNavigate();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
   }
 
+  // Signed-in visitors go straight to a real Stripe Checkout session (see
+  // ProjectsLayout's Upgrade flow — this is the same startProCheckout()
+  // call, just reachable pre-auth from the pricing card too). A signed-out
+  // visitor has nowhere to check out into yet, so this sends them to sign
+  // in first rather than building a separate redirect-back-to-checkout
+  // flow that doesn't exist anywhere else in the app.
+  async function handleProCheckout() {
+    setCheckoutError(null);
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      navigate("/login");
+      return;
+    }
+    setIsCheckingOut(true);
+    const result = await startProCheckout();
+    setIsCheckingOut(false);
+    if (result.success) {
+      window.location.href = result.data.url;
+    } else {
+      setCheckoutError(result.error);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <main>
+        
         {/* Hero: eyebrow, accent-split headline, dual CTAs, animated stat row */}
         <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-neutral-950">
           <div className="mx-auto max-w-2xl text-center">
@@ -208,7 +235,8 @@ export default function LandingPage() {
               A real voxel comparison on STL, 3MF, and OBJ files. Added
               geometry in green, removed in red, reviewed in seconds.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+
+            {/* <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
                 to="/live"
                 className="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
@@ -222,19 +250,14 @@ export default function LandingPage() {
               >
                 Join early access
               </button>
-            </div>
+            </div> */}
 
-            <div className="mx-auto mt-12 grid max-w-lg grid-cols-4 gap-4 border-t border-neutral-900 pt-8">
-              {HERO_STATS.map((stat) => (
-                <HeroStatItem key={stat.label} stat={stat} />
-              ))}
-            </div>
           </div>
 
           <Link
             to="/live"
             aria-label="Open the free diff tool"
-            className="group relative mx-auto mt-12 block max-w-5xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
+            className="group relative mx-auto mt-12 block max-w-6xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
           >
             <img
               src={liveDiffPreview}
@@ -247,6 +270,13 @@ export default function LandingPage() {
               </span>
             </div>
           </Link>
+
+          <div className="mx-auto mt-12 grid max-w-lg grid-cols-4 gap-4 border-t border-neutral-900 pt-8">
+            {HERO_STATS.map((stat) => (
+              <HeroStatItem key={stat.label} stat={stat} />
+            ))}
+          </div>
+
         </section>
 
         {/* Personas: asymmetric 1+2 grid, not three identical cards */}
@@ -254,31 +284,59 @@ export default function LandingPage() {
           <h2 className="max-w-lg text-2xl font-semibold text-white">
             Built for anyone who exports a mesh.
           </h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-5">
-            <div className="rounded-xl border border-emerald-500/25 bg-neutral-900 p-6 md:col-span-3">
-              <UsersThree size={28} weight="light" className="text-emerald-400" />
-              <h3 className="mt-4 text-base font-semibold text-white">Hardware teams</h3>
-              <p className="mt-2 max-w-sm text-sm text-neutral-400">
-                Review revisions together, approve changes, and keep a
-                traceable history across every version anyone ships.
-              </p>
-            </div>
-            <div className="flex flex-col gap-4 md:col-span-2">
-              <div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-                <User size={24} weight="light" className="text-neutral-400" />
-                <h3 className="mt-3 text-sm font-semibold text-white">Solo makers</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
-                  Grabbed a remix off Thingiverse? See exactly what changed
-                  before you commit filament.
+          <div className="mt-8 grid gap-4 md:grid-cols-12">
+            {/* Hardware teams (Top-Left Aligned Text) */}
+            <div
+              className="relative flex flex-col justify-start items-start min-h-[480px] rounded-xl border border-emerald-500/25 bg-neutral-900 p-6 md:col-span-8 bg-cover bg-center bg-no-repeat overflow-hidden group"
+              style={{ backgroundImage: `url(${teamsImg})` }}
+            >
+              {/* Top-down gradient overlay for top text contrast */}
+              <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-neutral-950/60 to-transparent pointer-events-none" />
+
+              <div className="relative z-10">
+                <UsersThree size={28} weight="light" className="text-emerald-400" />
+                <h3 className="mt-4 text-base font-semibold text-white">Hardware teams</h3>
+                <p className="mt-2 max-w-sm text-sm text-neutral-400">
+                  Review revisions together, approve changes, and keep a
+                  traceable history across every version anyone ships.
                 </p>
               </div>
-              <div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-                <Users size={24} weight="light" className="text-neutral-400" />
-                <h3 className="mt-3 text-sm font-semibold text-white">CAD and print engineers</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
-                  Catch dimensional drift, thin walls, and unintended scaling
-                  before a part fails on the bed.
-                </p>
+            </div>
+
+            {/* Right column */}
+            <div className="flex flex-col gap-4 md:col-span-4">
+              {/* Solo makers */}
+              <div
+                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
+                style={{ backgroundImage: `url(${soloImg})` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent pointer-events-none" />
+
+                <div className="relative z-10">
+                  <User size={24} weight="light" className="text-neutral-400" />
+                  <h3 className="mt-3 text-sm font-semibold text-white">Solo makers</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
+                    Grabbed a remix off Thingiverse? See exactly what changed
+                    before you commit filament.
+                  </p>
+                </div>
+              </div>
+
+              {/* CAD and print engineers */}
+              <div
+                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
+                style={{ backgroundImage: `url(${proImg})` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent pointer-events-none" />
+
+                <div className="relative z-10">
+                  <Users size={24} weight="light" className="text-neutral-400" />
+                  <h3 className="mt-3 text-sm font-semibold text-white">CAD and print engineers</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
+                    Catch dimensional drift, thin walls, and unintended scaling
+                    before a part fails on the bed.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -387,25 +445,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Testimonial */}
-        <section className="border-t border-neutral-900 px-6 py-14">
-          <div className="mx-auto max-w-2xl">
-            <p className="text-lg leading-relaxed text-neutral-200">
-              "Version control for 3D models has always been awkward, since a
-              diff of two binary STLs tells you nothing useful. Meshdiff does
-              the job properly."
-            </p>
-            <a
-              href="https://blog.adafruit.com/2026/08/03/meshdiff-see-exactly-what-changed-between-two-3d-models"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-3"
-            >
-              <img src="https://blog.adafruit.com/app/themes/adafruit2013/images/logos/logo_2x.png" alt="Adafruit" className="h-8 w-auto" />
-            </a>
-          </div>
-        </section>
-
         {/* Team workflow: compact proof block for what Team actually buys, right before pricing */}
         {SHOW_MONETIZATION && (
           <section className="border-t border-neutral-900 px-6 py-14">
@@ -451,11 +490,10 @@ export default function LandingPage() {
                 {PRICING_TIERS.map((tier) => (
                   <div
                     key={tier.name}
-                    className={`rounded-xl border p-6 ${
-                      tier.highlighted
-                        ? "border-emerald-500 bg-neutral-900"
-                        : "border-neutral-800 bg-neutral-900"
-                    }`}
+                    className={`rounded-xl border p-6 ${tier.highlighted
+                      ? "border-emerald-500 bg-neutral-900"
+                      : "border-neutral-800 bg-neutral-900"
+                      }`}
                   >
                     <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-emerald-400" : "text-neutral-300"}`}>
                       {tier.name}
@@ -473,18 +511,29 @@ export default function LandingPage() {
                       >
                         {tier.cta.label}
                       </Link>
+                    ) : "checkout" in tier.cta ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleProCheckout()}
+                        disabled={isCheckingOut}
+                        className="mt-4 w-full rounded-lg border border-emerald-500/40 bg-emerald-500/10 py-2 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/15 disabled:opacity-50"
+                      >
+                        {isCheckingOut ? "Redirecting…" : tier.cta.label}
+                      </button>
                     ) : (
                       <button
                         type="button"
                         onClick={scrollToEarlyAccess}
-                        className={`mt-4 w-full rounded-lg py-2 text-sm font-medium transition ${
-                          tier.highlighted
-                            ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15"
-                            : "border border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                        }`}
+                        className={`mt-4 w-full rounded-lg py-2 text-sm font-medium transition ${tier.highlighted
+                          ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15"
+                          : "border border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                          }`}
                       >
                         {tier.cta.label}
                       </button>
+                    )}
+                    {"checkout" in tier.cta && checkoutError && (
+                      <p className="mt-2 text-xs text-red-400">{checkoutError}</p>
                     )}
 
                     <ul className="mt-5 flex flex-col gap-2 text-xs text-neutral-400">
@@ -502,8 +551,27 @@ export default function LandingPage() {
           </section>
         )}
 
+        {/* Testimonial */}
+        <section className="border-t border-neutral-900 px-6 py-14">
+          <div className="mx-auto max-w-2xl">
+            <p className="text-lg leading-relaxed text-neutral-200">
+              "Version control for 3D models has always been awkward, since a
+              diff of two binary STLs tells you nothing useful. Meshdiff does
+              the job properly."
+            </p>
+            <a
+              href="https://blog.adafruit.com/2026/08/03/meshdiff-see-exactly-what-changed-between-two-3d-models"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-3"
+            >
+              <img src="https://blog.adafruit.com/app/themes/adafruit2013/images/logos/logo_2x.png" alt="Adafruit" className="h-8 w-auto" />
+            </a>
+          </div>
+        </section>
+
         {/* Early access / waitlist */}
-        <section id="early-access" className="px-6 py-20">
+        {/* <section id="early-access" className="px-6 py-20">
           <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2">
             <div>
               <span className="mb-3 block text-xs font-semibold uppercase tracking-widest text-emerald-500">
@@ -542,7 +610,7 @@ export default function LandingPage() {
               </p>
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* FAQ */}
         <section id="faq" className="px-6 py-16">

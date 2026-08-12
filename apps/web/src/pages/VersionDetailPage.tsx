@@ -324,15 +324,14 @@ export default function VersionDetailPage() {
   return (
     <div className="flex h-[calc(100vh-2rem)] w-full gap-4 px-4 py-4">
       <div
-        className={`relative flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${
-          isPlacingComment
-            ? "border-indigo-500"
-            : isMeasuring && measureMode === "radius"
-              ? "border-sky-500"
-              : isMeasuring
-                ? "border-amber-500"
-                : "border-neutral-800"
-        }`}
+        className={`relative flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${isPlacingComment
+          ? "border-indigo-500"
+          : isMeasuring && measureMode === "radius"
+            ? "border-sky-500"
+            : isMeasuring
+              ? "border-amber-500"
+              : "border-neutral-800"
+          }`}
       >
         <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
           <ambientLight intensity={0.6} />
@@ -428,6 +427,68 @@ export default function VersionDetailPage() {
               <h1 className="truncate text-sm font-semibold text-white">{version.fileName}</h1>
             </div>
 
+            <div className="mt-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  Measure tools
+                </h3>
+                {(measureA || measureB || radiusPoints.length > 0 || radiusCommittedFit) && (
+                  <button
+                    type="button"
+                    onClick={clearMeasurement}
+                    className="text-[11px] text-neutral-500 hover:text-neutral-300"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => startMeasuring("distance")}
+                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${isMeasuring && measureMode === "distance"
+                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                    }`}
+                >
+                  {isMeasuring && measureMode === "distance" ? "Click two points…" : "Distance"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startMeasuring("radius")}
+                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${isMeasuring && measureMode === "radius"
+                    ? "border-sky-500 bg-sky-500/10 text-sky-400"
+                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                    }`}
+                >
+                  {isMeasuring && measureMode === "radius"
+                    ? radiusPreviewFit
+                      ? "Click to confirm…"
+                      : `Click point ${radiusPoints.length + 1} of 3…`
+                    : "Radius"}
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-neutral-500">
+                {measureMode === "distance"
+                  ? measureA && measureB
+                    ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected vertices.`
+                    : isMeasuring
+                      ? measureA
+                        ? "First point set — click a second vertex."
+                        : "Click a vertex on the model to start."
+                      : "Click two vertices on the model to measure the distance between them."
+                  : radiusCommittedFit
+                    ? `R ${radiusCommittedFit.radius.toFixed(2)} mm, ⌀ ${(radiusCommittedFit.radius * 2).toFixed(2)} mm.`
+                    : radiusPreviewFit
+                      ? `Detected hole — R ${radiusPreviewFit.radius.toFixed(2)} mm, ⌀ ${(radiusPreviewFit.radius * 2).toFixed(2)} mm. Click to confirm.`
+                      : isMeasuring
+                        ? radiusPoints.length > 0
+                          ? `Click ${3 - radiusPoints.length} more vertex${3 - radiusPoints.length === 1 ? "" : "es"} on the rim, or hover a hole to auto-detect it.`
+                          : "Hover a hole or boss to auto-detect its edge, or click 3 points on it manually."
+                        : "Click a hole/boss to measure its radius (auto-detected), or click 3 points manually."}
+              </p>
+            </div>
+
             <div className="mt-4">
               <CollapsibleSection title="Summary">
                 <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs leading-relaxed text-neutral-300">
@@ -465,69 +526,7 @@ export default function VersionDetailPage() {
               />
             </div>
 
-            <div className="mt-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                  Measure
-                </h3>
-                {(measureA || measureB || radiusPoints.length > 0 || radiusCommittedFit) && (
-                  <button
-                    type="button"
-                    onClick={clearMeasurement}
-                    className="text-[11px] text-neutral-500 hover:text-neutral-300"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => startMeasuring("distance")}
-                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${
-                    isMeasuring && measureMode === "distance"
-                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                      : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                  }`}
-                >
-                  {isMeasuring && measureMode === "distance" ? "Click two points…" : "Distance"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startMeasuring("radius")}
-                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${
-                    isMeasuring && measureMode === "radius"
-                      ? "border-sky-500 bg-sky-500/10 text-sky-400"
-                      : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                  }`}
-                >
-                  {isMeasuring && measureMode === "radius"
-                    ? radiusPreviewFit
-                      ? "Click to confirm…"
-                      : `Click point ${radiusPoints.length + 1} of 3…`
-                    : "Radius"}
-                </button>
-              </div>
-              <p className="mt-1.5 text-xs text-neutral-500">
-                {measureMode === "distance"
-                  ? measureA && measureB
-                    ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected vertices.`
-                    : isMeasuring
-                      ? measureA
-                        ? "First point set — click a second vertex."
-                        : "Click a vertex on the model to start."
-                      : "Click two vertices on the model to measure the distance between them."
-                  : radiusCommittedFit
-                    ? `R ${radiusCommittedFit.radius.toFixed(2)} mm, ⌀ ${(radiusCommittedFit.radius * 2).toFixed(2)} mm.`
-                    : radiusPreviewFit
-                      ? `Detected hole — R ${radiusPreviewFit.radius.toFixed(2)} mm, ⌀ ${(radiusPreviewFit.radius * 2).toFixed(2)} mm. Click to confirm.`
-                      : isMeasuring
-                        ? radiusPoints.length > 0
-                          ? `Click ${3 - radiusPoints.length} more vertex${3 - radiusPoints.length === 1 ? "" : "es"} on the rim, or hover a hole to auto-detect it.`
-                          : "Hover a hole or boss to auto-detect its edge, or click 3 points on it manually."
-                        : "Click a hole/boss to measure its radius (auto-detected), or click 3 points manually."}
-              </p>
-            </div>
+
 
             <div className="mt-5">
               <CommentsPanel
