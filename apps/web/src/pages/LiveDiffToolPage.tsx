@@ -406,7 +406,7 @@ export default function LiveDiffToolPage() {
   return (
     <div className="flex h-screen flex-col overflow-y-auto bg-neutral-950 text-neutral-100 px-4 py-8 items-center">
       <div className="mx-auto max-w-5xl border-b border-neutral-800 px-4 py-1.5 text-center text-xs text-neutral-600">
-        Community diff tool — free, runs in your browser
+        Compare 3D models free — STL diff, OBJ diff, and 3MF diff, runs entirely in your browser
       </div>
 
       <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto py-6 gap-8">

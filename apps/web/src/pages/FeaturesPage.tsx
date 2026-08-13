@@ -57,7 +57,7 @@ const OTHER_FEATURES: FeatureSection[] = [
     bullets: ["1, 3, or 7-day expiry", "No signup for the recipient", "Free on the Community plan"],
   },
   {
-    tag: "Review",
+    tag: "Review - Soon to come",
     title: "Leave feedback right where it matters.",
     description:
       "Click anywhere on a model to pin a comment to that exact 3D point, not a vague line number or a screenshot.",
@@ -103,7 +103,8 @@ export default function FeaturesPage() {
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-neutral-400">
             No CAD plugin, no manual overlay, no guesswork — Meshdiff reads two STL, 3MF, or OBJ files and gives
-            you a real diff.
+            you a real diff. Compare STL files, run an OBJ diff, or compare two 3D models of any format side by
+            side.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link

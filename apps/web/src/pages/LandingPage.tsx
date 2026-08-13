@@ -255,8 +255,10 @@ export default function LandingPage() {
               <span className="text-emerald-400">between two meshes.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-lg text-[15px] leading-relaxed text-neutral-400">
-              A real voxel comparison on STL, 3MF, and OBJ files. Added
-              geometry in green, removed in red, reviewed in seconds.
+              Compare STL files, OBJ, and 3MF models with a real 3D diff — not
+              a guess. Meshdiff lets you compare two 3D models side by side:
+              a true STL diff and STL compare, with added geometry in green
+              and removed in red, reviewed in seconds.
             </p>
 
             {/* <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
