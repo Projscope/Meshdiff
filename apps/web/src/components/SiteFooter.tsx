@@ -24,9 +24,9 @@ export default function SiteFooter() {
         <div>
           <p className="text-xs font-semibold text-neutral-300">Product</p>
           <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-500">
-            <a href="/#features" className="hover:text-neutral-300">
+            <Link to="/features" className="hover:text-neutral-300">
               Features
-            </a>
+            </Link>
             {SHOW_MONETIZATION && (
               <a href="/#pricing" className="hover:text-neutral-300">
                 Pricing

@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
+import FeaturesPage from "./pages/FeaturesPage";
 import LiveDiffToolPage from "./pages/LiveDiffToolPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: "/", element: <LandingPage /> },
+      { path: "/features", element: <FeaturesPage /> },
       { path: "/live", element: <LiveDiffToolPage /> },
       { path: "/login", element: <LoginPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },

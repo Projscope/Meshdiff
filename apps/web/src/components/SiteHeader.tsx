@@ -92,9 +92,9 @@ export default function SiteHeader() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-400">
-            <a href="/#features" className="hover:text-neutral-200 transition-colors">
+            <Link to="/features" className="hover:text-neutral-200 transition-colors">
               Features
-            </a>
+            </Link>
             {SHOW_MONETIZATION && (
               <a href="/#pricing" className="hover:text-neutral-200 transition-colors">
                 Pricing
@@ -133,13 +133,13 @@ export default function SiteHeader() {
         {mobileMenuOpen && (
           <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-neutral-800 bg-neutral-900/95 p-3 backdrop-blur md:hidden">
             <nav className="flex flex-col gap-1 text-sm text-neutral-300">
-              <a
-                href="/#features"
+              <Link
+                to="/features"
                 onClick={() => setMobileMenuOpen(false)}
                 className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
               >
                 Features
-              </a>
+              </Link>
               {SHOW_MONETIZATION && (
                 <a
                   href="/#pricing"
