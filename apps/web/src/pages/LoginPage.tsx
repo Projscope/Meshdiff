@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthProvider";
 
@@ -18,7 +18,12 @@ function passwordResetRedirectTo(): string {
 export default function LoginPage() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
+  const [searchParams] = useSearchParams();
+  // Landing page's "Subscribe to Pro" sends signed-out visitors here with
+  // ?mode=signup — see LandingPage.tsx's handleProCheckout.
+  const [mode, setMode] = useState<"signin" | "signup" | "reset">(
+    searchParams.get("mode") === "signup" ? "signup" : "signin",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

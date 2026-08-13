@@ -22,7 +22,9 @@ import { useScrollReveal } from "../hooks/useScrollReveal";
 import liveDiffPreview from "../assets/live-diff-preview.png";
 import { SHOW_MONETIZATION } from "../lib/featureFlags";
 import { supabase } from "../lib/supabaseClient";
-import { startProCheckout } from "../lib/projectsApi";
+import { getSubscription } from "../lib/projectsApi";
+import { markPendingProCheckout } from "../lib/pendingCheckout";
+import AlreadyProModal from "../components/AlreadyProModal";
 
 import teamsImg from '../assets/teams.png';
 import proImg from '../assets/pro.jpeg';
@@ -64,7 +66,7 @@ const PRICING_TIERS: PricingTier[] = [
     originalPrice: "$15.00",
     period: "/mo",
     audience: "CAD and print engineers",
-    cta: { label: "Upgrade to Pro", checkout: true },
+    cta: { label: "Subscribe to Pro", checkout: true },
     highlighted: true,
     badge: "Founding Member Launch Offer (50% OFF)",
     features: [
@@ -193,33 +195,43 @@ export default function LandingPage() {
   const processRef = useScrollReveal<HTMLDivElement>();
   const navigate = useNavigate();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [showAlreadyPro, setShowAlreadyPro] = useState(false);
 
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
   }
 
-  // Signed-in visitors go straight to a real Stripe Checkout session (see
-  // ProjectsLayout's Upgrade flow — this is the same startProCheckout()
-  // call, just reachable pre-auth from the pricing card too). A signed-out
-  // visitor has nowhere to check out into yet, so this sends them to sign
-  // in first rather than building a separate redirect-back-to-checkout
-  // flow that doesn't exist anywhere else in the app.
+  // Three outcomes depending on who's clicking:
+  //  - Signed out: nowhere to check out into yet — send to sign-up (not
+  //    sign-in; someone clicking "Subscribe" is very likely a new visitor)
+  //    and remember the intent so the dashboard can resume checkout
+  //    automatically once a session exists (see ProjectsLayout.tsx —
+  //    handles both the immediate-session and confirm-email-first cases,
+  //    since the flag survives that whole round trip in localStorage).
+  //  - Signed in, already Pro: nothing to sell them — a plain "you're
+  //    already subscribed" modal instead of a pointless second Checkout
+  //    session.
+  //  - Signed in, not Pro: same "resume on the dashboard" flag, then
+  //    straight to /projects — ProjectsLayout raises the real Checkout
+  //    redirect from there once it's confirmed the tier itself.
   async function handleProCheckout() {
-    setCheckoutError(null);
+    setIsCheckingOut(true);
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
-      navigate("/login");
+      markPendingProCheckout();
+      navigate("/login?mode=signup");
       return;
     }
-    setIsCheckingOut(true);
-    const result = await startProCheckout();
-    setIsCheckingOut(false);
-    if (result.success) {
-      window.location.href = result.data.url;
-    } else {
-      setCheckoutError(result.error);
+
+    const subscriptionResult = await getSubscription();
+    if (subscriptionResult.success && subscriptionResult.data.tier === "pro") {
+      setIsCheckingOut(false);
+      setShowAlreadyPro(true);
+      return;
     }
+
+    markPendingProCheckout();
+    navigate("/projects");
   }
 
   return (
@@ -546,10 +558,6 @@ export default function LandingPage() {
                         {tier.cta.label}
                       </button>
                     )}
-                    {"checkout" in tier.cta && checkoutError && (
-                      <p className="mt-2 text-xs text-red-400">{checkoutError}</p>
-                    )}
-
                     <ul className="mt-5 flex flex-col gap-2 text-xs text-neutral-400">
                       {tier.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-2">
@@ -640,6 +648,8 @@ export default function LandingPage() {
           </p>
         </section>
       </main>
+
+      {showAlreadyPro && <AlreadyProModal onClose={() => setShowAlreadyPro(false)} />}
     </div>
   );
 }

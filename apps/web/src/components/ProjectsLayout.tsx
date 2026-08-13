@@ -9,9 +9,11 @@ import {
   openBillingPortal,
   cancelSubscription,
   resumeSubscription,
+  startProCheckout,
   type ProjectSummary,
   type SubscriptionStatus,
 } from "../lib/projectsApi";
+import { consumePendingProCheckout } from "../lib/pendingCheckout";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthProvider";
 import NewProjectModal from "./NewProjectModal";
@@ -107,9 +109,28 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
       if (result.success) setWorkspaceName(result.data.name);
     });
     getSubscription().then((result) => {
-      if (result.success) setSubscription(result.data);
+      if (!result.success) return;
+      setSubscription(result.data);
+      // Landing page's "Subscribe to Pro" sends a signed-in-but-not-Pro
+      // visitor straight here and sets this flag (see
+      // LandingPage.tsx's handleProCheckout) — resume the actual Stripe
+      // redirect now that we know for sure they're not already Pro
+      // (re-checked here, not just trusted from the landing page, in case
+      // something changed in another tab in between).
+      if (result.data.tier !== "pro" && consumePendingProCheckout()) {
+        void handleAutoResumeCheckout();
+      }
     });
   }, []);
+
+  async function handleAutoResumeCheckout() {
+    const result = await startProCheckout();
+    if (result.success) {
+      window.location.href = result.data.url;
+    } else {
+      setNotice({ type: "error", message: result.error });
+    }
+  }
 
   // Stripe Checkout redirects back to /projects?checkout=success|cancelled
   // (see UpgradeToProModal). Only depends on location.search, not
