@@ -74,6 +74,17 @@ const OTHER_FEATURES: FeatureSection[] = [
       "Stable-version resolution for downloads",
     ],
   },
+  {
+    tag: "Community",
+    title: "Free forever — no account, no install.",
+    description:
+      "The full diff engine is free for anyone. Drop two files into the browser tool and get a real comparison — no signup, no credit card, and nothing leaves your machine unless you choose to share it.",
+    bullets: [
+      "Compare STL, 3MF, and OBJ files, unlimited",
+      "Measure distances and radii right in the viewer",
+      "No account needed to use it",
+    ],
+  },
 ];
 
 export default function FeaturesPage() {

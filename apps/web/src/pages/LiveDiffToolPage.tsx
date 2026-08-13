@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import * as THREE from "three";
+import { jsPDF } from "jspdf";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
 import DiffView, { type DiffViewHandle, type DiffMode } from "../components/DiffView";
 import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureViewer";
-import ReportGateModal from "../components/ReportGateModal";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
+import { useAuth } from "../lib/AuthProvider";
+import { getSubscription } from "../lib/projectsApi";
 
 import compareDiffImage from '../assets/compare.svg';
 import measureImage from '../assets/measure.svg';
@@ -35,28 +37,96 @@ const TOOLS: Array<{ id: LiveTool; icon: string; label: string; description: str
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
 
-function downloadReport(stats: DiffStats) {
-  const report = {
-    generatedAt: new Date().toISOString(),
-    tool: "Meshdiff",
-    note:
-      "Partial report — reflects the voxel diff engine only. Wall thickness, " +
-      "overhang, and hole checks are not implemented yet (see CLAUDE.md).",
-    toleranceMm: stats.toleranceMm,
-    addedVoxelCount: stats.addedCount,
-    removedVoxelCount: stats.removedCount,
-    unchangedVoxelCount: stats.unchangedCount,
-    voxelVolumeMm3: stats.voxelVolumeMm3,
-    approxVolumeDeltaMm3: stats.approxVolumeDeltaMm3,
-    approxVolumeDeltaPercent: stats.approxVolumeDeltaPercent,
-  };
-  const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `meshdiff-report-${Date.now()}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
+const MESHDIFF_URL = "https://meshdiff.com/";
+const EMERALD = "#10b981";
+const NEUTRAL_950 = "#0a0a0a";
+const NEUTRAL_400 = "#a3a3a3";
+const NEUTRAL_700 = "#404040";
+
+/** Draws the "^" logomark + Meshdiff wordmark, linked to meshdiff.com. */
+function drawLetterhead(doc: jsPDF) {
+  doc.setFillColor(EMERALD);
+  doc.roundedRect(14, 14, 9, 9, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(NEUTRAL_950);
+  doc.text("^", 18.5, 20.3, { align: "center" });
+
+  doc.setFontSize(14);
+  doc.setTextColor("#171717");
+  doc.text("Meshdiff", 26, 20.5);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(EMERALD);
+  doc.textWithLink(MESHDIFF_URL, 26, 25, { url: MESHDIFF_URL });
+
+  doc.setDrawColor(NEUTRAL_700);
+  doc.line(14, 30, 196, 30);
+}
+
+function downloadReport(stats: DiffStats, isProOrTeam: boolean) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  drawLetterhead(doc);
+
+  let y = 42;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor("#171717");
+  doc.text("Diff Report", 14, y);
+
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(NEUTRAL_400);
+  doc.text(`Generated ${new Date().toLocaleString()}`, 14, y);
+
+  y += 10;
+  doc.setFontSize(10);
+  doc.setTextColor("#525252");
+  const note = doc.splitTextToSize(
+    "Partial report — reflects the voxel diff engine only. Wall thickness, overhang, " +
+      "and hole checks are not implemented yet.",
+    182,
+  );
+  doc.text(note, 14, y);
+  y += note.length * 5 + 6;
+
+  const rows: Array<[string, string]> = [
+    ["Tolerance (mm)", stats.toleranceMm.toFixed(3)],
+    ["Added voxels", stats.addedCount.toLocaleString()],
+    ["Removed voxels", stats.removedCount.toLocaleString()],
+    ["Unchanged voxels", stats.unchangedCount.toLocaleString()],
+    ["Voxel volume (mm³)", stats.voxelVolumeMm3.toFixed(4)],
+    ["Approx. volume delta (mm³)", stats.approxVolumeDeltaMm3.toFixed(2)],
+    ["Approx. volume delta (%)", `${stats.approxVolumeDeltaPercent.toFixed(2)}%`],
+  ];
+
+  doc.setDrawColor(230, 230, 230);
+  for (const [label, value] of rows) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor("#525252");
+    doc.text(label, 14, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#171717");
+    doc.text(value, 196, y, { align: "right" });
+    doc.line(14, y + 2, 196, y + 2);
+    y += 9;
+  }
+
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerY = pageHeight - 14;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(NEUTRAL_400);
+  const footerText = isProOrTeam
+    ? "Generated with Meshdiff"
+    : "Generated with Meshdiff Free — meshdiff.com";
+  doc.text(footerText, 14, footerY);
+  doc.textWithLink(MESHDIFF_URL, 196, footerY, { url: MESHDIFF_URL, align: "right" });
+
+  doc.save(`meshdiff-report-${Date.now()}.pdf`);
 }
 
 function downloadDataUrl(dataUrl: string, filename: string) {
@@ -82,9 +152,8 @@ export default function LiveDiffToolPage() {
   const viewerARef = useRef<ViewerHandle>(null);
   const viewerBRef = useRef<ViewerHandle>(null);
   const diffViewRef = useRef<DiffViewHandle>(null);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isReportSubmitting, setIsReportSubmitting] = useState(false);
-  const [reportError, setReportError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [isProOrTeam, setIsProOrTeam] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isShareSubmitting, setIsShareSubmitting] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -104,6 +173,18 @@ export default function LiveDiffToolPage() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [subscribeSuccess, setSubscribeSuccess] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setIsProOrTeam(false);
+      return;
+    }
+    // Team billing isn't wired up yet (see CLAUDE.md) — "pro" is the only
+    // paid tier the backend can actually return today.
+    getSubscription().then((result) => {
+      setIsProOrTeam(result.success && result.data.tier === "pro");
+    });
+  }, [user]);
 
   useEffect(() => {
     if (fileA && fileB && fileA.name === fileB.name && fileA.size === fileB.size) {
@@ -248,37 +329,13 @@ export default function LiveDiffToolPage() {
     }
   }
 
-  async function handleReportEmailSubmit(email: string) {
+  function handleDownloadReport() {
     if (!stats) return;
-    setIsReportSubmitting(true);
-    setReportError(null);
-
-    try {
-      const response = await fetch(WAITLIST_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = (await response.json()) as { success: boolean; error?: string };
-      if (!data.success) {
-        setReportError(data.error ?? "Something went wrong");
-        setIsReportSubmitting(false);
-        return;
-      }
-    } catch {
-      setReportError("Couldn't reach the server — try again in a moment");
-      setIsReportSubmitting(false);
-      return;
-    }
-
-    downloadReport(stats);
+    downloadReport(stats, isProOrTeam);
     const screenshot = diffViewRef.current?.captureScreenshot();
     if (screenshot) {
       downloadDataUrl(screenshot, `meshdiff-diff-${Date.now()}.png`);
     }
-
-    setIsReportSubmitting(false);
-    setIsReportModalOpen(false);
   }
 
   const activeHowItWorksMode = hoveredTool || "default";
@@ -759,7 +816,7 @@ export default function LiveDiffToolPage() {
                     <button
                       type="button"
                       disabled={!stats}
-                      onClick={() => setIsReportModalOpen(true)}
+                      onClick={handleDownloadReport}
                       className="rounded bg-emerald-500 px-3 py-1.5 font-medium text-neutral-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-600"
                     >
                       Download Report
@@ -773,18 +830,6 @@ export default function LiveDiffToolPage() {
       )}
 
       {/* Auxiliary Modals */}
-      {isReportModalOpen && (
-        <ReportGateModal
-          onClose={() => {
-            setIsReportModalOpen(false);
-            setReportError(null);
-          }}
-          onSubmit={handleReportEmailSubmit}
-          isSubmitting={isReportSubmitting}
-          error={reportError}
-        />
-      )}
-
       {restoreError && (
         <ShareErrorModal message={restoreError} onDismiss={dismissShareError} />
       )}
