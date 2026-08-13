@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#09090b" />
+      <stop offset="100%" stop-color="#121215" />
+    </linearGradient>
+
+    <!-- Grid Pattern -->
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#27272a" stroke-width="0.75" stroke-opacity="0.5" />
+    </pattern>
+
+    <!-- Target Glow -->
+    <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Canvas Background & Grid -->
+  <rect width="800" height="450" fill="url(#bg)" />
+  <rect width="800" height="450" fill="url(#grid)" />
+
+  <!-- ISOMETRIC MECHANICAL PART -->
+  <g transform="translate(400, 250)">
+    <!-- Outer Bounding Box (Dotted CAD Frame) -->
+    <polygon points="-160,-60 0,-140 160,-60 0,20" fill="none" stroke="#3f3f46" stroke-width="1" stroke-dasharray="3 3" />
+    <polygon points="-160,-60 0,20 0,110 -160,30" fill="none" stroke="#3f3f46" stroke-width="1" stroke-dasharray="3 3" />
+    <polygon points="160,-60 0,20 0,110 160,30" fill="none" stroke="#3f3f46" stroke-width="1" stroke-dasharray="3 3" />
+
+    <!-- Solid CAD Model Base Plate -->
+    <polygon points="-120,-30 0,-90 120,-30 0,30" fill="#27272a" stroke="#52525b" stroke-width="1.5" />
+    <polygon points="-120,-30 0,30 0,80 -120,20" fill="#18181b" stroke="#52525b" stroke-width="1.5" />
+    <polygon points="120,-30 0,30 0,80 120,20" fill="#27272a" stroke="#52525b" stroke-width="1.5" />
+
+    <!-- Raised Cylinder / Boss Feature -->
+    <path d="M -40,-45 C -40,-65 40,-65 40,-45 C 40,-25 -40,-25 -40,-45 Z" fill="#3f3f46" stroke="#71717a" stroke-width="1.5" />
+    <path d="M -40,-45 L -40,-10 C -40,10 40,10 40,-10 L 40,-45 Z" fill="#27272a" stroke="#71717a" stroke-width="1.5" />
+    <ellipse cx="0" cy="-45" rx="22" ry="11" fill="#18181b" stroke="#52525b" stroke-width="1.5" />
+
+    <!-- MEASUREMENT ANNOTATION 1 (Width Dimension) -->
+    <g filter="url(#glow-emerald)">
+      <!-- Dimension Line -->
+      <line x1="-120" y1="40" x2="0" y2="100" stroke="#10b981" stroke-width="2" />
+      <path d="M -120,40 L -112,40 M -120,40 L -117,46" stroke="#10b981" stroke-width="2" />
+      <path d="M 0,100 L -8,100 M 0,100 L -3,94" stroke="#10b981" stroke-width="2" />
+
+      <!-- Point Targets -->
+      <circle cx="-120" cy="20" r="4" fill="#10b981" />
+      <circle cx="-120" cy="20" r="8" fill="none" stroke="#10b981" stroke-width="1.5" opacity="0.6" />
+
+      <circle cx="0" cy="80" r="4" fill="#10b981" />
+      <circle cx="0" cy="80" r="8" fill="none" stroke="#10b981" stroke-width="1.5" opacity="0.6" />
+
+      <!-- Extension Projection Lines -->
+      <line x1="-120" y1="20" x2="-120" y2="45" stroke="#10b981" stroke-width="1" stroke-dasharray="2 2" opacity="0.7" />
+      <line x1="0" y1="80" x2="0" y2="105" stroke="#10b981" stroke-width="1" stroke-dasharray="2 2" opacity="0.7" />
+
+      <!-- Dimension Badge -->
+      <rect x="-80" y="76" width="60" height="22" rx="4" fill="#022c22" stroke="#10b981" stroke-width="1.5" />
+      <text x="-50" y="91" font-family="sans-serif" font-size="11" font-weight="bold" fill="#34d399" text-anchor="middle">48.50 mm</text>
+    </g>
+
+    <!-- MEASUREMENT ANNOTATION 2 (Height Dimension) -->
+    <g filter="url(#glow-emerald)">
+      <!-- Dimension Line -->
+      <line x1="140" y1="-30" x2="140" y2="20" stroke="#10b981" stroke-width="1.5" />
+      <!-- Extension Projection Lines -->
+      <line x1="120" y1="-30" x2="150" y2="-30" stroke="#10b981" stroke-width="1" stroke-dasharray="2 2" opacity="0.7" />
+      <line x1="120" y1="20" x2="150" y2="20" stroke="#10b981" stroke-width="1" stroke-dasharray="2 2" opacity="0.7" />
+
+      <!-- Dimension Badge -->
+      <rect x="155" y="-12" width="56" height="20" rx="4" fill="#022c22" stroke="#10b981" stroke-width="1.5" />
+      <text x="183" y="2" font-family="sans-serif" font-size="10" font-weight="bold" fill="#34d399" text-anchor="middle">12.00 mm</text>
+    </g>
+  </g>
+
+  <!-- UI HUD Overlays -->
+  <!-- Top Left Property Panel -->
+  <rect x="24" y="24" width="160" height="68" rx="6" fill="#18181b" stroke="#27272a" />
+  <text x="36" y="44" font-family="sans-serif" font-size="11" font-weight="bold" fill="#a1a1aa">BOUNDING BOX</text>
+  <text x="36" y="62" font-family="sans-serif" font-size="12" font-weight="600" fill="#f4f4f5">120 × 80 × 45 mm</text>
+  <text x="36" y="78" font-family="sans-serif" font-size="10" font-weight="500" fill="#10b981">✓ Printable Volume</text>
+
+  <!-- Viewport Coordinate Axis (Bottom Left) -->
+  <g transform="translate(45, 400)">
+    <line x1="0" y1="0" x2="25" y2="0" stroke="#ef4444" stroke-width="2" />
+    <text x="30" y="4" font-family="sans-serif" font-size="10" font-weight="bold" fill="#ef4444">X</text>
+    <line x1="0" y1="0" x2="0" y2="-25" stroke="#22c55e" stroke-width="2" />
+    <text x="-3" y="-30" font-family="sans-serif" font-size="10" font-weight="bold" fill="#22c55e">Y</text>
+    <line x1="0" y1="0" x2="-15" y2="15" stroke="#3b82f6" stroke-width="2" />
+    <text x="-24" y="24" font-family="sans-serif" font-size="10" font-weight="bold" fill="#3b82f6">Z</text>
+  </g>
+</svg>

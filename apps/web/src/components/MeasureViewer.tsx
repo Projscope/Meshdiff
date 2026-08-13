@@ -280,9 +280,10 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
   }
 
   return (
-    <div className="flex h-full w-full gap-3">
+    <div className="flex flex-col md:flex-row h-full w-full gap-3 overflow-y-auto md:overflow-hidden">
+      {/* 3D Viewport Pane — Takes 50vh or min 350px on mobile, full height flex-1 on desktop */}
       <div
-        className={`relative h-full flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${
+        className={`relative min-h-[350px] h-[50vh] md:h-full w-full md:flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${
           isDragOver
             ? "border-blue-500"
             : isMeasuring && measureMode === "radius"
@@ -409,7 +410,8 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
         )}
       </div>
 
-      <div className="w-72 shrink-0 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-sm">
+      {/* Properties Sidebar Panel — Stacks underneath on mobile (w-full), side panel on desktop (md:w-72) */}
+      <div className="w-full md:w-72 shrink-0 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-sm">
         {!fileName && (
           <p className="text-xs text-neutral-500">
             Drop a model to see its properties, printability, and stats here.
