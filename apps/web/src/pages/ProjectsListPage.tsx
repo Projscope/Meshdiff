@@ -112,8 +112,7 @@ export default function ProjectsListPage() {
 
       {isRestricted && (
         <div className="mt-6 rounded border border-red-800 bg-red-950/30 px-3 py-2 text-sm text-red-300">
-          Your trial has ended — subscribe to view or edit project content. You can still delete your own
-          projects below.
+          Subscribe to Pro to view or edit project content. You can still delete your own projects below.
         </div>
       )}
 

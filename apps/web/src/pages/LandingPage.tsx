@@ -96,7 +96,7 @@ const HERO_STATS: HeroStat[] = [
   { target: 3, suffix: "", label: "File formats: STL, 3MF, OBJ" },
   { target: 100, suffix: "%", label: "Local, private for the Community version" },
   { target: 3, suffix: "", label: "Print checks: Stable, Warn, Fail" },
-  { target: 0, prefix: "$", suffix: "/free", label: "No credit card required - 7 days free" },
+  { target: 0, prefix: "$", suffix: "", label: "Free diff tool, no signup" },
 ];
 
 const PROCESS_STEPS = [

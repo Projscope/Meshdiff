@@ -46,7 +46,7 @@ export function useRefreshProjectsSidebar(): () => void {
 
 // Lets nested pages (currently just ProjectsListPage, the one page that
 // still renders normally for a restricted account — see the route-level
-// lock below) react to trial/subscription state without a second
+// lock below) react to subscription state without a second
 // GET /billing/subscription call of their own.
 const AccountStatusContext = createContext<{ isRestricted: boolean }>({ isRestricted: false });
 export function useAccountStatus(): { isRestricted: boolean } {
@@ -183,26 +183,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // GET /billing/subscription.
   const isTeamMember = teams.length > 0;
   const isPro = subscription?.tier === "pro";
-  const isTrialing = subscription?.accountStatus === "trialing";
+  // No trial — a non-Pro, non-team account is restricted from day one (see
+  // requireActiveAccess.ts). Stays false until the subscription fetch
+  // resolves, so the sidebar doesn't flash a locked state on first load.
   const isRestricted = subscription?.accountStatus === "restricted";
-  const planLabel = isTeamMember
-    ? "Team"
-    : isPro
-      ? "Pro"
-      : isRestricted
-        ? "Trial expired"
-        : isTrialing
-          ? "Trial"
-          : "Free";
+  const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : "Free";
   const planTextClass = isTeamMember
     ? "text-violet-400"
     : isPro
       ? "text-emerald-400"
       : isRestricted
         ? "text-red-400"
-        : isTrialing
-          ? "text-amber-400"
-          : "text-neutral-300";
+        : "text-neutral-300";
 
   // The sidebar's own nav is alphabetical (unlike the /projects grid page,
   // which is newest-first) — sort here at render time rather than in
@@ -276,9 +268,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
                     : isRestricted
                       ? "Subscribe to keep using Meshdiff — you can still sign in and delete projects."
-                      : isTrialing
-                        ? `${subscription?.trialDaysRemaining ?? 0} day${subscription?.trialDaysRemaining === 1 ? "" : "s"} left in your trial.`
-                        : "Project workspaces, version history, and comment pins — $15/mo."}
+                      : "Project workspaces, version history, and comment pins — $15/mo."}
               </p>
               {isPro && (
                 <div className="mt-2 flex items-center gap-3">
@@ -419,12 +409,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           {isRestricted && location.pathname !== "/projects" ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
               <span className="rounded bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
-                Trial expired
+                Subscription required
               </span>
               <h2 className="text-lg font-semibold text-white">Subscribe to keep using Meshdiff</h2>
               <p className="max-w-sm text-sm text-neutral-400">
-                Your 7-day trial has ended. You can still sign in and delete your own projects, but viewing and
-                editing project content needs a Pro subscription.
+                Project workspaces need a Pro subscription. You can still sign in and delete your own projects
+                without one.
               </p>
               <div className="mt-2 flex gap-2">
                 <button

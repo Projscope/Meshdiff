@@ -3,12 +3,12 @@ import { getSupabase } from "./supabase.js";
 import { getAccountAccess } from "./subscription.js";
 
 /**
- * Blocks a restricted account (trial lapsed, no Pro subscription) from
- * everything except what's explicitly left off this preHandler — see the
- * plan: GET /projects, DELETE /projects/:id, GET /workspace, and all of
- * billing.ts stay reachable so a restricted user can still see/delete
- * their projects and actually subscribe. Must run after requireAuth (needs
- * request.userId already set).
+ * Blocks a restricted account (no Pro subscription — payable from day one,
+ * no trial) from everything except what's explicitly left off this
+ * preHandler — see the plan: GET /projects, DELETE /projects/:id,
+ * GET /workspace, and all of billing.ts stay reachable so a restricted
+ * user can still see/delete their projects and actually subscribe. Must
+ * run after requireAuth (needs request.userId already set).
  */
 export async function requireActiveAccess(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const supabase = getSupabase();
@@ -21,8 +21,8 @@ export async function requireActiveAccess(request: FastifyRequest, reply: Fastif
   if (access.status === "restricted") {
     reply.code(403).send({
       success: false,
-      error: "Your trial has ended — subscribe to keep using Meshdiff.",
-      code: "trial_expired",
+      error: "Subscribe to Pro to keep using Meshdiff.",
+      code: "subscription_required",
     });
   }
 }
