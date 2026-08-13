@@ -16,6 +16,7 @@ function AnnouncementBar() {
   return (
     <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-300">
       🎉 We launching PRO accounts (Teams in Progress)! —{" "}
+      <span className="font-semibold text-amber-400">Launch offer ends Sunday at midnight.</span>{" "}
       <a href="/#pricing" className="font-medium text-neutral-100 hover:text-emerald-300">
         See pricing →
       </a>

@@ -42,6 +42,8 @@ interface PricingTier {
   features: string[];
   /** Small promo pill shown above the tier name, e.g. a launch discount. */
   badge?: string;
+  /** Small urgency line shown under the price, e.g. a launch-offer deadline. */
+  urgency?: string;
 }
 
 const PRICING_TIERS: PricingTier[] = [
@@ -69,6 +71,7 @@ const PRICING_TIERS: PricingTier[] = [
     cta: { label: "Subscribe to Pro", checkout: true },
     highlighted: true,
     badge: "Founding Member Launch Offer (50% OFF)",
+    urgency: "Launch offer ends Sunday at midnight",
     features: [
       "Everything in Community",
       "Project workspaces",
@@ -529,6 +532,12 @@ export default function LandingPage() {
                       {tier.period && <span className="text-xs text-neutral-500">{tier.period}</span>}
                     </div>
                     <p className="mt-1 text-xs text-neutral-500">{tier.audience}</p>
+                    {tier.urgency && (
+                      <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-amber-400">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                        {tier.urgency}
+                      </p>
+                    )}
 
                     {"to" in tier.cta ? (
                       <Link
