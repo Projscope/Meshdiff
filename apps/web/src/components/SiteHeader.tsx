@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/AuthProvider";
 import { supabase } from "../lib/supabaseClient";
-import { SHOW_MONETIZATION } from "../lib/featureFlags";
+import { SHOW_MONETIZATION, LAUNCH_OFFER_DEADLINE } from "../lib/featureFlags";
+import { useCountdown } from "../hooks/useCountdown";
 
 function LogoMark() {
   return (
@@ -13,10 +14,17 @@ function LogoMark() {
 }
 
 function AnnouncementBar() {
+  const countdown = useCountdown(LAUNCH_OFFER_DEADLINE);
+
   return (
     <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-300">
-      🎉 We launching PRO accounts (Teams in Progress)! —{" "}
-      <span className="font-semibold text-amber-400">Launch offer ends Sunday at midnight.</span>{" "}
+      🎉 We launching PRO accounts (Teams will follow soon) —{" "}
+      <span className="font-semibold text-amber-400">
+        Launch offer ends Sunday at midnight — 50% off ends in{" "}
+      </span>
+      <span className="font-semibold text-purple-400">
+        <span className="font-mono tabular-nums">{countdown}</span>
+      </span>{" "}
       <a href="/#pricing" className="font-medium text-neutral-100 hover:text-emerald-300">
         See pricing →
       </a>

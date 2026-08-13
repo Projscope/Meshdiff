@@ -20,7 +20,8 @@ import SectionHeader from "../components/SectionHeader";
 import { useCountUp } from "../hooks/useCountUp";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import liveDiffPreview from "../assets/live-diff-preview.png";
-import { SHOW_MONETIZATION } from "../lib/featureFlags";
+import { SHOW_MONETIZATION, LAUNCH_OFFER_DEADLINE } from "../lib/featureFlags";
+import { useCountdown } from "../hooks/useCountdown";
 import { supabase } from "../lib/supabaseClient";
 import { getSubscription } from "../lib/projectsApi";
 import { markPendingProCheckout } from "../lib/pendingCheckout";
@@ -199,6 +200,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showAlreadyPro, setShowAlreadyPro] = useState(false);
+  const proOfferCountdown = useCountdown(LAUNCH_OFFER_DEADLINE);
 
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
@@ -533,9 +535,10 @@ export default function LandingPage() {
                     </div>
                     <p className="mt-1 text-xs text-neutral-500">{tier.audience}</p>
                     {tier.urgency && (
-                      <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-amber-400">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-                        {tier.urgency}
+                      <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-purple-400">
+                        <span className="rounded-full bg-purple-400" />
+                        *{tier.urgency}
+                        <span className="font-mono tabular-nums">{proOfferCountdown}</span>
                       </p>
                     )}
 
