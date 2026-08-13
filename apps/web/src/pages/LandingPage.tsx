@@ -31,11 +31,15 @@ import soloImg from '../assets/solo.png';
 interface PricingTier {
   name: string;
   price: string;
+  /** Struck through next to price when set — e.g. the pre-discount price. */
+  originalPrice?: string;
   period: string | null;
   audience: string;
   cta: { label: string; to: string } | { label: string; scroll: true } | { label: string; checkout: true };
   highlighted: boolean;
   features: string[];
+  /** Small promo pill shown above the tier name, e.g. a launch discount. */
+  badge?: string;
 }
 
 const PRICING_TIERS: PricingTier[] = [
@@ -56,11 +60,13 @@ const PRICING_TIERS: PricingTier[] = [
   },
   {
     name: "Pro",
-    price: "$15",
+    price: "$7.50",
+    originalPrice: "$15.00",
     period: "/mo",
     audience: "CAD and print engineers",
     cta: { label: "Upgrade to Pro", checkout: true },
     highlighted: true,
+    badge: "Founding Member Launch Offer (50% OFF)",
     features: [
       "Everything in Community",
       "Project workspaces",
@@ -73,7 +79,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: "$17.50",
     period: "/seat/mo",
     audience: "Hardware teams",
-    cta: { label: "Join early access", scroll: true },
+    cta: { label: "Will be available soon", scroll: true },
     highlighted: false,
     features: [
       "Everything in Pro",
@@ -490,16 +496,24 @@ export default function LandingPage() {
                 {PRICING_TIERS.map((tier) => (
                   <div
                     key={tier.name}
-                    className={`rounded-xl border p-6 ${tier.highlighted
+                    className={`relative rounded-xl border p-6 ${tier.highlighted
                       ? "border-emerald-500 bg-neutral-900"
                       : "border-neutral-800 bg-neutral-900"
                       }`}
                   >
+                    {tier.badge && (
+                      <span className="absolute -top-3 left-6 rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-950">
+                        {tier.badge}
+                      </span>
+                    )}
                     <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-emerald-400" : "text-neutral-300"}`}>
                       {tier.name}
                     </h3>
                     <div className="mt-2 flex items-baseline gap-1.5">
                       <span className="text-3xl font-bold text-white">{tier.price}</span>
+                      {tier.originalPrice && (
+                        <span className="text-sm text-neutral-500 line-through">{tier.originalPrice}</span>
+                      )}
                       {tier.period && <span className="text-xs text-neutral-500">{tier.period}</span>}
                     </div>
                     <p className="mt-1 text-xs text-neutral-500">{tier.audience}</p>

@@ -99,10 +99,15 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     try {
       const customerId = await getOrCreateStripeCustomer(supabase, stripe, request.userId!);
       const frontendUrl = getFrontendUrl();
+      // Founding-member launch offer (50% off for 3 months — see the
+      // landing page pricing card) — optional so checkout still works if
+      // the coupon isn't configured (e.g. local dev before it's created).
+      const launchCouponId = process.env.STRIPE_PRO_LAUNCH_COUPON_ID;
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer: customerId,
         line_items: [{ price: priceId, quantity: 1 }],
+        ...(launchCouponId ? { discounts: [{ coupon: launchCouponId }] } : {}),
         success_url: `${frontendUrl}/projects?checkout=success`,
         cancel_url: `${frontendUrl}/projects?checkout=cancelled`,
       });
