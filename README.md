@@ -7,8 +7,7 @@ prints. Not a CAD editor; it sits above whatever produced the mesh.
 See [CLAUDE.md](CLAUDE.md) for the full product spec, architecture rules, and domain
 knowledge this project is built against.
 
-<img width="1600" height="1966" alt="image" src="https://github.com/user-attachments/assets/d5e94b49-bf51-41f5-ae71-ec189762c0ae" />
-
+<img width="1754" height="5826" alt="full page" src="https://github.com/user-attachments/assets/44d8082a-b037-4adf-9129-556a06d941ef" />
 
 ## Status
 
