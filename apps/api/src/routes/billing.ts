@@ -87,40 +87,90 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     }
   });
 
-  app.post("/billing/checkout", { preHandler: requireAuth }, async (request, reply) => {
-    const supabase = getSupabase();
+  app.post<{ Body: { couponCode?: string } }>(
+    "/billing/checkout",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const supabase = getSupabase();
+      const stripe = getStripe();
+      const priceId = process.env.STRIPE_PRO_PRICE_ID;
+      if (!supabase || !stripe || !priceId) {
+        reply.code(500);
+        return { success: false, error: "Billing is not configured" };
+      }
+
+      try {
+        const customerId = await getOrCreateStripeCustomer(supabase, stripe, request.userId!);
+        const frontendUrl = getFrontendUrl();
+        const { couponCode } = request.body ?? {};
+
+        const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
+
+        if (couponCode) {
+          // User provided a coupon code — validate it exists and is active
+          try {
+            const coupon = await stripe.coupons.retrieve(couponCode);
+            if (!coupon.valid) {
+              reply.code(400);
+              return { success: false, error: "Coupon is invalid or expired" };
+            }
+          } catch {
+            reply.code(400);
+            return { success: false, error: "Coupon not found" };
+          }
+          discounts.push({ coupon: couponCode });
+        } else {
+          // No coupon provided — check if there's a default launch coupon
+          const launchCouponId = process.env.STRIPE_PRO_LAUNCH_COUPON_ID;
+          if (launchCouponId) {
+            discounts.push({ coupon: launchCouponId });
+          }
+        }
+
+        const session = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          customer: customerId,
+          line_items: [{ price: priceId, quantity: 1 }],
+          ...(discounts.length > 0 ? { discounts } : {}),
+          success_url: `${frontendUrl}/projects?checkout=success`,
+          cancel_url: `${frontendUrl}/projects?checkout=cancelled`,
+        });
+
+        if (!session.url) {
+          reply.code(502);
+          return { success: false, error: "Failed to start checkout, please try again" };
+        }
+        return { success: true, data: { url: session.url } };
+      } catch (err) {
+        app.log.error(err, "Failed to create checkout session");
+        reply.code(502);
+        return { success: false, error: "Failed to start checkout, please try again" };
+      }
+    },
+  );
+
+  app.get("/billing/coupons", async (_, reply) => {
     const stripe = getStripe();
-    const priceId = process.env.STRIPE_PRO_PRICE_ID;
-    if (!supabase || !stripe || !priceId) {
+    if (!stripe) {
       reply.code(500);
       return { success: false, error: "Billing is not configured" };
     }
 
     try {
-      const customerId = await getOrCreateStripeCustomer(supabase, stripe, request.userId!);
-      const frontendUrl = getFrontendUrl();
-      // Founding-member launch offer (50% off for 3 months — see the
-      // landing page pricing card) — optional so checkout still works if
-      // the coupon isn't configured (e.g. local dev before it's created).
-      const launchCouponId = process.env.STRIPE_PRO_LAUNCH_COUPON_ID;
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        customer: customerId,
-        line_items: [{ price: priceId, quantity: 1 }],
-        ...(launchCouponId ? { discounts: [{ coupon: launchCouponId }] } : {}),
-        success_url: `${frontendUrl}/projects?checkout=success`,
-        cancel_url: `${frontendUrl}/projects?checkout=cancelled`,
-      });
-
-      if (!session.url) {
-        reply.code(502);
-        return { success: false, error: "Failed to start checkout, please try again" };
-      }
-      return { success: true, data: { url: session.url } };
+      const coupons = await stripe.coupons.list({ limit: 100 });
+      const active = coupons.data
+        .filter((c) => c.valid)
+        .map((c) => ({
+          id: c.id,
+          percentOff: c.percent_off ?? null,
+          amountOff: c.amount_off ?? null,
+          durationMonths: c.duration === "repeating" ? c.duration_in_months : null,
+        }));
+      return { success: true, data: active };
     } catch (err) {
-      app.log.error(err, "Failed to create checkout session");
+      app.log.error(err, "Failed to fetch coupons");
       reply.code(502);
-      return { success: false, error: "Failed to start checkout, please try again" };
+      return { success: false, error: "Failed to load coupons" };
     }
   });
 
