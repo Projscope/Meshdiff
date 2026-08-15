@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "lib": ["ES2022"],
-    "outDir": "dist",
+    "outDir": "apps/api/dist",
     "rootDir": "../..",
     "baseUrl": "../..",
     "paths": {
