@@ -17,5 +17,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["apps/api/src", "apps/shared/src"]
+  "include": ["src", "../../shared/src"]
 }
