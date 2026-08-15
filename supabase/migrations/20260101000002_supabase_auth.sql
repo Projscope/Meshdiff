@@ -12,15 +12,22 @@ drop policy if exists "Users manage versions of their own projects" on versions;
 drop policy if exists "Users manage diffs of their own projects" on version_diffs;
 drop policy if exists "Users manage comments on their own project versions" on comments;
 
+-- Drop existing constraints before recreating them
+alter table projects drop constraint if exists projects_owner_user_id_fkey;
+
 alter table projects
   alter column owner_user_id type uuid using owner_user_id::uuid,
   add constraint projects_owner_user_id_fkey
     foreign key (owner_user_id) references auth.users(id) on delete cascade;
 
+alter table versions drop constraint if exists versions_uploaded_by_user_id_fkey;
+
 alter table versions
   alter column uploaded_by_user_id type uuid using uploaded_by_user_id::uuid,
   add constraint versions_uploaded_by_user_id_fkey
     foreign key (uploaded_by_user_id) references auth.users(id) on delete set null;
+
+alter table comments drop constraint if exists comments_author_user_id_fkey;
 
 alter table comments
   alter column author_user_id type uuid using author_user_id::uuid,
