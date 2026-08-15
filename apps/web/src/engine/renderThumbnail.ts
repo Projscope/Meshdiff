@@ -10,10 +10,17 @@ const MESH_COLOR = 0x4f8ff7;
  * object already loaded client-side for the upload.
  */
 export async function renderMeshThumbnail(geometry: THREE.BufferGeometry): Promise<Blob | null> {
-  geometry.computeBoundingSphere();
-  const sphere = geometry.boundingSphere;
+  // Clone geometry so we don't mutate the original
+  const clonedGeom = geometry.clone();
+
+  // Apply rotation to geometry vertices to match viewer orientation (Z-up to Y-up)
+  const rotationMatrix = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
+  clonedGeom.applyMatrix4(rotationMatrix);
+
+  clonedGeom.computeBoundingSphere();
+  const sphere = clonedGeom.boundingSphere;
   if (!sphere || sphere.radius === 0) return null;
-  if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
+  if (!clonedGeom.getAttribute("normal")) clonedGeom.computeVertexNormals();
 
   const canvas = document.createElement("canvas");
   canvas.width = THUMBNAIL_SIZE;
@@ -26,7 +33,7 @@ export async function renderMeshThumbnail(geometry: THREE.BufferGeometry): Promi
   try {
     const scene = new THREE.Scene();
     const material = new THREE.MeshStandardMaterial({ color: MESH_COLOR, metalness: 0.1, roughness: 0.6 });
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(clonedGeom, material);
     scene.add(mesh);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));

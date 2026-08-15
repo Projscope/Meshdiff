@@ -1,3 +1,4 @@
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
@@ -12,7 +13,21 @@ interface ReadOnlyMeshViewerProps {
   color?: string;
 }
 
-export default function ReadOnlyMeshViewer({ label, fallbackLabel, geometry, color = "#4f8ff7" }: ReadOnlyMeshViewerProps) {
+export interface ReadOnlyMeshViewerHandle {
+  /** PNG data URL of the current render, or null if nothing has rendered yet. */
+  captureScreenshot: () => string | null;
+}
+
+const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshViewerProps>(function ReadOnlyMeshViewer(
+  { label, fallbackLabel, geometry, color = "#4f8ff7" },
+  ref,
+) {
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
+  }));
+
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
       <span className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wide text-neutral-400">
@@ -23,7 +38,13 @@ export default function ReadOnlyMeshViewer({ label, fallbackLabel, geometry, col
           No model loaded
         </div>
       )}
-      <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
+      <Canvas
+        camera={{ position: [50, 50, 50], fov: 45 }}
+        gl={{ preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          canvasElRef.current = gl.domElement;
+        }}
+      >
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
         <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
@@ -48,4 +69,6 @@ export default function ReadOnlyMeshViewer({ label, fallbackLabel, geometry, col
       <AxisLegend />
     </div>
   );
-}
+});
+
+export default ReadOnlyMeshViewer;

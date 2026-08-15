@@ -46,6 +46,7 @@ export interface ProjectDetail {
   name: string;
   description: string | null;
   teamId: string | null;
+  thumbnailUrl: string | null;
   /** This user's access level for the project. 'approver' is an "upgraded
    * member" — can approve/reject versions, nothing else admin-gated. */
   myRole: "owner" | "admin" | "approver" | "member";
@@ -115,8 +116,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> 
   }
 }
 
-export function listProjects(page = 1, pageSize = 10): Promise<Result<ProjectsPage>> {
-  return request(`/projects?page=${page}&pageSize=${pageSize}`);
+export function listProjects(page = 1, pageSize = 10, sort: "name" | "date-newest" | "date-oldest" = "date-newest"): Promise<Result<ProjectsPage>> {
+  return request(`/projects?page=${page}&pageSize=${pageSize}&sort=${sort}`);
 }
 
 export function getWorkspace(): Promise<Result<{ name: string }>> {
@@ -206,6 +207,44 @@ export function addTeamMember(
 
 export function removeTeamMember(teamId: string, userId: string): Promise<Result<true>> {
   return request(`/teams/${teamId}/members/${userId}`, { method: "DELETE" });
+}
+
+export interface SubscriptionStatus {
+  tier: "free" | "pro";
+  status: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  /** "pro" (real subscription) | "restricted" (no subscription — most
+   * routes 403; Pro is payable from day one, no trial). */
+  accountStatus: "pro" | "restricted";
+}
+
+export function getSubscription(): Promise<Result<SubscriptionStatus>> {
+  return request("/billing/subscription");
+}
+
+/** Returns a Stripe Checkout URL to redirect the browser to — Checkout is a
+ * Stripe-hosted page, not Stripe Elements (see CLAUDE.md), so there's
+ * nothing to render here beyond the redirect itself. */
+export function startProCheckout(): Promise<Result<{ url: string }>> {
+  return request("/billing/checkout", { method: "POST" });
+}
+
+/** Same shape as startProCheckout() — a URL to redirect to, this time for
+ * Stripe's hosted Billing Portal (manage payment method, view invoices). */
+export function openBillingPortal(): Promise<Result<{ url: string }>> {
+  return request("/billing/portal", { method: "POST" });
+}
+
+/** Cancels at the end of the current billing period — Pro access continues
+ * through what's already been paid for. */
+export function cancelSubscription(): Promise<Result<{ cancelAtPeriodEnd: boolean; currentPeriodEnd: string }>> {
+  return request("/billing/cancel", { method: "POST" });
+}
+
+/** Undoes a pending cancel-at-period-end, before the period actually ends. */
+export function resumeSubscription(): Promise<Result<{ cancelAtPeriodEnd: boolean; currentPeriodEnd: string }>> {
+  return request("/billing/resume", { method: "POST" });
 }
 
 export function approveVersion(projectId: string, versionId: string): Promise<Result<VersionSummary>> {
@@ -364,4 +403,41 @@ export async function uploadVersion(
   if (!finalized.success) return finalized;
 
   return { success: true, data: { versionId: allocated.data.versionId } };
+}
+
+/** Create a shareable comparison link from project versions. */
+export async function createComparisonShare(
+  projectId: string,
+  versionAId: string,
+  versionBId: string,
+  mode: "voxel" | "surface",
+  toleranceMm: number,
+  expiresInDays: 1 | 3 | 7,
+): Promise<Result<{ id: string; url: string; expiresAt: string }>> {
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session?.access_token) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  const response = await fetch(`${API_BASE_URL}/comparison-share`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session.session.access_token}`,
+    },
+    body: JSON.stringify({
+      projectId,
+      versionAId,
+      versionBId,
+      mode,
+      toleranceMm,
+      expiresInDays,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    return { success: false, error: data.error ?? "Failed to create share" };
+  }
+  return data as Result<{ id: string; url: string; expiresAt: string }>;
 }

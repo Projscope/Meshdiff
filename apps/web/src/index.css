@@ -6,3 +6,22 @@ body {
   font-family: "Roboto", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica,
     Arial, sans-serif;
 }
+
+/* Scroll-reveal: paired with useScrollReveal.ts. Elements marked
+   data-animate start hidden/offset and fade+slide in once visible. */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

@@ -13,8 +13,30 @@ declare module "fastify" {
  * waitlist, and share stay open (see plan: Free tier's anonymous entry point).
  */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  // Try Bearer token first, then fall back to Supabase session cookie
+  let token: string | null = null;
+
   const authHeader = request.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7);
+  } else {
+    // Try to extract from Supabase session cookie
+    const cookies = request.cookies;
+    if (cookies) {
+      const supabaseSession = Object.entries(cookies)
+        .find(([key]) => key.startsWith("sb-") && key.endsWith("-auth-token"))?.[1];
+
+      if (supabaseSession) {
+        try {
+          const session = JSON.parse(supabaseSession);
+          token = session?.access_token || null;
+        } catch {
+          // Cookie parsing failed, token remains null
+        }
+      }
+    }
+  }
+
   if (!token) {
     reply.code(401).send({ success: false, error: "Authentication required" });
     return;

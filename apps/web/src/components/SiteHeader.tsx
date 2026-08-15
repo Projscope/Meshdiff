@@ -2,23 +2,31 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/AuthProvider";
 import { supabase } from "../lib/supabaseClient";
-import { SHOW_MONETIZATION } from "../lib/featureFlags";
+import { SHOW_MONETIZATION, LAUNCH_OFFER_DEADLINE } from "../lib/featureFlags";
+import { useCountdown } from "../hooks/useCountdown";
 
 function LogoMark() {
   return (
-    <div aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-neutral-950">
+    <div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-neutral-950">
       <span className="text-base font-bold leading-none">^</span>
     </div>
   );
 }
 
 function AnnouncementBar() {
+  const countdown = useCountdown(LAUNCH_OFFER_DEADLINE);
+
   return (
     <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-300">
-      Early access is live —{" "}
-      <span className="font-semibold text-emerald-400">50% off Pro &amp; Team for 3 months</span>{" "}
-      <a href="/#early-access" className="font-medium text-neutral-100 hover:text-emerald-300">
-        Join now →
+      🎉 We launching PRO accounts (Teams will follow soon) —{" "}
+      <span className="font-semibold text-amber-400">
+        Launch offer ends Sunday at midnight — 50% off ends in{" "}
+      </span>
+      <span className="font-semibold text-purple-400">
+        <span className="font-mono tabular-nums">{countdown}</span>
+      </span>{" "}
+      <a href="/#pricing" className="font-medium text-neutral-100 hover:text-emerald-300">
+        See pricing →
       </a>
     </div>
   );
@@ -34,7 +42,7 @@ function UserMenu() {
     return (
       <Link
         to="/login"
-        className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-950 hover:bg-neutral-200"
+        className="whitespace-nowrap rounded-full bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-950 hover:bg-neutral-200"
       >
         Sign In
       </Link>
@@ -78,37 +86,104 @@ function UserMenu() {
 }
 
 export default function SiteHeader() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="sticky top-0 z-40">
       {SHOW_MONETIZATION && <AnnouncementBar />}
       <header className="bg-neutral-950 px-4 py-3">
-        <div className="mx-auto flex max-w-6xl items-center justify-between rounded-full border border-neutral-800 bg-neutral-900/60 px-5 py-2.5 backdrop-blur">
-          <Link to="/" className="flex items-center gap-2.5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between rounded-full border border-neutral-800 bg-neutral-900/60 px-4 md:px-5 py-2.5 backdrop-blur">
+          <Link to="/" className="flex items-center gap-2.5 shrink-0">
             <LogoMark />
-            <div className="flex items-center gap-1.5 leading-tight">
-              <h1 className="text-base font-semibold text-white">Meshdiff</h1>
-            </div>
+            <span className="text-base font-semibold text-white">Meshdiff</span>
           </Link>
 
-          <nav className="flex items-right gap-5 text-sm text-neutral-400">
-            <a href="/#features" className="hover:text-neutral-200">
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-400">
+            <Link to="/features" className="hover:text-neutral-200 transition-colors">
               Features
-            </a>
+            </Link>
+            <Link to="/roadmap" className="hover:text-neutral-200 transition-colors">
+              Roadmap
+            </Link>
             {SHOW_MONETIZATION && (
-              <a href="/#pricing" className="hover:text-neutral-200">
+              <a href="/#pricing" className="hover:text-neutral-200 transition-colors">
                 Pricing
               </a>
             )}
-            <Link to="/live" className="hover:text-neutral-200">
+            <Link to="/live" className="hover:text-neutral-200 transition-colors">
               Free Diff tool
             </Link>
-            <a href="/#faq" className="hover:text-neutral-200">
+            <a href="/#faq" className="hover:text-neutral-200 transition-colors">
               FAQ
             </a>
           </nav>
 
-          <UserMenu />
+          {/* User Menu & Mobile Toggle */}
+          <div className="flex items-center gap-2 md:gap-3">
+            <UserMenu />
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:text-white md:hidden"
+              aria-label="Toggle navigation menu"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown */}
+        {mobileMenuOpen && (
+          <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-neutral-800 bg-neutral-900/95 p-3 backdrop-blur md:hidden">
+            <nav className="flex flex-col gap-1 text-sm text-neutral-300">
+              <Link
+                to="/features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
+              >
+                Features
+              </Link>
+              <Link
+                to="/roadmap"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
+              >
+                Roadmap
+              </Link>
+              {SHOW_MONETIZATION && (
+                <a
+                  href="/#pricing"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
+                >
+                  Pricing
+                </a>
+              )}
+              <Link
+                to="/live"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
+              >
+                Free Diff tool
+              </Link>
+              <a
+                href="/#faq"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
+              >
+                FAQ
+              </a>
+            </nav>
+          </div>
+        )}
       </header>
     </div>
   );

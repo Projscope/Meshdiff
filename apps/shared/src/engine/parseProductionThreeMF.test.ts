@@ -1,9 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import * as fflate from "fflate";
-import { DOMParser } from "linkedom";
+import { DOMParser as LinkedomDOMParser } from "linkedom";
+import { FastXmlDOMParser } from "./fastXmlDomParser.js";
 import { parseProductionThreeMF } from "./parseProductionThreeMF.js";
 
-(globalThis as { DOMParser?: unknown }).DOMParser = DOMParser;
+// Runs the whole suite against both DOMParser implementations that get
+// installed as globalThis.DOMParser in production: linkedom server-side
+// (apps/api/src/lib/loadMeshServer.ts) and FastXmlDOMParser in the browser
+// worker (apps/web/src/workers/meshParseWorker.ts — added after linkedom's
+// full DOM tree measured at ~11s against a real 36.7MB 3MF model XML).
+// parseProductionThreeMF itself doesn't know or care which one is
+// installed (structurally typed against a narrow DOMParser-shaped
+// interface) — this is what actually proves the two are interchangeable
+// for every real-world case this parser has been hardened against.
+const DOM_PARSER_IMPLEMENTATIONS: Array<[string, new () => unknown]> = [
+  ["linkedom", LinkedomDOMParser],
+  ["FastXmlDOMParser", FastXmlDOMParser],
+];
 
 const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -36,7 +49,11 @@ function buildFixture(
   return zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength);
 }
 
-describe("parseProductionThreeMF", () => {
+describe.each(DOM_PARSER_IMPLEMENTATIONS)("parseProductionThreeMF (DOMParser: %s)", (_label, ParserImpl) => {
+  beforeEach(() => {
+    (globalThis as { DOMParser?: unknown }).DOMParser = ParserImpl;
+  });
+
   it("resolves a build item that references an object in a separate model part via p:path", () => {
     // The BambuStudio/PrusaSlicer/OrcaSlicer multi-plate pattern: the root
     // model has no mesh objects of its own, only a build item pointing at

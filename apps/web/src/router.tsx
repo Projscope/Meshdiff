@@ -1,7 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
+import FeaturesPage from "./pages/FeaturesPage";
 import LiveDiffToolPage from "./pages/LiveDiffToolPage";
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import RoadmapPage from "./pages/RoadmapPage";
 import ProjectsListPage from "./pages/ProjectsListPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import VersionDetailPage from "./pages/VersionDetailPage";
@@ -26,8 +29,11 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: "/", element: <LandingPage /> },
+      { path: "/features", element: <FeaturesPage /> },
+      { path: "/roadmap", element: <RoadmapPage /> },
       { path: "/live", element: <LiveDiffToolPage /> },
       { path: "/login", element: <LoginPage /> },
+      { path: "/reset-password", element: <ResetPasswordPage /> },
       {
         path: "/projects",
         element: (

@@ -362,29 +362,65 @@ function dilateOccupancy(
 }
 
 /**
- * Voxelizes two meshes into a shared index space and classifies each cell
- * as unchanged / added / removed. Runs on the main thread today — the
- * voxel budget below keeps that fast for demo-sized meshes, but the perf
- * rules in CLAUDE.md call for this to move to a Web Worker before real
- * uploads are supported.
+ * Voxelizes two meshes into a shared index space so they can be classified
+ * as unchanged / added / removed. The client-side caller runs this (and
+ * classifyVoxelDiff below) inside a Web Worker — see
+ * apps/web/src/workers/diffWorker.ts — per CLAUDE.md's "3D Performance
+ * Rules"; the API server calls computeVoxelDiff directly since it has no
+ * render thread to protect.
  *
  * SAFETY: no PCA/ICP alignment yet (see CLAUDE.md "Alignment Strategy").
  * Mesh A and B are compared in their native coordinates, which is correct
  * for versioned exports that share a CAD origin but not for arbitrary
  * uploads.
+ *
+ * Everything computeVoxelDiff needs that does *not* depend on toleranceMm:
+ * both meshes' voxel occupancy grids plus every stat derived purely from
+ * their own geometry (bounding box, triangle/surface-area deltas, wall
+ * thickness, overhang, printability). Tolerance only affects the final
+ * dilate-and-classify step (see classifyVoxelDiff) — splitting the two
+ * apart means a tolerance-only change (e.g. dragging a slider) can skip
+ * straight to that cheap step instead of re-voxelizing and re-running BVH
+ * wall-thickness raycasts against unchanged geometry.
  */
-export function computeVoxelDiff(
+export interface VoxelDiffBase {
+  resolutionMm: number;
+  dims: [number, number, number];
+  originMm: [number, number, number];
+  occupiedA: Uint8Array;
+  occupiedB: Uint8Array;
+  voxelVolumeMm3: number;
+  boundingBoxDeltaX: number;
+  boundingBoxDeltaY: number;
+  boundingBoxDeltaZ: number;
+  triangleDeltaA: number;
+  triangleDeltaB: number;
+  triangleDelta: number;
+  surfaceAreaA: number;
+  surfaceAreaB: number;
+  surfaceAreaDelta: number;
+  minWallThickness: number;
+  maxWallThickness: number;
+  thinWallWarning: boolean;
+  maxOverhangAngle: number;
+  overhangArea: number;
+  overhangAreaPercent: number;
+  printabilityStatus: "pass" | "warn" | "fail";
+  printabilityIssues: string[];
+  fileFormatA?: string;
+  fileFormatB?: string;
+}
+
+export function computeVoxelDiffBase(
   geometryA: THREE.BufferGeometry,
   geometryB: THREE.BufferGeometry,
   options?: {
     resolutionMm?: number;
     targetVoxelsPerAxis?: number;
-    /** Deviations within this distance of the other mesh don't count as added/removed. */
-    toleranceMm?: number;
     fileFormatA?: string;
     fileFormatB?: string;
   },
-): Result<VoxelDiffResult> {
+): Result<VoxelDiffBase> {
   geometryA.computeBoundingBox();
   geometryB.computeBoundingBox();
   const boxA = geometryA.boundingBox;
@@ -431,50 +467,7 @@ export function computeVoxelDiff(
 
   const occupiedA = voxelizeGeometryIntoGrid(geometryA, resolutionMm, originMm, dims);
   const occupiedB = voxelizeGeometryIntoGrid(geometryB, resolutionMm, originMm, dims);
-
-  const toleranceMm = options?.toleranceMm ?? 0;
-  const toleranceVoxels = toleranceMm > 0 ? Math.round(toleranceMm / resolutionMm) : 0;
-  // A cell that's occupied only in A (or only in B) is within tolerance if
-  // the *other* mesh has an occupied cell nearby — check against a dilated
-  // copy of the other mesh's grid rather than the exact one.
-  const dilatedA = toleranceVoxels > 0 ? dilateOccupancy(occupiedA, dims, toleranceVoxels) : occupiedA;
-  const dilatedB = toleranceVoxels > 0 ? dilateOccupancy(occupiedB, dims, toleranceVoxels) : occupiedB;
-
-  const classification = new Uint8Array(occupiedA.length);
-  let addedCount = 0;
-  let removedCount = 0;
-  let unchangedCount = 0;
-
-  for (let i = 0; i < classification.length; i++) {
-    const inA = occupiedA[i] === 1;
-    const inB = occupiedB[i] === 1;
-    if (inA && inB) {
-      classification[i] = VOXEL_UNCHANGED;
-      unchangedCount++;
-    } else if (inA && !inB) {
-      if (dilatedB[i] === 1) {
-        classification[i] = VOXEL_UNCHANGED;
-        unchangedCount++;
-      } else {
-        classification[i] = VOXEL_REMOVED;
-        removedCount++;
-      }
-    } else if (!inA && inB) {
-      if (dilatedA[i] === 1) {
-        classification[i] = VOXEL_UNCHANGED;
-        unchangedCount++;
-      } else {
-        classification[i] = VOXEL_ADDED;
-        addedCount++;
-      }
-    }
-  }
-
   const voxelVolumeMm3 = resolutionMm ** 3;
-  const volumeAMm3 = (unchangedCount + removedCount) * voxelVolumeMm3;
-  const approxVolumeDeltaMm3 = (addedCount - removedCount) * voxelVolumeMm3;
-  const approxVolumeDeltaPercent =
-    volumeAMm3 > 0 ? (approxVolumeDeltaMm3 / volumeAMm3) * 100 : 0;
 
   // Compute bounding box deltas
   const sizeA = new THREE.Vector3();
@@ -524,34 +517,136 @@ export function computeVoxelDiff(
   return {
     success: true,
     data: {
-      grid: { resolutionMm, dims, originMm, classification },
-      stats: {
-        addedCount,
-        removedCount,
-        unchangedCount,
-        voxelVolumeMm3,
-        approxVolumeDeltaMm3,
-        approxVolumeDeltaPercent,
-        boundingBoxDeltaX,
-        boundingBoxDeltaY,
-        boundingBoxDeltaZ,
-        triangleDeltaA,
-        triangleDeltaB,
-        triangleDelta,
-        surfaceAreaA,
-        surfaceAreaB,
-        surfaceAreaDelta,
-        minWallThickness,
-        maxWallThickness,
-        thinWallWarning,
-        maxOverhangAngle,
-        overhangArea,
-        overhangAreaPercent,
-        printabilityStatus: printability.status,
-        printabilityIssues: printability.issues,
-        fileFormatA: options?.fileFormatA,
-        fileFormatB: options?.fileFormatB,
-      },
+      resolutionMm,
+      dims,
+      originMm,
+      occupiedA,
+      occupiedB,
+      voxelVolumeMm3,
+      boundingBoxDeltaX,
+      boundingBoxDeltaY,
+      boundingBoxDeltaZ,
+      triangleDeltaA,
+      triangleDeltaB,
+      triangleDelta,
+      surfaceAreaA,
+      surfaceAreaB,
+      surfaceAreaDelta,
+      minWallThickness,
+      maxWallThickness,
+      thinWallWarning,
+      maxOverhangAngle,
+      overhangArea,
+      overhangAreaPercent,
+      printabilityStatus: printability.status,
+      printabilityIssues: printability.issues,
+      fileFormatA: options?.fileFormatA,
+      fileFormatB: options?.fileFormatB,
     },
   };
+}
+
+/**
+ * The cheap, tolerance-dependent half of computeVoxelDiff: dilate each
+ * mesh's occupancy grid by the tolerance and classify every cell as
+ * unchanged/added/removed. Everything else needed to interpret the result
+ * (bounding box/triangle/surface-area deltas, wall thickness, overhang,
+ * printability) already lives in `base` and doesn't change with tolerance.
+ */
+export function classifyVoxelDiff(base: VoxelDiffBase, toleranceMm: number = 0): VoxelDiffResult {
+  const { dims, occupiedA, occupiedB, resolutionMm, voxelVolumeMm3 } = base;
+  const toleranceVoxels = toleranceMm > 0 ? Math.round(toleranceMm / resolutionMm) : 0;
+  // A cell that's occupied only in A (or only in B) is within tolerance if
+  // the *other* mesh has an occupied cell nearby — check against a dilated
+  // copy of the other mesh's grid rather than the exact one.
+  const dilatedA = toleranceVoxels > 0 ? dilateOccupancy(occupiedA, dims, toleranceVoxels) : occupiedA;
+  const dilatedB = toleranceVoxels > 0 ? dilateOccupancy(occupiedB, dims, toleranceVoxels) : occupiedB;
+
+  const classification = new Uint8Array(occupiedA.length);
+  let addedCount = 0;
+  let removedCount = 0;
+  let unchangedCount = 0;
+
+  for (let i = 0; i < classification.length; i++) {
+    const inA = occupiedA[i] === 1;
+    const inB = occupiedB[i] === 1;
+    if (inA && inB) {
+      classification[i] = VOXEL_UNCHANGED;
+      unchangedCount++;
+    } else if (inA && !inB) {
+      if (dilatedB[i] === 1) {
+        classification[i] = VOXEL_UNCHANGED;
+        unchangedCount++;
+      } else {
+        classification[i] = VOXEL_REMOVED;
+        removedCount++;
+      }
+    } else if (!inA && inB) {
+      if (dilatedA[i] === 1) {
+        classification[i] = VOXEL_UNCHANGED;
+        unchangedCount++;
+      } else {
+        classification[i] = VOXEL_ADDED;
+        addedCount++;
+      }
+    }
+  }
+
+  const volumeAMm3 = (unchangedCount + removedCount) * voxelVolumeMm3;
+  const approxVolumeDeltaMm3 = (addedCount - removedCount) * voxelVolumeMm3;
+  const approxVolumeDeltaPercent = volumeAMm3 > 0 ? (approxVolumeDeltaMm3 / volumeAMm3) * 100 : 0;
+
+  return {
+    grid: { resolutionMm: base.resolutionMm, dims: base.dims, originMm: base.originMm, classification },
+    stats: {
+      addedCount,
+      removedCount,
+      unchangedCount,
+      voxelVolumeMm3,
+      approxVolumeDeltaMm3,
+      approxVolumeDeltaPercent,
+      boundingBoxDeltaX: base.boundingBoxDeltaX,
+      boundingBoxDeltaY: base.boundingBoxDeltaY,
+      boundingBoxDeltaZ: base.boundingBoxDeltaZ,
+      triangleDeltaA: base.triangleDeltaA,
+      triangleDeltaB: base.triangleDeltaB,
+      triangleDelta: base.triangleDelta,
+      surfaceAreaA: base.surfaceAreaA,
+      surfaceAreaB: base.surfaceAreaB,
+      surfaceAreaDelta: base.surfaceAreaDelta,
+      minWallThickness: base.minWallThickness,
+      maxWallThickness: base.maxWallThickness,
+      thinWallWarning: base.thinWallWarning,
+      maxOverhangAngle: base.maxOverhangAngle,
+      overhangArea: base.overhangArea,
+      overhangAreaPercent: base.overhangAreaPercent,
+      printabilityStatus: base.printabilityStatus,
+      printabilityIssues: base.printabilityIssues,
+      fileFormatA: base.fileFormatA,
+      fileFormatB: base.fileFormatB,
+    },
+  };
+}
+
+/**
+ * Convenience wrapper for callers that don't need to cache the base result
+ * across repeated tolerance changes (the API server, tests, seed scripts).
+ * The client-side worker path calls computeVoxelDiffBase/classifyVoxelDiff
+ * directly instead so it can cache the base across a tolerance-only change.
+ */
+export function computeVoxelDiff(
+  geometryA: THREE.BufferGeometry,
+  geometryB: THREE.BufferGeometry,
+  options?: {
+    resolutionMm?: number;
+    targetVoxelsPerAxis?: number;
+    /** Deviations within this distance of the other mesh don't count as added/removed. */
+    toleranceMm?: number;
+    fileFormatA?: string;
+    fileFormatB?: string;
+  },
+): Result<VoxelDiffResult> {
+  const baseResult = computeVoxelDiffBase(geometryA, geometryB, options);
+  if (!baseResult.success) return baseResult;
+  return { success: true, data: classifyVoxelDiff(baseResult.data, options?.toleranceMm ?? 0) };
 }

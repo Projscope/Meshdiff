@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { seedSampleProject } from "../lib/seedSampleProject.js";
 
 const DEFAULT_WORKSPACE_NAME = "My Workspace";
@@ -64,7 +65,10 @@ export default async function workspaceRoute(app: FastifyInstance): Promise<void
     }
   });
 
-  app.patch<{ Body: UpdateWorkspaceBody }>("/workspace", { preHandler: requireAuth }, async (request, reply) => {
+  app.patch<{ Body: UpdateWorkspaceBody }>(
+    "/workspace",
+    { preHandler: [requireAuth, requireActiveAccess] },
+    async (request, reply) => {
     const { name } = request.body ?? {};
     if (typeof name !== "string" || name.trim().length === 0) {
       reply.code(400);

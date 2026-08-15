@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
 
 const BUCKET = "project-meshes";
@@ -26,12 +27,13 @@ interface UpdateProjectBody {
 interface ListProjectsQuery {
   page?: string;
   pageSize?: string;
+  sort?: "name" | "date-newest" | "date-oldest";
 }
 
 export default async function projectsRoute(app: FastifyInstance): Promise<void> {
   app.post<{ Body: CreateProjectBody }>(
     "/projects",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { name, description } = request.body ?? {};
 
@@ -95,6 +97,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
     const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(request.query.pageSize ?? "", 10) || DEFAULT_PAGE_SIZE));
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
+    const sort = request.query.sort ?? "date-newest";
 
     try {
       const { data: memberships } = await supabase
@@ -118,12 +121,18 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
         teamIds.length > 0
           ? query.or(`owner_user_id.eq.${request.userId},team_id.in.(${teamIds.join(",")})`)
           : query.eq("owner_user_id", request.userId);
-      // Explicitly creation date, not updated_at — nothing bumps updated_at
-      // today (renaming a project doesn't touch it), so the two happen to
-      // match right now, but ordering by the field that actually means
-      // "when was this created" keeps that true even if updated_at starts
-      // being maintained for real later.
-      const { data: rows, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
+
+      // Apply sorting based on the sort parameter
+      if (sort === "name") {
+        query = query.order("name", { ascending: true });
+      } else if (sort === "date-oldest") {
+        query = query.order("created_at", { ascending: true });
+      } else {
+        // Default: date-newest
+        query = query.order("created_at", { ascending: false });
+      }
+
+      const { data: rows, error, count } = await query.range(from, to);
 
       if (error) {
         app.log.error(error, "Failed to list projects");
@@ -174,7 +183,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const supabase = getSupabase();
       if (!supabase) {
@@ -206,6 +215,10 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Project not found" };
         }
 
+        const { data: signed } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(thumbnailPath(row.id), THUMBNAIL_URL_TTL_SECONDS);
+
         return {
           success: true,
           data: {
@@ -215,6 +228,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             teamId: row.team_id,
+            thumbnailUrl: signed?.signedUrl ?? null,
             myRole: access.role,
           },
         };
@@ -228,7 +242,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
   app.patch<{ Params: { projectId: string }; Body: UpdateProjectBody }>(
     "/projects/:projectId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const body = request.body ?? {};
@@ -326,7 +340,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
   // DB column to track it — each new upload just overwrites the same object.
   app.post<{ Params: { projectId: string } }>(
     "/projects/:projectId/thumbnail-upload-url",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();
@@ -422,7 +436,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
   // deleted model.
   app.delete<{ Params: { projectId: string } }>(
     "/projects/:projectId/thumbnail",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 
 interface CreateTeamBody {
   name?: string;
@@ -12,7 +13,7 @@ interface AddMemberBody {
 }
 
 export default async function teamsRoute(app: FastifyInstance): Promise<void> {
-  app.get("/teams", { preHandler: requireAuth }, async (request, reply) => {
+  app.get("/teams", { preHandler: [requireAuth, requireActiveAccess] }, async (request, reply) => {
     const supabase = getSupabase();
     if (!supabase) {
       app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
@@ -62,7 +63,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.post<{ Body: CreateTeamBody }>("/teams", { preHandler: requireAuth }, async (request, reply) => {
+  app.post<{ Body: CreateTeamBody }>("/teams", { preHandler: [requireAuth, requireActiveAccess] }, async (request, reply) => {
     const { name } = request.body ?? {};
     if (typeof name !== "string" || name.trim().length === 0) {
       reply.code(400);
@@ -109,7 +110,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
 
   app.get<{ Params: { teamId: string } }>(
     "/teams/:teamId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { teamId } = request.params;
       const supabase = getSupabase();
@@ -191,7 +192,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
 
   app.post<{ Params: { teamId: string }; Body: AddMemberBody }>(
     "/teams/:teamId/members",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { teamId } = request.params;
       const { email, role } = request.body ?? {};
@@ -272,7 +273,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
 
   app.delete<{ Params: { teamId: string; userId: string } }>(
     "/teams/:teamId/members/:userId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { teamId, userId: targetUserId } = request.params;
 

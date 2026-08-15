@@ -138,6 +138,8 @@ export interface ViewerHandle {
   loadDemo: () => void;
   /** Loads a mesh from already-fetched bytes (e.g. a shared diff's files). */
   loadFromBytes: (bytes: Blob, filename: string) => void;
+  /** PNG data URL of the current render, or null if nothing has rendered yet. */
+  captureScreenshot: () => string | null;
 }
 
 const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
@@ -153,8 +155,10 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const [zoomSpeed, setZoomSpeed] = useState(1);
   const [rotateSpeed, setRotateSpeed] = useState(1);
   const [showControls, setShowControls] = useState(false);
+  const [gridFadeDistance, setGridFadeDistance] = useState(100);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const orbitControlsRef = useRef<any>(null);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -167,6 +171,16 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       // of color — only the mesh actually rendered in this viewer swaps to
       // the colored version, and only if the file is 3MF with real color.
       onGeometryLoaded?.(result.data, file);
+
+      // drei's Grid fades out with distance from the camera's projection
+      // onto the grid plane (fixed 100-unit default) — scale it to the
+      // model's own diagonal so the visible patch always reaches past
+      // every corner, with a floor so a tiny part doesn't look cropped.
+      result.data.computeBoundingBox();
+      const box = result.data.boundingBox;
+      if (box) {
+        setGridFadeDistance(Math.max(box.getSize(new THREE.Vector3()).length() * 1.5, 50));
+      }
 
       if (file.name.toLowerCase().endsWith(".3mf")) {
         const colored = await loadMeshForDisplay(file);
@@ -199,6 +213,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     openFileDialog: () => fileInputRef.current?.click(),
     loadDemo: () => void handleLoadDemo(),
     loadFromBytes: (bytes, filename) => void handleFile(new File([bytes], filename)),
+    captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
   }));
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -314,10 +329,16 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           </div>
         </div>
       )}
-      <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
+      <Canvas
+        camera={{ position: [50, 50, 50], fov: 45 }}
+        gl={{ preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          canvasElRef.current = gl.domElement;
+        }}
+      >
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
-        <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
+        <Grid infiniteGrid fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />
         {/* The grid is drei's default Y-up floor; this app's model data is
             Z-up (see diffVoxels.ts's gravity vector), so the displayed
             content is rotated -90° around X to lay it flat on that floor.

@@ -3,7 +3,7 @@ import { useState } from "react";
 const FAQS = [
   {
     q: "Are my files uploaded to a server?",
-    a: "No. The Community diff runs entirely in your browser — your STL, 3MF, and OBJ files never leave your machine unless you explicitly create a share link.",
+    a: "In Community, files stay on your machine when comparing or measuring — they never leave your browser. Files are uploaded only when you create a share link. Pro and Team upload all files to storage (for saved projects, history, and versioning).",
   },
   {
     q: "Which file formats are supported?",

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
 import healthRoute from "./routes/health.js";
 import diffRoute from "./routes/diff.js";
 import waitlistRoute from "./routes/waitlist.js";
@@ -10,6 +11,7 @@ import versionsRoute from "./routes/versions.js";
 import commentsRoute from "./routes/comments.js";
 import teamsRoute from "./routes/teams.js";
 import workspaceRoute from "./routes/workspace.js";
+import billingRoute from "./routes/billing.js";
 
 const app = Fastify({ logger: true });
 
@@ -22,8 +24,10 @@ const app = Fastify({ logger: true });
 // that doesn't list it, surfacing as an opaque "Failed to fetch".
 await app.register(cors, {
   origin: true,
+  credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 });
+await app.register(cookie);
 app.register(healthRoute);
 app.register(diffRoute);
 app.register(waitlistRoute);
@@ -33,6 +37,7 @@ app.register(versionsRoute);
 app.register(commentsRoute);
 app.register(teamsRoute);
 app.register(workspaceRoute);
+app.register(billingRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

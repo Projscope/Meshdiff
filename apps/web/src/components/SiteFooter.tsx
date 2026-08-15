@@ -24,9 +24,12 @@ export default function SiteFooter() {
         <div>
           <p className="text-xs font-semibold text-neutral-300">Product</p>
           <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-500">
-            <a href="/#features" className="hover:text-neutral-300">
+            <Link to="/features" className="hover:text-neutral-300">
               Features
-            </a>
+            </Link>
+            <Link to="/roadmap" className="hover:text-neutral-300">
+              Roadmap
+            </Link>
             {SHOW_MONETIZATION && (
               <a href="/#pricing" className="hover:text-neutral-300">
                 Pricing
@@ -44,9 +47,10 @@ export default function SiteFooter() {
             <a href="/#faq" className="hover:text-neutral-300">
               FAQ
             </a>
-            <a href="/privacy" className="hover:text-neutral-300">
+            {/* TODO: Create privacy policy page and uncomment this link */}
+            {/* <a href="/privacy" className="hover:text-neutral-300">
               Privacy Policy
-            </a>
+            </a> */}
           </nav>
         </div>
 

@@ -125,6 +125,15 @@ export default function ProjectDetailPage() {
     void refresh();
   }, [refresh]);
 
+  // Auto-generate thumbnail for projects that have versions but no thumbnail yet
+  // (e.g., sample projects created server-side on signup)
+  useEffect(() => {
+    if (!project || !projectId || project.thumbnailUrl || versions.length === 0) return;
+    const latestVersion = versions[versions.length - 1];
+    if (!latestVersion) return;
+    void refreshProjectThumbnailFromVersion(projectId, latestVersion.id);
+  }, [project?.id, project?.thumbnailUrl, versions.length, projectId]);
+
   useEffect(() => {
     listMyTeams().then((result) => {
       if (result.success) setMyTeams(result.data);
@@ -378,20 +387,25 @@ export default function ProjectDetailPage() {
               ))}
             </select>
           )}
-          <button
-            type="button"
-            onClick={() => void handleShare()}
-            className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
-          >
-            🔗 {shareCopied ? "Copied!" : "Share"}
-          </button>
+          {project?.teamId && (
+            <button
+              type="button"
+              onClick={() => void handleShare()}
+              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
+            >
+              🔗 {shareCopied ? "Copied!" : "Share Project"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
+            className="flex items-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
           >
-            {isUploading ? "Uploading…" : "+ New Model"}
+            {isUploading && (
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-neutral-950/30 border-t-neutral-950" />
+            )}
+            {isUploading ? "Uploading" : "Upload"}
           </button>
           {project && (project.myRole === "owner" || project.myRole === "admin") && (
             <button
@@ -418,7 +432,22 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className={`mt-6 grid grid-cols-2 gap-3 ${isTeam ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+      <div className="mt-6 flex gap-6 rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+        {project?.thumbnailUrl && (
+          <div className="shrink-0">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Latest Model</p>
+            <img
+              src={project.thumbnailUrl}
+              alt={project.name}
+              className="mt-3 h-64 w-64 rounded bg-neutral-950 object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        )}
+
+        <div className="flex-1 space-y-3">
         {isTeam ? (
           <>
             <StatCard label="Comparisons" value={comparisons.length} />
@@ -458,6 +487,7 @@ export default function ProjectDetailPage() {
           </>
         )}
         <StatCard label="Versions" value={versions.length} />
+        </div>
       </div>
 
       {isTeam ? (
@@ -472,7 +502,7 @@ export default function ProjectDetailPage() {
           {comparisons.length === 0 && versions.length <= 1 && (
             <div className="px-4 py-10 text-center text-sm text-neutral-500">
               {versions.length === 0
-                ? "No versions yet — drop a file or click \"+ New Model\" to get started."
+                ? "No versions yet — drop a file or click \"Upload\" to get started."
                 : "Upload a second version to see your first comparison here."}
             </div>
           )}
@@ -522,7 +552,7 @@ export default function ProjectDetailPage() {
         </div>
       ) : versions.length === 0 ? (
         <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
-          No models yet — drop a file or click "+ New Model" to get started.
+          No models yet — drop a file or click "Upload" to get started.
         </div>
       ) : null}
 

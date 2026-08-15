@@ -1,7 +1,7 @@
 import {
   forwardRef,
   useImperativeHandle,
-  useMemo,
+  useState,
   useRef,
   useLayoutEffect,
   useEffect,
@@ -10,18 +10,26 @@ import * as THREE from "three";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
 import {
-  computeVoxelDiff,
   VOXEL_ADDED,
   VOXEL_REMOVED,
   VOXEL_UNCHANGED,
   type VoxelDiffResult,
   type VoxelDiffStats,
 } from "@meshdiff/shared/engine/diffVoxels";
+import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 
 export type DiffMode = "voxel" | "surface";
+
+// A coarse first pass on a new mesh pair — cheap enough to land almost
+// immediately, giving the viewer something to show while the real
+// (default ~32/axis, see diffVoxels.ts) resolution computes in the
+// background. Coarse enough to visibly differ from the fine pass (so it
+// reads as "still loading", not as the final answer) without being so
+// coarse it's a meaningless blob.
+const COARSE_TARGET_VOXELS_PER_AXIS = 12;
 
 interface DiffViewProps {
   geometryA: THREE.BufferGeometry | null;
@@ -216,25 +224,102 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
   }));
 
-  // TODO: Move this to a Web Worker to avoid blocking the render thread during diff computation
-  // The voxelization, BVH building, and dilation are expensive operations that should run off-thread
-  // See CLAUDE.md "3D Performance Rules": "All heavy computation runs in Web Workers"
-  const diff = useMemo(() => {
-    if (!geometryA || !geometryB) return null;
-    const result = computeVoxelDiff(geometryA, geometryB, { toleranceMm });
-    return result.success ? result.data : { error: result.error };
+  // Voxelization, BVH building, and dilation are expensive — they run in a
+  // Web Worker (see voxelDiffWorkerClient.ts) so this doesn't block the
+  // render thread while a diff computes, per CLAUDE.md "3D Performance
+  // Rules". `requestIdRef` guards against a stale response landing after a
+  // newer request was already fired (e.g. dragging the tolerance slider).
+  const [diff, setDiff] = useState<(VoxelDiffResult & { error?: undefined }) | { error: string } | null>(null);
+  const [isComputing, setIsComputing] = useState(false);
+  const [gridFadeDistance, setGridFadeDistance] = useState(100);
+  // Whether the currently-shown `diff` is the coarse preview or the final,
+  // full-resolution result — drives the "Refining…" label below and gates
+  // onStatsChange (the sidebar's numbers shouldn't flash the coarse grid's
+  // less-accurate volume delta before settling on the real one).
+  const [diffQuality, setDiffQuality] = useState<"coarse" | "fine" | null>(null);
+  const requestIdRef = useRef(0);
+  const lastGeometryPairRef = useRef<{ a: THREE.BufferGeometry | null; b: THREE.BufferGeometry | null }>({
+    a: null,
+    b: null,
+  });
+
+  useEffect(() => {
+    // drei's Grid fades out with distance from the camera's projection onto
+    // the grid plane (fixed 100-unit default) — scale it to the combined
+    // pair's own diagonal so the visible patch always reaches past every
+    // corner, with a floor so a small pair doesn't look cropped. Computed
+    // separately from the diff itself so it updates immediately rather
+    // than waiting on voxelization.
+    if (!geometryA || !geometryB) return;
+    geometryA.computeBoundingBox();
+    geometryB.computeBoundingBox();
+    const boxA = geometryA.boundingBox;
+    const boxB = geometryB.boundingBox;
+    if (boxA && boxB) {
+      const union = boxA.clone().union(boxB);
+      setGridFadeDistance(Math.max(union.getSize(new THREE.Vector3()).length() * 1.5, 50));
+    }
+  }, [geometryA, geometryB]);
+
+  useEffect(() => {
+    if (!geometryA || !geometryB) {
+      lastGeometryPairRef.current = { a: null, b: null };
+      setDiff(null);
+      setDiffQuality(null);
+      setIsComputing(false);
+      return;
+    }
+
+    // A brand-new mesh pair gets a coarse pass first — CLAUDE.md's
+    // "Implement progressive loading: coarse voxel diff first, refine"
+    // — so there's something on screen almost immediately instead of a
+    // blank viewer for however long the full-resolution grid takes on a
+    // big mesh. A tolerance-only change on the *same* pair skips straight
+    // to the fine pass: it's already cheap (see computeVoxelDiffBase/
+    // classifyVoxelDiff's split in diffVoxels.ts) and re-showing a coarser
+    // grid on every slider tick would be a downgrade, not a preview.
+    const isNewGeometryPair = geometryA !== lastGeometryPairRef.current.a || geometryB !== lastGeometryPairRef.current.b;
+    lastGeometryPairRef.current = { a: geometryA, b: geometryB };
+
+    const requestId = ++requestIdRef.current;
+    setIsComputing(true);
+
+    async function run() {
+      if (isNewGeometryPair) {
+        const coarse = await computeVoxelDiffOffThread(geometryA!, geometryB!, {
+          toleranceMm,
+          targetVoxelsPerAxis: COARSE_TARGET_VOXELS_PER_AXIS,
+        });
+        if (requestIdRef.current !== requestId) return; // superseded before the coarse pass even landed
+        setDiff(coarse.success ? coarse.data : { error: coarse.error });
+        setDiffQuality("coarse");
+        if (!coarse.success) {
+          setIsComputing(false);
+          return; // don't bother refining a failed coarse pass
+        }
+      }
+
+      const fine = await computeVoxelDiffOffThread(geometryA!, geometryB!, { toleranceMm });
+      if (requestIdRef.current !== requestId) return; // superseded by a newer request
+      setDiff(fine.success ? fine.data : { error: fine.error });
+      setDiffQuality("fine");
+      setIsComputing(false);
+    }
+    void run();
   }, [geometryA, geometryB, toleranceMm]);
 
   const isPending = !geometryA || !geometryB;
   const hasError = diff && "error" in diff;
 
   useEffect(() => {
-    if (diff && !("error" in diff)) {
+    // Only the fine/final pass's numbers are accurate enough to surface —
+    // the coarse preview exists purely for the 3D view's early feedback.
+    if (diffQuality === "fine" && diff && !("error" in diff)) {
       onStatsChange?.({ ...diff.stats, toleranceMm });
-    } else {
+    } else if (!diff) {
       onStatsChange?.(null);
     }
-  }, [diff, toleranceMm, onStatsChange]);
+  }, [diff, diffQuality, toleranceMm, onStatsChange]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
@@ -242,6 +327,12 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           {label}
         </span>
+        {isComputing && !isPending && (
+          <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
+            {diffQuality === "coarse" ? "Refining…" : "Computing…"}
+          </span>
+        )}
         {!isPending && !hasError && (
           <div className="flex overflow-hidden rounded border border-neutral-700 text-[11px]">
             <button
@@ -315,7 +406,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
-        <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
+        <Grid infiniteGrid fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />
         {/* The grid is drei's default Y-up floor; this app's model data is
             Z-up (see diffVoxels.ts's gravity vector), so the displayed
             content is rotated -90° around X to lay it flat on that floor.

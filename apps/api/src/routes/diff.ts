@@ -3,6 +3,7 @@ import { getSupabase } from "../lib/supabase.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { computeVoxelDiff } from "@meshdiff/shared/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
 
 const BUCKET = "project-meshes";
@@ -17,7 +18,7 @@ interface VersionRow {
 export default async function diffRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { versionAId: string; versionBId: string } }>(
     "/diff/:versionAId/:versionBId",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { versionAId, versionBId } = request.params;
       const supabase = getSupabase();
