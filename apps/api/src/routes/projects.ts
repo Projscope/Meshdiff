@@ -3,6 +3,7 @@ import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
+import { getUserTier } from "../lib/subscription.js";
 
 const BUCKET = "project-meshes";
 const THUMBNAIL_URL_TTL_SECONDS = 3600;
@@ -47,6 +48,12 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
         app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
         reply.code(500);
         return { success: false, error: "Projects are not configured" };
+      }
+
+      const { tier } = await getUserTier(supabase, request.userId!);
+      if (tier === "free") {
+        reply.code(403);
+        return { success: false, error: "Upgrade to create new projects. Use the Sample Project to learn the platform." };
       }
 
       try {

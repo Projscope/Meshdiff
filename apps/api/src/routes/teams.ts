@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
+import { getUserTier } from "../lib/subscription.js";
 
 interface CreateTeamBody {
   name?: string;
@@ -75,6 +76,12 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
       app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
       reply.code(500);
       return { success: false, error: "Teams are not configured" };
+    }
+
+    const { tier } = await getUserTier(supabase, request.userId!);
+    if (tier === "free") {
+      reply.code(403);
+      return { success: false, error: "Upgrade to create teams. Use the Sample Project to learn the platform." };
     }
 
     try {
