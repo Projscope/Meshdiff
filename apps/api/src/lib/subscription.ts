@@ -22,9 +22,20 @@ export async function getUserTier(supabase: SupabaseClient, userId: string): Pro
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!data || (data.status !== "active" && data.status !== "trialing")) {
+  if (!data) {
     return { tier: "free", row: null };
   }
+
+  // Treat any non-canceled, non-past_due status as "pro" — includes:
+  // - active: paid and active
+  // - trialing: in trial period
+  // - incomplete: awaiting payment (user just checked out)
+  // - incomplete_expired: payment failed but can retry
+  const inactiveStatuses = ["canceled", "past_due"];
+  if (inactiveStatuses.includes(data.status)) {
+    return { tier: "free", row: null };
+  }
+
   return { tier: "pro", row: data as SubscriptionRow };
 }
 

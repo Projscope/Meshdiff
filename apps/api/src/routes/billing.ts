@@ -223,6 +223,7 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
       const supabase = getSupabase();
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
       if (!stripe || !supabase || !webhookSecret) {
+        app.log.error("Webhook called but billing not configured");
         reply.code(500);
         return { success: false, error: "Billing is not configured" };
       }
@@ -231,6 +232,7 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
       let event: Stripe.Event;
       try {
         event = stripe.webhooks.constructEvent(request.body as Buffer, signature as string, webhookSecret);
+        app.log.info({ eventType: event.type }, "Stripe webhook received");
       } catch (err) {
         app.log.warn(err, "Stripe webhook signature verification failed");
         reply.code(400);
