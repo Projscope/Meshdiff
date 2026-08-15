@@ -5,7 +5,7 @@ import { getSupabase } from "../lib/supabase.js";
 import { extensionOf } from "../lib/filename.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
-import { computeVoxelDiff } from "../../shared/src/engine/diffVoxels.js";
+import { computeVoxelDiff } from "../../shared/src/engine/diffVoxels";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
