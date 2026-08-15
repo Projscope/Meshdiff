@@ -407,7 +407,7 @@ export default function VersionDetailPage() {
         )}
       </div>
 
-      <div className="w-80 shrink-0 overflow-y-auto">
+      <div className="w-80 shrink-0 overflow-y-auto pr-3">
         <Link to={`/projects/${projectId}`} className="text-xs text-neutral-500 hover:text-neutral-300">
           ← {version ? "Back to project" : "Back"}
         </Link>
