@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import * as THREE from "three";
-import { getVersion, listVersions, getSubscription, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
+import { getVersion, listVersions, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import DiffView, { type DiffMode, type DiffViewHandle } from "../components/DiffView";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import ReadOnlyMeshViewer, { type ReadOnlyMeshViewerHandle } from "../components/ReadOnlyMeshViewer";
+import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
 
@@ -27,6 +28,10 @@ export default function CompareVersionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [allVersions, setAllVersions] = useState<VersionSummary[]>([]);
   const [isProOrTeam, setIsProOrTeam] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isShareSubmitting, setIsShareSubmitting] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const viewerARef = useRef<ReadOnlyMeshViewerHandle>(null);
   const viewerBRef = useRef<ReadOnlyMeshViewerHandle>(null);
   const diffViewRef = useRef<DiffViewHandle>(null);
@@ -110,6 +115,34 @@ export default function CompareVersionsPage() {
     };
   }, [projectId, versionAId, versionBId]);
 
+  function handleShareClick() {
+    setIsShareModalOpen(true);
+    setShareError(null);
+    setShareUrl(null);
+  }
+
+  async function handleShareSubmit(expiresInDays: ExpiresInDays) {
+    if (!projectId || !versionAId || !versionBId || !stats) return;
+    setIsShareSubmitting(true);
+    setShareError(null);
+
+    const result = await createComparisonShare(
+      projectId,
+      versionAId,
+      versionBId,
+      mode,
+      stats.toleranceMm,
+      expiresInDays,
+    );
+
+    if (result.success) {
+      setShareUrl(result.data.url);
+    } else {
+      setShareError(result.error);
+    }
+    setIsShareSubmitting(false);
+  }
+
   return (
     <div className="flex h-[calc(100vh-2rem)] w-full gap-4 px-4 py-4">
       <div className="flex flex-1 flex-col gap-2 overflow-hidden">
@@ -182,21 +215,30 @@ export default function CompareVersionsPage() {
           >
             ← Back to project
           </Link>
-          {stats && (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() =>
-                downloadDiffReportPdf(stats, isProOrTeam, {
-                  viewA: viewerARef.current?.captureScreenshot(),
-                  viewB: viewerBRef.current?.captureScreenshot(),
-                  combined: diffViewRef.current?.captureScreenshot(),
-                })
-              }
-              className="rounded bg-emerald-500 px-2.5 py-1 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
+              onClick={handleShareClick}
+              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
             >
-              Download Report
+              🔗 Share
             </button>
-          )}
+            {stats && (
+              <button
+                type="button"
+                onClick={() =>
+                  downloadDiffReportPdf(stats, isProOrTeam, {
+                    viewA: viewerARef.current?.captureScreenshot(),
+                    viewB: viewerBRef.current?.captureScreenshot(),
+                    combined: diffViewRef.current?.captureScreenshot(),
+                  })
+                }
+                className="rounded bg-emerald-500 px-2.5 py-1 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
+              >
+                Download Report
+              </button>
+            )}
+          </div>
         </div>
 
         {allVersions.length > 1 && (
@@ -249,6 +291,20 @@ export default function CompareVersionsPage() {
               <DetailedStatsPanel stats={stats} hasComparison boundingBoxB={boundingBoxB} />
             </div>
           </>
+        )}
+
+        {isShareModalOpen && (
+          <ShareModal
+            onClose={() => {
+              setIsShareModalOpen(false);
+              setShareUrl(null);
+              setShareError(null);
+            }}
+            onSubmit={handleShareSubmit}
+            isSubmitting={isShareSubmitting}
+            error={shareError}
+            shareUrl={shareUrl}
+          />
         )}
       </div>
     </div>

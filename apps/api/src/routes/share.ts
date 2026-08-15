@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { sanitizeFilename, extensionOf } from "../lib/filename.js";
+import { requireAuth } from "../lib/requireAuth.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -19,6 +20,15 @@ interface CreateShareBody {
   expiresInDays?: number;
   fileA?: FileMeta;
   fileB?: FileMeta;
+}
+
+interface CreateComparisonShareBody {
+  projectId: string;
+  versionAId: string;
+  versionBId: string;
+  mode?: "voxel" | "surface";
+  toleranceMm?: number;
+  expiresInDays?: number;
 }
 
 function validateFile(file: FileMeta | undefined, label: string): string | null {
@@ -189,4 +199,138 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
       return { success: false, error: "Failed to load share" };
     }
   });
+
+  app.post<{ Body: CreateComparisonShareBody }>(
+    "/comparison-share",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionAId, versionBId, mode, toleranceMm, expiresInDays } = request.body ?? {};
+
+      if (!projectId || !versionAId || !versionBId) {
+        reply.code(400);
+        return { success: false, error: "projectId, versionAId, and versionBId are required" };
+      }
+      if (mode !== "voxel" && mode !== "surface") {
+        reply.code(400);
+        return { success: false, error: "mode must be 'voxel' or 'surface'" };
+      }
+      if (typeof toleranceMm !== "number" || !Number.isFinite(toleranceMm) || toleranceMm < 0) {
+        reply.code(400);
+        return { success: false, error: "toleranceMm must be a non-negative number" };
+      }
+      if (typeof expiresInDays !== "number" || !ALLOWED_EXPIRY_DAYS.has(expiresInDays)) {
+        reply.code(400);
+        return { success: false, error: "expiresInDays must be 1, 3, or 7" };
+      }
+
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Sharing is not configured" };
+      }
+
+      try {
+        const [versionAResult, versionBResult] = await Promise.all([
+          supabase
+            .from("versions")
+            .select("file_name, file_path")
+            .eq("id", versionAId)
+            .maybeSingle(),
+          supabase
+            .from("versions")
+            .select("file_name, file_path")
+            .eq("id", versionBId)
+            .maybeSingle(),
+        ]);
+
+        if (versionAResult.error || !versionAResult.data) {
+          app.log.error(versionAResult.error, "Failed to fetch version A");
+          reply.code(400);
+          return { success: false, error: "Version A not found" };
+        }
+        if (versionBResult.error || !versionBResult.data) {
+          app.log.error(versionBResult.error, "Failed to fetch version B");
+          reply.code(400);
+          return { success: false, error: "Version B not found" };
+        }
+
+        const versionA = versionAResult.data;
+        const versionB = versionBResult.data;
+
+        const id = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + expiresInDays! * 24 * 60 * 60 * 1000).toISOString();
+        const fileAPath = `${id}/a-${sanitizeFilename(versionA.file_name)}`;
+        const fileBPath = `${id}/b-${sanitizeFilename(versionB.file_name)}`;
+
+        const [copyAResult, copyBResult] = await Promise.all([
+          supabase.storage.from("project-meshes").download(versionA.file_path),
+          supabase.storage.from("project-meshes").download(versionB.file_path),
+        ]);
+
+        if (copyAResult.error || !copyAResult.data) {
+          app.log.error(copyAResult.error, "Failed to download version A file");
+          reply.code(400);
+          return { success: false, error: "Failed to access version A file" };
+        }
+        if (copyBResult.error || !copyBResult.data) {
+          app.log.error(copyBResult.error, "Failed to download version B file");
+          reply.code(400);
+          return { success: false, error: "Failed to access version B file" };
+        }
+
+        const [uploadAResult, uploadBResult] = await Promise.all([
+          supabase.storage.from(BUCKET).upload(fileAPath, copyAResult.data),
+          supabase.storage.from(BUCKET).upload(fileBPath, copyBResult.data),
+        ]);
+
+        if (uploadAResult.error || uploadBResult.error) {
+          app.log.error({ a: uploadAResult.error, b: uploadBResult.error }, "Failed to upload share files");
+          reply.code(502);
+          return { success: false, error: "Failed to create share, please try again" };
+        }
+
+        const { error: insertError } = await supabase.from("shares").insert({
+          id,
+          expires_at: expiresAt,
+          mode,
+          tolerance_mm: toleranceMm,
+          file_a_name: versionA.file_name,
+          file_b_name: versionB.file_name,
+          file_a_path: fileAPath,
+          file_b_path: fileBPath,
+        });
+
+        if (insertError) {
+          app.log.error(insertError, "Failed to insert share row");
+          reply.code(502);
+          return { success: false, error: "Failed to create share, please try again" };
+        }
+
+        const shareUrl = `${request.headers.origin ?? "http://localhost:5173"}/live?share=${id}`;
+
+        const { error: statsError } = await supabase.from("share_stats").insert({
+          share_id: id,
+          expires_in_days: expiresInDays,
+          share_url: shareUrl,
+        });
+        if (statsError) {
+          app.log.warn(statsError, "Failed to record share_stats row");
+        }
+
+        return {
+          success: true,
+          data: {
+            id,
+            expiresAt,
+            url: shareUrl,
+          },
+        };
+      } catch (err) {
+        app.log.error(err, "Comparison share creation threw");
+        reply.code(502);
+        return { success: false, error: "Failed to create share, please try again" };
+      }
+    },
+  );
 }

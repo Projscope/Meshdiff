@@ -404,3 +404,40 @@ export async function uploadVersion(
 
   return { success: true, data: { versionId: allocated.data.versionId } };
 }
+
+/** Create a shareable comparison link from project versions. */
+export async function createComparisonShare(
+  projectId: string,
+  versionAId: string,
+  versionBId: string,
+  mode: "voxel" | "surface",
+  toleranceMm: number,
+  expiresInDays: 1 | 3 | 7,
+): Promise<Result<{ id: string; url: string; expiresAt: string }>> {
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session?.access_token) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  const response = await fetch(`${API_BASE_URL}/comparison-share`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session.session.access_token}`,
+    },
+    body: JSON.stringify({
+      projectId,
+      versionAId,
+      versionBId,
+      mode,
+      toleranceMm,
+      expiresInDays,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    return { success: false, error: data.error ?? "Failed to create share" };
+  }
+  return data as Result<{ id: string; url: string; expiresAt: string }>;
+}

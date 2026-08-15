@@ -1,6 +1,7 @@
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
 import healthRoute from "./routes/health.js";
 import diffRoute from "./routes/diff.js";
 import waitlistRoute from "./routes/waitlist.js";
@@ -23,8 +24,10 @@ const app = Fastify({ logger: true });
 // that doesn't list it, surfacing as an opaque "Failed to fetch".
 await app.register(cors, {
   origin: true,
+  credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 });
+await app.register(cookie);
 app.register(healthRoute);
 app.register(diffRoute);
 app.register(waitlistRoute);

@@ -13,6 +13,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
     "@supabase/supabase-js": "^2.45.4"
   }
 }
