@@ -138,6 +138,8 @@ export interface ViewerHandle {
   loadDemo: () => void;
   /** Loads a mesh from already-fetched bytes (e.g. a shared diff's files). */
   loadFromBytes: (bytes: Blob, filename: string) => void;
+  /** PNG data URL of the current render, or null if nothing has rendered yet. */
+  captureScreenshot: () => string | null;
 }
 
 const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
@@ -156,6 +158,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const [gridFadeDistance, setGridFadeDistance] = useState(100);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const orbitControlsRef = useRef<any>(null);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -210,6 +213,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     openFileDialog: () => fileInputRef.current?.click(),
     loadDemo: () => void handleLoadDemo(),
     loadFromBytes: (bytes, filename) => void handleFile(new File([bytes], filename)),
+    captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
   }));
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -325,7 +329,13 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           </div>
         </div>
       )}
-      <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
+      <Canvas
+        camera={{ position: [50, 50, 50], fov: 45 }}
+        gl={{ preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          canvasElRef.current = gl.domElement;
+        }}
+      >
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={0.8} />
         <Grid infiniteGrid fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />

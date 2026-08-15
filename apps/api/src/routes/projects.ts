@@ -207,6 +207,10 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Project not found" };
         }
 
+        const { data: signed } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(thumbnailPath(row.id), THUMBNAIL_URL_TTL_SECONDS);
+
         return {
           success: true,
           data: {
@@ -216,6 +220,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             teamId: row.team_id,
+            thumbnailUrl: signed?.signedUrl ?? null,
             myRole: access.role,
           },
         };

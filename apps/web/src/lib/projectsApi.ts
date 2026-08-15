@@ -46,6 +46,7 @@ export interface ProjectDetail {
   name: string;
   description: string | null;
   teamId: string | null;
+  thumbnailUrl: string | null;
   /** This user's access level for the project. 'approver' is an "upgraded
    * member" — can approve/reject versions, nothing else admin-gated. */
   myRole: "owner" | "admin" | "approver" | "member";

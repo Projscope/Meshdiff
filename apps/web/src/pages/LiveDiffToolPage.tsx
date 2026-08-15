@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import * as THREE from "three";
-import { jsPDF } from "jspdf";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
 import DiffView, { type DiffViewHandle, type DiffMode } from "../components/DiffView";
@@ -12,6 +11,7 @@ import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { useAuth } from "../lib/AuthProvider";
 import { getSubscription } from "../lib/projectsApi";
+import { downloadDiffReportPdf } from "../lib/diffReportPdf";
 
 import compareDiffImage from '../assets/compare.svg';
 import measureImage from '../assets/measure.svg';
@@ -36,105 +36,6 @@ const TOOLS: Array<{ id: LiveTool; icon: string; label: string; description: str
 ];
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
-
-const MESHDIFF_URL = "https://meshdiff.com/";
-const EMERALD = "#10b981";
-const NEUTRAL_950 = "#0a0a0a";
-const NEUTRAL_400 = "#a3a3a3";
-const NEUTRAL_700 = "#404040";
-
-/** Draws the "^" logomark + Meshdiff wordmark, linked to meshdiff.com. */
-function drawLetterhead(doc: jsPDF) {
-  doc.setFillColor(EMERALD);
-  doc.roundedRect(14, 14, 9, 9, 2, 2, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(NEUTRAL_950);
-  doc.text("^", 18.5, 20.3, { align: "center" });
-
-  doc.setFontSize(14);
-  doc.setTextColor("#171717");
-  doc.text("Meshdiff", 26, 20.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(EMERALD);
-  doc.textWithLink(MESHDIFF_URL, 26, 25, { url: MESHDIFF_URL });
-
-  doc.setDrawColor(NEUTRAL_700);
-  doc.line(14, 30, 196, 30);
-}
-
-function downloadReport(stats: DiffStats, isProOrTeam: boolean) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  drawLetterhead(doc);
-
-  let y = 42;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor("#171717");
-  doc.text("Diff Report", 14, y);
-
-  y += 8;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(NEUTRAL_400);
-  doc.text(`Generated ${new Date().toLocaleString()}`, 14, y);
-
-  y += 10;
-  doc.setFontSize(10);
-  doc.setTextColor("#525252");
-  const note = doc.splitTextToSize(
-    "Partial report — reflects the voxel diff engine only. Wall thickness, overhang, " +
-      "and hole checks are not implemented yet.",
-    182,
-  );
-  doc.text(note, 14, y);
-  y += note.length * 5 + 6;
-
-  const rows: Array<[string, string]> = [
-    ["Tolerance (mm)", stats.toleranceMm.toFixed(3)],
-    ["Added voxels", stats.addedCount.toLocaleString()],
-    ["Removed voxels", stats.removedCount.toLocaleString()],
-    ["Unchanged voxels", stats.unchangedCount.toLocaleString()],
-    ["Voxel volume (mm³)", stats.voxelVolumeMm3.toFixed(4)],
-    ["Approx. volume delta (mm³)", stats.approxVolumeDeltaMm3.toFixed(2)],
-    ["Approx. volume delta (%)", `${stats.approxVolumeDeltaPercent.toFixed(2)}%`],
-  ];
-
-  doc.setDrawColor(230, 230, 230);
-  for (const [label, value] of rows) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor("#525252");
-    doc.text(label, 14, y);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor("#171717");
-    doc.text(value, 196, y, { align: "right" });
-    doc.line(14, y + 2, 196, y + 2);
-    y += 9;
-  }
-
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const footerY = pageHeight - 14;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(NEUTRAL_400);
-  const footerText = isProOrTeam
-    ? "Generated with Meshdiff"
-    : "Generated with Meshdiff Free — meshdiff.com";
-  doc.text(footerText, 14, footerY);
-  doc.textWithLink(MESHDIFF_URL, 196, footerY, { url: MESHDIFF_URL, align: "right" });
-
-  doc.save(`meshdiff-report-${Date.now()}.pdf`);
-}
-
-function downloadDataUrl(dataUrl: string, filename: string) {
-  const link = document.createElement("a");
-  link.href = dataUrl;
-  link.download = filename;
-  link.click();
-}
 
 export default function LiveDiffToolPage() {
   const [activeTool, setActiveTool] = useState<LiveTool | null>(null);
@@ -331,11 +232,11 @@ export default function LiveDiffToolPage() {
 
   function handleDownloadReport() {
     if (!stats) return;
-    downloadReport(stats, isProOrTeam);
-    const screenshot = diffViewRef.current?.captureScreenshot();
-    if (screenshot) {
-      downloadDataUrl(screenshot, `meshdiff-diff-${Date.now()}.png`);
-    }
+    downloadDiffReportPdf(stats, isProOrTeam, {
+      viewA: viewerARef.current?.captureScreenshot(),
+      viewB: viewerBRef.current?.captureScreenshot(),
+      combined: diffViewRef.current?.captureScreenshot(),
+    });
   }
 
   const activeHowItWorksMode = hoveredTool || "default";

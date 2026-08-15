@@ -125,6 +125,15 @@ export default function ProjectDetailPage() {
     void refresh();
   }, [refresh]);
 
+  // Auto-generate thumbnail for projects that have versions but no thumbnail yet
+  // (e.g., sample projects created server-side on signup)
+  useEffect(() => {
+    if (!project || !projectId || project.thumbnailUrl || versions.length === 0) return;
+    const latestVersion = versions[versions.length - 1];
+    if (!latestVersion) return;
+    void refreshProjectThumbnailFromVersion(projectId, latestVersion.id);
+  }, [project?.id, project?.thumbnailUrl, versions.length, projectId]);
+
   useEffect(() => {
     listMyTeams().then((result) => {
       if (result.success) setMyTeams(result.data);
