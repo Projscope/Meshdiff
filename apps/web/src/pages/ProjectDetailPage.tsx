@@ -430,7 +430,22 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className={`mt-6 grid grid-cols-2 gap-3 ${isTeam ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+      <div className="mt-6 flex gap-6 rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+        {project?.thumbnailUrl && (
+          <div className="shrink-0">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Latest Model</p>
+            <img
+              src={project.thumbnailUrl}
+              alt={project.name}
+              className="mt-3 h-64 w-64 rounded bg-neutral-950 object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        )}
+
+        <div className="flex-1 space-y-3">
         {isTeam ? (
           <>
             <StatCard label="Comparisons" value={comparisons.length} />
@@ -470,6 +485,7 @@ export default function ProjectDetailPage() {
           </>
         )}
         <StatCard label="Versions" value={versions.length} />
+        </div>
       </div>
 
       {isTeam ? (
