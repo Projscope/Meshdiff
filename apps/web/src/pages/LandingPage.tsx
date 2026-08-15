@@ -71,8 +71,8 @@ const PRICING_TIERS: PricingTier[] = [
     audience: "CAD and print engineers",
     cta: { label: "Subscribe to Pro", checkout: true },
     highlighted: true,
-    badge: "Founding Member Launch Offer (50% OFF)",
-    urgency: "Launch offer include diesount for first 3 months and ends Sunday at midnight",
+    badge: "Early Subscriber Offer (50% OFF × 1 months)",
+    urgency: "Launch offer: 50% off first month. Ends Sunday at midnight.",
     features: [
       "Everything in Community",
       "Project workspaces",
