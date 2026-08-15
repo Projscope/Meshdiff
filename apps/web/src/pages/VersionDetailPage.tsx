@@ -6,10 +6,12 @@ import { Bounds, Grid, OrbitControls } from "@react-three/drei";
 import {
   getVersion,
   getDiff,
+  getProject,
   listComments,
   createComment,
   type VersionDetail,
   type CommentSummary,
+  type ProjectDetail,
 } from "../lib/projectsApi";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { extensionOf, loadMeshGeometry } from "../engine/loadMesh";
@@ -39,6 +41,7 @@ const GROUP_ROTATION_INVERSE = new THREE.Matrix4().makeRotationX(Math.PI / 2);
 
 export default function VersionDetailPage() {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
+  const [project, setProject] = useState<ProjectDetail | null>(null);
   const [version, setVersion] = useState<VersionDetail | null>(null);
   const [diffStats, setDiffStats] = useState<VoxelDiffStats | null>(null);
   const [hasComparison, setHasComparison] = useState(false);
@@ -83,34 +86,35 @@ export default function VersionDetailPage() {
     let cancelled = false;
     setIsMeshLoading(true);
 
-    getVersion(projectId, versionId).then(async (result) => {
+    Promise.all([getProject(projectId), getVersion(projectId, versionId)]).then(async ([projectResult, versionResult]) => {
       if (cancelled) return;
-      if (!result.success) {
-        setError(result.error);
+      if (projectResult.success) setProject(projectResult.data);
+      if (!versionResult.success) {
+        setError(versionResult.error);
         setIsMeshLoading(false);
         return;
       }
-      setVersion(result.data);
+      setVersion(versionResult.data);
 
       // No previous version (v1): self-diff still yields real per-mesh
       // Version Stats/Printability values for the "B" side (same trick
       // finalize uses server-side) — just don't treat the zeroed-out
       // deltas as a real comparison for the Geometric Delta section.
-      const versionAId = result.data.previousVersionId ?? versionId;
-      setHasComparison(result.data.previousVersionId !== null);
+      const versionAId = versionResult.data.previousVersionId ?? versionId;
+      setHasComparison(versionResult.data.previousVersionId !== null);
       getDiff(versionAId, versionId).then((diffResult) => {
         if (!cancelled && diffResult.success) setDiffStats(diffResult.data);
       });
 
-      const response = await fetch(result.data.downloadUrl);
+      const response = await fetch(versionResult.data.downloadUrl);
       const blob = await response.blob();
-      const file = new File([blob], result.data.fileName);
+      const file = new File([blob], versionResult.data.fileName);
       const meshResult = await loadMeshGeometry(file);
       if (cancelled) return;
       if (meshResult.success) {
         let displayGeometry = meshResult.data;
 
-        if (extensionOf(result.data.fileName) === "3mf") {
+        if (extensionOf(versionResult.data.fileName) === "3mf") {
           const [colored, properties] = await Promise.all([
             loadMeshForDisplay(file),
             extractThreeMFProperties(file),
@@ -379,10 +383,14 @@ export default function VersionDetailPage() {
                 </mesh>
               </Bounds>
             )}
-            {comments.map((comment) => (
-              <CommentPin key={comment.id} position={comment.position} label={comment.body} />
-            ))}
-            {pendingPosition && <CommentPin position={pendingPosition} pending />}
+            {project?.teamId && (
+              <>
+                {comments.map((comment) => (
+                  <CommentPin key={comment.id} position={comment.position} label={comment.body} />
+                ))}
+                {pendingPosition && <CommentPin position={pendingPosition} pending />}
+              </>
+            )}
             {measureMode === "distance" ? (
               <MeasurementOverlay pointA={measureA} pointB={measureB} hoverPoint={measureHover} />
             ) : (
@@ -528,19 +536,21 @@ export default function VersionDetailPage() {
 
 
 
-            <div className="mt-5">
-              <CommentsPanel
-                comments={comments}
-                isPlacingComment={isPlacingComment}
-                onTogglePlacing={() => setIsPlacingComment((prev) => !prev)}
-                pendingPosition={pendingPosition}
-                onSubmitComment={handleSubmitComment}
-                onCancelPending={() => {
-                  setPendingPosition(null);
-                  setPendingNormal(undefined);
-                }}
-              />
-            </div>
+            {project?.teamId && (
+              <div className="mt-5">
+                <CommentsPanel
+                  comments={comments}
+                  isPlacingComment={isPlacingComment}
+                  onTogglePlacing={() => setIsPlacingComment((prev) => !prev)}
+                  pendingPosition={pendingPosition}
+                  onSubmitComment={handleSubmitComment}
+                  onCancelPending={() => {
+                    setPendingPosition(null);
+                    setPendingNormal(undefined);
+                  }}
+                />
+              </div>
+            )}
           </>
         )}
       </div>
