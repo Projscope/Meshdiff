@@ -28,16 +28,16 @@ await app.register(cors, {
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 });
 await app.register(cookie);
-app.register(healthRoute);
-app.register(diffRoute);
-app.register(waitlistRoute);
-app.register(shareRoute);
-app.register(projectsRoute);
-app.register(versionsRoute);
-app.register(commentsRoute);
-app.register(teamsRoute);
-app.register(workspaceRoute);
-app.register(billingRoute);
+await app.register(healthRoute);
+await app.register(diffRoute);
+await app.register(waitlistRoute);
+await app.register(shareRoute);
+await app.register(projectsRoute);
+await app.register(versionsRoute);
+await app.register(commentsRoute);
+await app.register(teamsRoute);
+await app.register(workspaceRoute);
+await app.register(billingRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 
