@@ -11,12 +11,7 @@
     "noUnusedParameters": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "baseUrl": ".",
-    "paths": {
-      "@meshdiff/shared": ["../shared/src/index.ts"],
-      "@meshdiff/shared/*": ["../shared/src/*"]
-    }
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }
