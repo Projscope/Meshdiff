@@ -5,7 +5,7 @@
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "../..",
     "baseUrl": "../..",
     "paths": {
       "@meshdiff/shared/*": ["apps/shared/src/*"]
@@ -17,5 +17,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src"]
+  "include": ["apps/api/src", "apps/shared/src"]
 }
