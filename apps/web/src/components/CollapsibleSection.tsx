@@ -54,9 +54,9 @@ export function PropertyRow({
   valueClassName?: string;
 }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2 text-xs">
+    <div className="flex flex-col gap-1 px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
       <span className="text-neutral-500">{label}</span>
-      <span className={valueClassName}>{value}</span>
+      <span className={`break-words text-right sm:text-left ${valueClassName}`}>{value}</span>
     </div>
   );
 }
