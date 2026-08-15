@@ -1,4 +1,4 @@
-import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels";
+import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels.js";
 
 /**
  * Deterministic prose summary from computed stats — not an LLM call (see

@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type * as THREE from "three";
 import { ulid } from "ulid";
-import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels";
+import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels.js";
 import { loadMeshGeometryServer } from "./loadMeshServer.js";
 import { generateChangeSummary } from "./generateSummary.js";
 
