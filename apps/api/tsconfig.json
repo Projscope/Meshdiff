@@ -14,8 +14,8 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@meshdiff/shared": ["../shared/dist/index.js"],
-      "@meshdiff/shared/*": ["../shared/dist/*"]
+      "@meshdiff/shared": ["../shared/src/index.ts"],
+      "@meshdiff/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src"]
