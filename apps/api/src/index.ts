@@ -12,6 +12,7 @@ import commentsRoute from "./routes/comments.js";
 import teamsRoute from "./routes/teams.js";
 import workspaceRoute from "./routes/workspace.js";
 import billingRoute from "./routes/billing.js";
+import adminRoute from "./routes/admin.js";
 
 const app = Fastify({ logger: true });
 
@@ -38,6 +39,7 @@ await app.register(commentsRoute);
 await app.register(teamsRoute);
 await app.register(workspaceRoute);
 await app.register(billingRoute);
+await app.register(adminRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

@@ -12,6 +12,11 @@ export interface UserTier {
   row: SubscriptionRow | null;
 }
 
+// Any status in this list means "not actually paying" despite a row
+// existing — exported so callers needing the same rule in bulk (e.g. the
+// admin users list's per-row isPro flag) don't redefine it separately.
+export const INACTIVE_SUBSCRIPTION_STATUSES = ["canceled", "past_due"];
+
 // Single source of truth for "is this user Pro" — used by GET
 // /billing/subscription today, and reusable by any future gating without
 // duplicating the active/trialing check.
@@ -31,8 +36,7 @@ export async function getUserTier(supabase: SupabaseClient, userId: string): Pro
   // - trialing: in trial period
   // - incomplete: awaiting payment (user just checked out)
   // - incomplete_expired: payment failed but can retry
-  const inactiveStatuses = ["canceled", "past_due"];
-  if (inactiveStatuses.includes(data.status)) {
+  if (INACTIVE_SUBSCRIPTION_STATUSES.includes(data.status)) {
     return { tier: "free", row: null };
   }
 

@@ -84,7 +84,7 @@ export interface CommentSummary {
   createdAt: string;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> {
+export async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> {
   try {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;

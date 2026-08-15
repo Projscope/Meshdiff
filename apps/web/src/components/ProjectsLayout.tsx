@@ -23,6 +23,14 @@ import UpgradeToProModal from "./UpgradeToProModal";
 import EditWorkspaceModal from "./EditWorkspaceModal";
 import ConfirmDialog from "./ConfirmDialog";
 
+// UI convenience only — hides the sidebar link for everyone else. The real
+// admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
+// non-admin typing /admin directly still gets a 403 from the API.
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS ?? "")
+  .split(",")
+  .map((e: string) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
   pass: "bg-emerald-500",
   warn: "bg-amber-500",
@@ -60,6 +68,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+  const isAdmin = !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [teams, setTeams] = useState<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -408,6 +417,22 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 </button>
               ))}
             </div>
+
+            {isAdmin && (
+              <>
+                <div className="mt-4 px-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Admin</span>
+                </div>
+                <div className="mt-2 flex flex-col gap-0.5">
+                  <Link
+                    to="/admin"
+                    className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                  >
+                    Users
+                  </Link>
+                </div>
+              </>
+            )}
           </nav>
 
           <div className="relative border-t border-neutral-800 p-3">
