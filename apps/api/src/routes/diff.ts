@@ -3,8 +3,8 @@ import { getSupabase } from "../lib/supabase.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
-import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
+import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
 
 const BUCKET = "project-meshes";
 
@@ -18,7 +18,7 @@ interface VersionRow {
 export default async function diffRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { versionAId: string; versionBId: string } }>(
     "/diff/:versionAId/:versionBId",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { versionAId, versionBId } = request.params;
       const supabase = getSupabase();
@@ -52,10 +52,12 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           reply.code(400);
           return { success: false, error: "Versions must belong to the same project" };
         }
-        if (!(await getProjectAccess(supabase, versionA.project_id, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, versionA.project_id, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "One or both versions not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: cached, error: cacheError } = await supabase
           .from("version_diffs")

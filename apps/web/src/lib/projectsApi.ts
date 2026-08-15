@@ -226,8 +226,25 @@ export function getSubscription(): Promise<Result<SubscriptionStatus>> {
 /** Returns a Stripe Checkout URL to redirect the browser to — Checkout is a
  * Stripe-hosted page, not Stripe Elements (see CLAUDE.md), so there's
  * nothing to render here beyond the redirect itself. */
-export function startProCheckout(): Promise<Result<{ url: string }>> {
-  return request("/billing/checkout", { method: "POST" });
+export function startProCheckout(couponCode?: string): Promise<Result<{ url: string }>> {
+  return request("/billing/checkout", {
+    method: "POST",
+    body: couponCode ? JSON.stringify({ couponCode }) : undefined,
+  });
+}
+
+export interface ActiveCoupon {
+  code: string;
+  percentOff: number | null;
+  amountOff: number | null;
+  durationMonths: number | null;
+}
+
+/** The general-availability coupon, if any is currently active — see
+ * GET /billing/coupons on the backend for why the hand-emailed
+ * 50%-off-3-months code never appears here. */
+export function listActiveCoupons(): Promise<Result<ActiveCoupon[]>> {
+  return request("/billing/coupons");
 }
 
 /** Same shape as startProCheckout() — a URL to redirect to, this time for

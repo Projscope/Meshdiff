@@ -32,6 +32,7 @@ export async function seedSampleProject(supabase: SupabaseClient, userId: string
       name: "Sample Project",
       description: "An example project showing how version history and diffs work — feel free to delete this.",
       owner_user_id: userId,
+      is_sample: true,
     })
     .select("id")
     .single();

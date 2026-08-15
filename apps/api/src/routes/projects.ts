@@ -4,6 +4,7 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { getUserTier } from "../lib/subscription.js";
+import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 
 const BUCKET = "project-meshes";
 const THUMBNAIL_URL_TTL_SECONDS = 3600;
@@ -190,7 +191,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const supabase = getSupabase();
       if (!supabase) {
@@ -205,6 +206,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: row, error } = await supabase
           .from("projects")
@@ -249,7 +251,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
   app.patch<{ Params: { projectId: string }; Body: UpdateProjectBody }>(
     "/projects/:projectId",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
       const body = request.body ?? {};
@@ -287,6 +289,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         // Moving a project between teams is owner-only (it changes who has
         // access at all); renaming/describing is fine for a team admin too.
@@ -347,7 +350,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
   // DB column to track it — each new upload just overwrites the same object.
   app.post<{ Params: { projectId: string } }>(
     "/projects/:projectId/thumbnail-upload-url",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();
@@ -358,10 +361,12 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProUploadAccess(supabase, request.userId!, reply))) return;
 
         const { data: upload, error } = await supabase.storage
           .from(BUCKET)
@@ -443,7 +448,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
   // deleted model.
   app.delete<{ Params: { projectId: string } }>(
     "/projects/:projectId/thumbnail",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();
@@ -454,10 +459,12 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { error } = await supabase.storage.from(BUCKET).remove([thumbnailPath(projectId)]);
         if (error) {

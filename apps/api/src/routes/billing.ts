@@ -87,6 +87,21 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     }
   });
 
+  // Coupons are applied via Stripe Promotion Codes (the customer-facing
+  // "code" a user types), not raw coupon IDs — see billing/coupons below
+  // for why: a coupon's `id` is an opaque token, its `name` isn't
+  // guaranteed unique/lookup-able, but a promotion code's `code` field is
+  // exactly the human-readable string we email to selected users (e.g.
+  // "LAUNCH_503M" for the 50%-off-3-months group) and show in the UI (e.g.
+  // "LAUNCH_501M" for everyone else). Returns null (not an error) when
+  // `code` is undefined, so the STRIPE_DEFAULT_PROMO_CODE fallback in
+  // /billing/checkout can silently no-op if that env var is unset.
+  async function findActivePromotionCode(stripe: Stripe, code: string | undefined) {
+    if (!code) return null;
+    const list = await stripe.promotionCodes.list({ code, active: true, limit: 1 });
+    return list.data[0] ?? null;
+  }
+
   app.post<{ Body: { couponCode?: string } }>(
     "/billing/checkout",
     { preHandler: requireAuth },
@@ -107,23 +122,23 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
         const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
 
         if (couponCode) {
-          // User provided a coupon code — validate it exists and is active
-          try {
-            const coupon = await stripe.coupons.retrieve(couponCode);
-            if (!coupon.valid) {
-              reply.code(400);
-              return { success: false, error: "Coupon is invalid or expired" };
-            }
-          } catch {
+          // User (or the pre-selected 50%-off-3-months group) typed a code
+          // — this must resolve, since silently ignoring a bad code the
+          // user explicitly entered would be surprising.
+          const promo = await findActivePromotionCode(stripe, couponCode);
+          if (!promo) {
             reply.code(400);
-            return { success: false, error: "Coupon not found" };
+            return { success: false, error: "Coupon is invalid or expired" };
           }
-          discounts.push({ coupon: couponCode });
+          discounts.push({ promotion_code: promo.id });
         } else {
-          // No coupon provided — check if there's a default launch coupon
-          const launchCouponId = process.env.STRIPE_PRO_LAUNCH_COUPON_ID;
-          if (launchCouponId) {
-            discounts.push({ coupon: launchCouponId });
+          // No code entered — silently try the general-availability default
+          // (see plan: everyone gets this pre-selected unless they have a
+          // special code). Missing/expired default is not an error here,
+          // just no discount.
+          const defaultPromo = await findActivePromotionCode(stripe, process.env.STRIPE_DEFAULT_PROMO_CODE);
+          if (defaultPromo) {
+            discounts.push({ promotion_code: defaultPromo.id });
           }
         }
 
@@ -149,6 +164,11 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     },
   );
 
+  // Only the general-availability code (STRIPE_DEFAULT_PROMO_CODE, e.g.
+  // "LAUNCH_501M") is ever listed here — see plan: the 50%-off-3-months
+  // code is hand-emailed to a pre-selected group and entered manually via
+  // the couponCode field on /billing/checkout, never surfaced to everyone
+  // else in this list.
   app.get("/billing/coupons", async (_, reply) => {
     const stripe = getStripe();
     if (!stripe) {
@@ -157,16 +177,29 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     }
 
     try {
-      const coupons = await stripe.coupons.list({ limit: 100 });
-      const active = coupons.data
-        .filter((c) => c.valid)
-        .map((c) => ({
-          id: c.id,
-          percentOff: c.percent_off ?? null,
-          amountOff: c.amount_off ?? null,
-          durationMonths: c.duration === "repeating" ? c.duration_in_months : null,
-        }));
-      return { success: true, data: active };
+      const promo = await findActivePromotionCode(stripe, process.env.STRIPE_DEFAULT_PROMO_CODE);
+      if (!promo) {
+        return { success: true, data: [] };
+      }
+      // list() returns promotion.coupon as a bare ID, not expanded — fetch
+      // the full coupon separately for its percent_off/duration.
+      const couponRef = promo.promotion.coupon;
+      const coupon =
+        typeof couponRef === "string" ? await stripe.coupons.retrieve(couponRef) : couponRef;
+      if (!coupon || !coupon.valid) {
+        return { success: true, data: [] };
+      }
+      return {
+        success: true,
+        data: [
+          {
+            code: promo.code,
+            percentOff: coupon.percent_off ?? null,
+            amountOff: coupon.amount_off ?? null,
+            durationMonths: coupon.duration === "repeating" ? coupon.duration_in_months : null,
+          },
+        ],
+      };
     } catch (err) {
       app.log.error(err, "Failed to fetch coupons");
       reply.code(502);

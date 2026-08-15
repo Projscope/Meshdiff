@@ -24,7 +24,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
 import RejectVersionModal from "../components/RejectVersionModal";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
-import { useRefreshProjectsSidebar } from "../components/ProjectsLayout";
+import { useRefreshProjectsSidebar, useAccountStatus } from "../components/ProjectsLayout";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
 
@@ -64,6 +64,7 @@ function StatCard({ label, value, accent }: { label: string; value: React.ReactN
 export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { isPro } = useAccountStatus();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
@@ -154,6 +155,10 @@ export default function ProjectDetailPage() {
 
   async function handleFile(file: File) {
     if (!projectId) return;
+    if (!isPro) {
+      setError("Subscribe to Pro to upload new versions.");
+      return;
+    }
     const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ALLOWED_EXTENSIONS.includes(extension)) {
       setError("File must be an STL, 3MF, or OBJ file");
@@ -399,7 +404,8 @@ export default function ProjectDetailPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
+            disabled={isUploading || !isPro}
+            title={!isPro ? "Upgrade to Pro to upload new versions" : ""}
             className="flex items-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
           >
             {isUploading && (

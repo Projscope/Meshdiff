@@ -436,35 +436,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         </aside>
 
         <main className="flex-1 overflow-y-auto">
-          {isRestricted && location.pathname !== "/projects" ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-              <span className="rounded bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
-                Subscription required
-              </span>
-              <h2 className="text-lg font-semibold text-white">Subscribe to keep using Meshdiff</h2>
-              <p className="max-w-sm text-sm text-neutral-400">
-                Project workspaces need a Pro subscription. You can still sign in and delete your own projects
-                without one.
-              </p>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowUpgradeToPro(true)}
-                  className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400"
-                >
-                  Upgrade to Pro
-                </button>
-                <Link
-                  to="/projects"
-                  className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300 hover:border-neutral-500"
-                >
-                  Back to projects
-                </Link>
-              </div>
-            </div>
-          ) : (
-            children
-          )}
+          {children}
         </main>
 
         {notice && (

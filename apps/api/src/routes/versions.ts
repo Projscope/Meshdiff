@@ -7,8 +7,8 @@ import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
 import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
-import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
+import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
@@ -56,7 +56,7 @@ function toVersionSummary(row: VersionRow) {
 export default async function versionsRoute(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { projectId: string }; Body: CreateVersionBody }>(
     "/projects/:projectId/versions",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { fileName, fileSize } = request.body ?? {};
       const { projectId } = request.params;
@@ -83,10 +83,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProUploadAccess(supabase, request.userId!, reply))) return;
 
         const versionId = ulid();
         const filePath = `${projectId}/${versionId}.${extension}`;
@@ -136,7 +138,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/finalize",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -152,6 +154,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProUploadAccess(supabase, request.userId!, reply))) return;
 
         const { data: current, error: currentError } = await supabase
           .from("versions")
@@ -321,7 +324,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/approve",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -337,6 +340,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
         if (!canReviewVersions(access)) {
           reply.code(403);
           return { success: false, error: "Only a team admin can approve versions" };
@@ -375,7 +379,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string }; Body: { reason?: string } }>(
     "/projects/:projectId/versions/:versionId/reject",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { reason } = request.body ?? {};
@@ -392,6 +396,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
         if (!canReviewVersions(access)) {
           reply.code(403);
           return { success: false, error: "Only a team admin can reject versions" };
@@ -430,7 +435,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/versions",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const supabase = getSupabase();
       if (!supabase) {
@@ -440,10 +445,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, request.params.projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, request.params.projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: rows, error } = await supabase
           .from("versions")
@@ -467,7 +474,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -478,10 +485,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: row, error } = await supabase
           .from("versions")
@@ -538,7 +547,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.delete<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -554,6 +563,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
         if (access.role !== "owner" && access.role !== "admin") {
           reply.code(403);
           return { success: false, error: "Only project owners and team admins can delete versions" };
@@ -605,7 +615,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/versions.zip",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();
@@ -615,10 +625,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         return { success: false, error: "Projects are not configured" };
       }
 
-      if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+      const access = await getProjectAccess(supabase, projectId, request.userId!);
+      if (!access.role) {
         reply.code(404);
         return { success: false, error: "Project not found" };
       }
+      if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
       const { data: rows, error } = await supabase
         .from("versions")
@@ -673,7 +685,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
   // finalize() auto-approves there.
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/stable-version",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
       const supabase = getSupabase();
@@ -684,10 +696,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const stable = await getStableVersion(supabase, projectId);
         if (!stable) {

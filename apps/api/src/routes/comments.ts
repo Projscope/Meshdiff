@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
-import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
+import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
 
 interface CommentRow {
   id: string;
@@ -40,7 +40,7 @@ function toCommentSummary(row: CommentRow) {
 export default async function commentsRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/comments",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const supabase = getSupabase();
@@ -51,10 +51,12 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: rows, error } = await supabase
           .from("comments")
@@ -78,7 +80,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { projectId: string; versionId: string }; Body: CreateCommentBody }>(
     "/projects/:projectId/versions/:versionId/comments",
-    { preHandler: [requireAuth, requireActiveAccess] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { body, position, normal } = request.body ?? {};
@@ -113,10 +115,12 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
       }
 
       try {
-        if (!(await getProjectAccess(supabase, projectId, request.userId!)).role) {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: version, error: versionError } = await supabase
           .from("versions")

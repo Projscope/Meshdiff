@@ -6,9 +6,12 @@ export interface ProjectAccess {
    * team members or do anything else admin-gated. */
   role: "owner" | "admin" | "approver" | "member" | null;
   teamId: string | null;
+  /** True for the auto-seeded "Sample Project" (see seedSampleProject.ts) —
+   * lets requireProjectTierAccess() admit free users to that one project. */
+  isSample: boolean;
 }
 
-const NO_ACCESS: ProjectAccess = { role: null, teamId: null };
+const NO_ACCESS: ProjectAccess = { role: null, teamId: null, isSample: false };
 
 /**
  * Resolves a user's access to a project, accounting for team membership.
@@ -25,12 +28,14 @@ export async function getProjectAccess(
 ): Promise<ProjectAccess> {
   const { data: project } = await supabase
     .from("projects")
-    .select("owner_user_id, team_id")
+    .select("owner_user_id, team_id, is_sample")
     .eq("id", projectId)
     .maybeSingle();
 
   if (!project) return NO_ACCESS;
-  if (project.owner_user_id === userId) return { role: "owner", teamId: project.team_id };
+  if (project.owner_user_id === userId) {
+    return { role: "owner", teamId: project.team_id, isSample: project.is_sample };
+  }
   if (!project.team_id) return NO_ACCESS;
 
   const { data: member } = await supabase
@@ -41,5 +46,9 @@ export async function getProjectAccess(
     .maybeSingle();
 
   if (!member) return NO_ACCESS;
-  return { role: member.role as "admin" | "approver" | "member", teamId: project.team_id };
+  return {
+    role: member.role as "admin" | "approver" | "member",
+    teamId: project.team_id,
+    isSample: project.is_sample,
+  };
 }
