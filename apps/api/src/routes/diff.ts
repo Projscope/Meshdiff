@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
-import { computeVoxelDiff } from "../../../shared/src/engine/diffVoxels";
+import { computeVoxelDiff } from "@meshdiff/shared/engine/diffVoxels";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";

@@ -4,8 +4,12 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "lib": ["ES2022"],
-    "outDir": "apps/api/dist",
-    "rootDir": "../../..",
+    "outDir": "dist",
+    "rootDir": "src",
+    "baseUrl": "../..",
+    "paths": {
+      "@meshdiff/shared/*": ["apps/shared/src/*"]
+    },
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -13,5 +17,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["apps/api/src"]
+  "include": ["src"]
 }
