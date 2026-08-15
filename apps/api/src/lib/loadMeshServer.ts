@@ -4,8 +4,8 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { ThreeMFLoader } from "three/examples/jsm/loaders/3MFLoader.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOMParser } from "linkedom";
-import { parseProductionThreeMF } from "../../shared/src/engine/parseProductionThreeMF";
-import type { Result } from "../../shared/src/types/diff";
+import { parseProductionThreeMF } from "../../shared/src/engine/parseProductionThreeMF.js";
+import type { Result } from "../../shared/src/types/diff.js";
 
 const stlLoader = new STLLoader();
 const objLoader = new OBJLoader();
