@@ -28,8 +28,7 @@ export default function UpgradeToProModal({ onClose }: { onClose: () => void }) 
         </span>
         <h3 className="mt-3 text-sm font-semibold text-white">Upgrade to Pro</h3>
         <p className="mt-2 text-sm text-neutral-400">
-          Project workspaces, version history, comment pins on 3D models, and PDF diff reports — $15/mo,
-          cancel anytime.
+          Project workspaces, version history, comment pins on 3D models, and PDF diff reports.
         </p>
 
         {error && (
@@ -45,7 +44,7 @@ export default function UpgradeToProModal({ onClose }: { onClose: () => void }) 
             disabled={isSubmitting}
             className="flex-1 rounded bg-emerald-500 px-4 py-2 text-center text-sm font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
           >
-            {isSubmitting ? "Redirecting…" : "Subscribe — $15/mo"}
+            {isSubmitting ? "Redirecting…" : "Subscribe"}
           </button>
           <button
             type="button"
