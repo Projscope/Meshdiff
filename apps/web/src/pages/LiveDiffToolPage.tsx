@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import * as THREE from "three";
+import { Check } from "@phosphor-icons/react";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
 import DiffView, { type DiffViewHandle, type DiffMode } from "../components/DiffView";
@@ -449,6 +450,74 @@ export default function LiveDiffToolPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Pro Benefits CTA Section */}
+        <section className="border-t border-neutral-900 px-6 py-16">
+          <div className="mx-auto max-w-3xl">
+            <div className="rounded-lg border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0 p-8 md:p-12">
+              <span className="inline-block rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+                PRO PLAN
+              </span>
+              <h2 className="mt-4 text-2xl font-bold text-white md:text-3xl">
+                Everything you need for professional 3D model versioning
+              </h2>
+              <p className="mt-3 text-neutral-400">
+                Collaborate with your team, track changes, and make informed decisions with advanced diff tooling.
+              </p>
+
+              <div className="mt-8 grid gap-6 sm:grid-cols-2">
+                <div className="flex gap-3">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
+                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Unlimited Projects</h3>
+                    <p className="mt-1 text-sm text-neutral-400">Save and organize as many 3D model projects as you need</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
+                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Shareable Links</h3>
+                    <p className="mt-1 text-sm text-neutral-400">Create time-limited comparison links for stakeholders</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
+                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Export Reports</h3>
+                    <p className="mt-1 text-sm text-neutral-400">Download analysis reports and screenshots as PNG/PDF</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
+                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">No Watermark</h3>
+                    <p className="mt-1 text-sm text-neutral-400">Share professional-looking comparisons without branding</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-center">
+                <Link
+                  to="/#pricing"
+                  className="rounded-lg bg-emerald-500 px-6 py-3 text-center font-medium text-neutral-950 transition hover:bg-emerald-400"
+                >
+                  View Pricing
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
       </div>
