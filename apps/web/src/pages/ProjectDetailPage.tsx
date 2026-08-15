@@ -387,13 +387,15 @@ export default function ProjectDetailPage() {
               ))}
             </select>
           )}
-          <button
-            type="button"
-            onClick={() => void handleShare()}
-            className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
-          >
-            🔗 {shareCopied ? "Copied!" : "Share"}
-          </button>
+          {project?.teamId && (
+            <button
+              type="button"
+              onClick={() => void handleShare()}
+              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
+            >
+              🔗 {shareCopied ? "Copied!" : "Share Project"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
