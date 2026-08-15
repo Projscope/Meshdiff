@@ -27,6 +27,8 @@ export async function renderMeshThumbnail(geometry: THREE.BufferGeometry): Promi
     const scene = new THREE.Scene();
     const material = new THREE.MeshStandardMaterial({ color: MESH_COLOR, metalness: 0.1, roughness: 0.6 });
     const mesh = new THREE.Mesh(geometry, material);
+    // Match the viewer's rotation: lay Z-up model flat on Y-up grid
+    mesh.rotation.x = -Math.PI / 2;
     scene.add(mesh);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
