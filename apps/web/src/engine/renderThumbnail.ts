@@ -10,10 +10,17 @@ const MESH_COLOR = 0x4f8ff7;
  * object already loaded client-side for the upload.
  */
 export async function renderMeshThumbnail(geometry: THREE.BufferGeometry): Promise<Blob | null> {
-  geometry.computeBoundingSphere();
-  const sphere = geometry.boundingSphere;
+  // Clone geometry so we don't mutate the original
+  const clonedGeom = geometry.clone();
+
+  // Apply rotation to geometry vertices to match viewer orientation (Z-up to Y-up)
+  const rotationMatrix = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
+  clonedGeom.applyMatrix4(rotationMatrix);
+
+  clonedGeom.computeBoundingSphere();
+  const sphere = clonedGeom.boundingSphere;
   if (!sphere || sphere.radius === 0) return null;
-  if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
+  if (!clonedGeom.getAttribute("normal")) clonedGeom.computeVertexNormals();
 
   const canvas = document.createElement("canvas");
   canvas.width = THUMBNAIL_SIZE;
@@ -26,19 +33,8 @@ export async function renderMeshThumbnail(geometry: THREE.BufferGeometry): Promi
   try {
     const scene = new THREE.Scene();
     const material = new THREE.MeshStandardMaterial({ color: MESH_COLOR, metalness: 0.1, roughness: 0.6 });
-    const mesh = new THREE.Mesh(geometry, material);
-    // Match the viewer's rotation: lay Z-up model flat on Y-up grid
-    mesh.rotation.x = -Math.PI / 2;
+    const mesh = new THREE.Mesh(clonedGeom, material);
     scene.add(mesh);
-
-    // Update bounding sphere after rotation to get correct centered position
-    mesh.updateMatrixWorld();
-    const rotatedSphere = new THREE.Sphere();
-    geometry.computeBoundingSphere();
-    if (geometry.boundingSphere) {
-      rotatedSphere.copy(geometry.boundingSphere);
-      mesh.getWorldPosition(rotatedSphere.center);
-    }
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
@@ -48,11 +44,11 @@ export async function renderMeshThumbnail(geometry: THREE.BufferGeometry): Promi
     fillLight.position.set(-1, -0.4, -1);
     scene.add(fillLight);
 
-    const camera = new THREE.PerspectiveCamera(35, 1, rotatedSphere.radius / 100, rotatedSphere.radius * 100);
-    const distance = (rotatedSphere.radius / Math.sin((camera.fov * Math.PI) / 360)) * 1.5;
+    const camera = new THREE.PerspectiveCamera(35, 1, sphere.radius / 100, sphere.radius * 100);
+    const distance = (sphere.radius / Math.sin((camera.fov * Math.PI) / 360)) * 1.5;
     const direction = new THREE.Vector3(1, 0.8, 1).normalize();
-    camera.position.copy(rotatedSphere.center).addScaledVector(direction, distance);
-    camera.lookAt(rotatedSphere.center);
+    camera.position.copy(sphere.center).addScaledVector(direction, distance);
+    camera.lookAt(sphere.center);
 
     renderer.render(scene, camera);
 
