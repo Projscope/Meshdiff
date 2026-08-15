@@ -142,12 +142,20 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
     if (checkout === "success") {
       setNotice({ type: "success", message: "You're now on the Pro plan." });
-      // The webhook that actually records the subscription can land a
-      // moment after this redirect — a brief race is an acceptable v1
-      // limitation, not worth blocking the redirect on.
-      getSubscription().then((result) => {
-        if (result.success) setSubscription(result.data);
-      });
+      // The Stripe webhook that records the subscription can take several
+      // seconds. Retry aggressively for up to 10 seconds with exponential backoff.
+      const retryGetSubscription = async () => {
+        const delays = [1000, 2000, 2000, 2000, 3000];
+        for (let i = 0; i < delays.length; i++) {
+          await new Promise((resolve) => setTimeout(resolve, delays[i]));
+          const result = await getSubscription();
+          if (result.success && result.data.tier === "pro") {
+            setSubscription(result.data);
+            return;
+          }
+        }
+      };
+      void retryGetSubscription();
     } else if (checkout === "cancelled") {
       setNotice({ type: "info", message: "Checkout cancelled — no charge was made." });
     }
