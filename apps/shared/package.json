@@ -4,9 +4,23 @@
   "version": "2.0.0",
   "type": "module",
   "exports": {
-    ".": "./dist/index.js",
-    "./engine/*": "./dist/engine/*.js",
-    "./types/*": "./dist/types/*.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./engine/*": {
+      "types": "./dist/engine/*.d.ts",
+      "default": "./dist/engine/*.js"
+    },
+    "./types/*": {
+      "types": "./dist/types/*.d.ts",
+      "default": "./dist/types/*.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "*": ["./dist/*"]
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
