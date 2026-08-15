@@ -10,7 +10,8 @@
     "dev:web": "npm run dev --workspace apps/web",
     "dev:api": "npm run dev --workspace apps/api",
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "start": "npm start --workspace apps/api"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
