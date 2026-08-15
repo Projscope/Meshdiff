@@ -116,8 +116,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<Result<T>> 
   }
 }
 
-export function listProjects(page = 1, pageSize = 10): Promise<Result<ProjectsPage>> {
-  return request(`/projects?page=${page}&pageSize=${pageSize}`);
+export function listProjects(page = 1, pageSize = 10, sort: "name" | "date-newest" | "date-oldest" = "date-newest"): Promise<Result<ProjectsPage>> {
+  return request(`/projects?page=${page}&pageSize=${pageSize}&sort=${sort}`);
 }
 
 export function getWorkspace(): Promise<Result<{ name: string }>> {

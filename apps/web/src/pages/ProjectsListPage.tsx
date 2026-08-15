@@ -57,6 +57,7 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
 export default function ProjectsListPage() {
   const { isRestricted } = useAccountStatus();
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<"name" | "date-newest" | "date-oldest">("date-newest");
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,7 @@ export default function ProjectsListPage() {
 
   useEffect(() => {
     setProjects(null);
-    listProjects(page, PAGE_SIZE).then((result) => {
+    listProjects(page, PAGE_SIZE, sort).then((result) => {
       if (result.success) {
         setProjects(result.data.projects);
         setTotal(result.data.total);
@@ -88,26 +89,46 @@ export default function ProjectsListPage() {
         setError(result.error);
       }
     });
-  }, [page]);
+  }, [page, sort]);
+
+  function handleSortChange(newSort: "name" | "date-newest" | "date-oldest") {
+    if (newSort !== sort) {
+      setSort(newSort);
+      setPage(1);
+    }
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Projects</h1>
           <p className="mt-1 text-sm text-neutral-400">Track and review 3D model versions</p>
         </div>
-        {!isRestricted && (
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400"
-          >
-            + New Project
-          </button>
-        )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {projects && projects.length > 0 && (
+            <select
+              value={sort}
+              onChange={(e) => handleSortChange(e.target.value as "name" | "date-newest" | "date-oldest")}
+              className="rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-300 hover:border-neutral-500"
+            >
+              <option value="date-newest">Newest first</option>
+              <option value="date-oldest">Oldest first</option>
+              <option value="name">Name (A-Z)</option>
+            </select>
+          )}
+          {!isRestricted && (
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400"
+            >
+              + New Project
+            </button>
+          )}
+        </div>
       </div>
 
       {isRestricted && (
