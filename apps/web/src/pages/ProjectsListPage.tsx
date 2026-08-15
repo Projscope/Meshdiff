@@ -55,7 +55,7 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
 }
 
 export default function ProjectsListPage() {
-  const { isRestricted } = useAccountStatus();
+  const { isPro } = useAccountStatus();
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<"name" | "date-newest" | "date-oldest">("date-newest");
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
@@ -119,15 +119,19 @@ export default function ProjectsListPage() {
               <option value="name">Name (A-Z)</option>
             </select>
           )}
-          {!isRestricted && (
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400"
-            >
-              + New Project
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            disabled={!isPro}
+            className={`rounded px-4 py-2 text-sm font-medium ${
+              isPro
+                ? "bg-emerald-500 text-neutral-950 hover:bg-emerald-400"
+                : "bg-neutral-700 text-neutral-500 cursor-not-allowed"
+            }`}
+            title={!isPro ? "Upgrade to Pro to create projects" : ""}
+          >
+            + New Project
+          </button>
         </div>
       </div>
 

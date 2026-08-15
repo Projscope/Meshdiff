@@ -50,8 +50,8 @@ export function useRefreshProjectsSidebar(): () => void {
 // still renders normally for a restricted account — see the route-level
 // lock below) react to subscription state without a second
 // GET /billing/subscription call of their own.
-const AccountStatusContext = createContext<{ isRestricted: boolean }>({ isRestricted: false });
-export function useAccountStatus(): { isRestricted: boolean } {
+const AccountStatusContext = createContext<{ isRestricted: boolean; isPro: boolean }>({ isRestricted: false, isPro: false });
+export function useAccountStatus(): { isRestricted: boolean; isPro: boolean } {
   return useContext(AccountStatusContext);
 }
 
@@ -236,7 +236,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
-    <AccountStatusContext.Provider value={{ isRestricted }}>
+    <AccountStatusContext.Provider value={{ isRestricted, isPro }}>
       <div className="flex min-h-screen bg-neutral-950 text-neutral-100">
         <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-800">
           <Link to="/" className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
@@ -378,16 +378,17 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
             <div className="mt-4 flex items-center justify-between px-2">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Teams</span>
-              {!isRestricted && (
-                <button
-                  type="button"
-                  onClick={handleCreateTeamClick}
-                  title="New team"
-                  className="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-white"
-                >
-                  +
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleCreateTeamClick}
+                disabled={!isPro}
+                title={!isPro ? "Upgrade to Pro to create teams" : "New team"}
+                className={`flex h-5 w-5 items-center justify-center rounded ${
+                  isPro ? "text-neutral-500 hover:bg-neutral-800 hover:text-white" : "text-neutral-700 cursor-not-allowed"
+                }`}
+              >
+                +
+              </button>
             </div>
             <div className="mt-2 flex flex-col gap-0.5">
               {teams.length === 0 && (
