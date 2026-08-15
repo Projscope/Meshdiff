@@ -66,41 +66,178 @@ computation off the main thread into a Web Worker.
 
 ## Getting started
 
+### Prerequisites
+
+- **Node.js**: 18+ (check with `node --version`)
+- **Docker**: For local Supabase (check with `docker --version`)
+- **Stripe CLI** (optional): For local payment testing with real Stripe webhooks
+
+### Installation
+
 ```bash
+# Install dependencies for all workspaces
 npm install
-npm run dev:web      # frontend dev server at http://localhost:5173
-npm run dev:api      # backend dev server at http://localhost:3001
 ```
 
-The API workspace needs a few secrets to run — copy `apps/api/.env.example` to
-`apps/api/.env` and fill in ConvertKit and Supabase credentials (never committed).
+### Running the full stack locally
 
-### Local Supabase (Docker)
+**Terminal 1: Start local Supabase**
+```bash
+supabase start
+```
+This starts Postgres, Auth, Storage, and PostgREST. First run downloads Docker images (~5 min).
 
-Rather than pointing dev at the live Supabase project, run a fully isolated
-local stack (Postgres, Auth, Storage, PostgREST) via the Supabase CLI —
-migrations under `supabase/migrations/` apply automatically:
+**Terminal 2: Start the API server**
+```bash
+npm run dev:api    # Fastify backend at http://localhost:3001
+```
+
+**Terminal 3: Start the web frontend**
+```bash
+npm run dev:web    # React dev server at http://localhost:5173
+```
+
+### Applications & URLs
+
+| App | Port | URL | Purpose |
+|-----|------|-----|---------|
+| **Web (Frontend)** | 5173 | http://localhost:5173 | React app with Live Diff + Projects workspace |
+| **API (Backend)** | 3001 | http://localhost:3001 | Fastify REST API (projects, versions, diffs, billing) |
+| **Supabase (Local)** | 54321 | http://localhost:54321 | Local Postgres + Auth + Storage |
+
+### Environment setup
+
+The API workspace needs secrets — copy and configure:
 
 ```bash
-supabase start        # first run pulls several Docker images, can take a few minutes
-supabase status        # prints the local Project URL + anon/service_role keys
-supabase stop           # when done — data persists in a Docker volume between runs
+cp apps/api/.env.example apps/api/.env
 ```
 
-Copy the printed values into `apps/api/.env` (`SUPABASE_URL`,
-`SUPABASE_SERVICE_ROLE_KEY`) and `apps/web/.env` (`VITE_SUPABASE_URL`,
-`VITE_SUPABASE_ANON_KEY`). If another local Supabase project is already
-running, either `supabase stop --project-id <name>` it first or change the
-ports in `supabase/config.toml`.
+Edit `apps/api/.env` with:
+- **Supabase credentials** (from `supabase status` output)
+  - `SUPABASE_URL`: From local Supabase
+  - `SUPABASE_SERVICE_ROLE_KEY`: From local Supabase
+- **Stripe credentials** (optional, for payment testing)
+  - `STRIPE_SECRET_KEY`: Test key from Stripe Dashboard
+  - `STRIPE_WEBHOOK_SECRET`: Will update when running Stripe CLI
+  - `STRIPE_PRO_PRICE_ID`: Test price ID from Stripe
+- **Other**
+  - `FRONTEND_URL`: http://localhost:5173 (already set)
+  - `CONVERTKIT_API_KEY` / `CONVERTKIT_API_SECRET`: Leave as-is for local dev
 
-Other useful commands:
+For the frontend, create `apps/web/.env`:
+```bash
+VITE_SUPABASE_URL=http://localhost:54321
+VITE_SUPABASE_ANON_KEY=<from supabase status output>
+```
+
+### Supabase (local development)
+
+Run a fully isolated local Postgres + Auth + Storage stack via Docker:
 
 ```bash
-npm run typecheck                          # all workspaces
-npm run build                               # all workspaces
-npm run test --workspace apps/shared        # diff/voxelize engine unit tests (Vitest)
-npm run test --workspace apps/web           # client engine + lib unit tests (Vitest)
+supabase start     # First run: downloads Docker images (~5 min), then starts services
+supabase status    # Prints Project URL + anon/service_role keys
+supabase stop      # Stops services; data persists in Docker volume for next run
 ```
+
+Copy the output values into your config files:
+- `apps/api/.env`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+- `apps/web/.env`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+
+Migrations under `supabase/migrations/` apply automatically on start.
+
+### Stripe CLI (local webhook testing)
+
+To test the full checkout → webhook → subscription flow locally, use Stripe CLI to forward webhooks to your local API:
+
+**Step 1: Install Stripe CLI** (if not already installed)
+```bash
+# macOS (Homebrew)
+brew install stripe/stripe-cli/stripe
+
+# Windows (Scoop)
+scoop install stripe
+
+# Linux
+# See https://stripe.com/docs/stripe-cli
+```
+
+**Step 2: Authenticate with your Stripe account**
+```bash
+stripe login
+```
+This opens your browser to authorize. Follow the prompts.
+
+**Step 3: Forward webhooks to your local API** (new terminal)
+```bash
+stripe listen --forward-to localhost:3001/billing/webhook \
+  --events checkout.session.completed,customer.subscription.updated,customer.subscription.deleted
+```
+
+This outputs a webhook signing secret like: `whsec_test_xxxxxxxxxxxx`
+
+**Step 4: Update your environment**
+Copy the signing secret and update `apps/api/.env`:
+```bash
+STRIPE_WEBHOOK_SECRET=whsec_test_xxxxxxxxxxxx
+```
+
+**Step 5: Restart the API server** to pick up the new secret.
+
+**Now you can test payments:**
+1. Sign in at http://localhost:5173
+2. Go to Projects → click "Subscribe to Pro"
+3. Complete checkout with test card: `4242 4242 4242 4242`, any future date, any CVC
+4. Stripe CLI will log the webhook: `checkout.session.completed`
+5. Watch your sidebar — it should update to "Pro plan" within seconds
+
+**Note:** Before shipping to production, update `STRIPE_WEBHOOK_SECRET` in your production environment with your **live** Stripe webhook secret (not the test one).
+
+### Other useful commands
+
+```bash
+# Type checking & building
+npm run typecheck                          # TypeScript check (all workspaces)
+npm run build                               # Production build (all workspaces)
+
+# Testing
+npm run test --workspace apps/shared        # Diff/voxelize engine tests (Vitest)
+npm run test --workspace apps/web           # Client engine + lib tests (Vitest)
+
+# Database
+supabase db pull                             # Sync Postgres schema from local to supabase/ folder
+supabase migration new <name>                # Create a new migration file
+```
+
+### Troubleshooting
+
+**Q: "Cannot find module" or build errors**
+```bash
+# Clear node_modules and reinstall
+rm -rf node_modules
+npm install
+npm run build
+```
+
+**Q: Supabase won't start**
+```bash
+# Check if port 54321 is already in use, or reset Docker
+docker ps                           # List running containers
+docker stop <container_id>          # Stop conflicting container
+supabase start --force-pull         # Force re-download images
+```
+
+**Q: Stripe webhooks not arriving**
+- Make sure `stripe listen` is running in a separate terminal
+- Confirm `STRIPE_WEBHOOK_SECRET=whsec_test_...` is in `apps/api/.env`
+- Restart the API server after updating the secret
+- Check API logs for "Stripe webhook received" message
+
+**Q: Sample project thumbnail is empty**
+- Navigate into the project (triggers 3D render)
+- Exit back to project list
+- Thumbnail will appear after first view (generated client-side)
 
 ## Project structure
 
