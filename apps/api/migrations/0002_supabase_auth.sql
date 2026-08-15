@@ -6,6 +6,12 @@
 -- migration assumes existing owner_user_id/uploaded_by_user_id/
 -- author_user_id values are all null.
 
+-- Drop existing policies before altering column types
+drop policy if exists "Users manage their own projects" on projects;
+drop policy if exists "Users manage versions of their own projects" on versions;
+drop policy if exists "Users manage diffs of their own projects" on version_diffs;
+drop policy if exists "Users manage comments on their own project versions" on comments;
+
 alter table projects
   alter column owner_user_id type uuid using owner_user_id::uuid,
   add constraint projects_owner_user_id_fkey
