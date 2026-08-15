@@ -27,6 +27,9 @@ export default function SiteFooter() {
             <Link to="/features" className="hover:text-neutral-300">
               Features
             </Link>
+            <Link to="/roadmap" className="hover:text-neutral-300">
+              Roadmap
+            </Link>
             {SHOW_MONETIZATION && (
               <a href="/#pricing" className="hover:text-neutral-300">
                 Pricing
@@ -44,9 +47,10 @@ export default function SiteFooter() {
             <a href="/#faq" className="hover:text-neutral-300">
               FAQ
             </a>
-            <a href="/privacy" className="hover:text-neutral-300">
+            {/* TODO: Create privacy policy page and uncomment this link */}
+            {/* <a href="/privacy" className="hover:text-neutral-300">
               Privacy Policy
-            </a>
+            </a> */}
           </nav>
         </div>
 

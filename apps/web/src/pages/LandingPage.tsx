@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -72,7 +72,7 @@ const PRICING_TIERS: PricingTier[] = [
     cta: { label: "Subscribe to Pro", checkout: true },
     highlighted: true,
     badge: "Founding Member Launch Offer (50% OFF)",
-    urgency: "Launch offer ends Sunday at midnight",
+    urgency: "Launch offer include diesount for first 3 months and ends Sunday at midnight",
     features: [
       "Everything in Community",
       "Project workspaces",
@@ -205,6 +205,24 @@ export default function LandingPage() {
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
   }
+
+  function scrollToPricing() {
+    const pricingSection = document.getElementById("pricing");
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
+  // Handle hash-based navigation from roadmap page
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === "#pricing") {
+      // Use setTimeout to ensure DOM is fully rendered
+      setTimeout(() => {
+        scrollToPricing();
+      }, 300);
+    }
+  }, []);
 
   // Three outcomes depending on who's clicking:
   //  - Signed out: nowhere to check out into yet — send to sign-up (not
@@ -476,7 +494,7 @@ export default function LandingPage() {
             <div className="mx-auto max-w-5xl">
               <SectionHeader
                 tag="For Teams"
-                title="What Team unlocks"
+                title="What Team unlocks (we will release it soon)"
                 description="Every upload goes through the same four steps before it becomes the version everyone builds on."
               />
               <div className="grid gap-4 md:grid-cols-4">
@@ -654,12 +672,21 @@ export default function LandingPage() {
           <div className="mt-8">
             <FaqAccordion />
           </div>
-          <p className="mt-6 text-center text-xs text-neutral-500">
-            Still curious?{" "}
-            <button type="button" onClick={scrollToEarlyAccess} className="text-emerald-400 hover:text-emerald-300">
-              Join early access
+          <div className="mt-8 flex justify-center gap-3">
+            <a
+              href="/live"
+              className="rounded border border-neutral-700 px-4 py-2 text-xs font-medium text-neutral-300 hover:border-neutral-500 hover:text-white transition-colors"
+            >
+              Try free tool
+            </a>
+            <button
+              type="button"
+              onClick={scrollToPricing}
+              className="rounded bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+            >
+              View pricing
             </button>
-          </p>
+          </div>
         </section>
       </main>
 

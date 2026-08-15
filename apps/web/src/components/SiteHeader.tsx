@@ -103,6 +103,9 @@ export default function SiteHeader() {
             <Link to="/features" className="hover:text-neutral-200 transition-colors">
               Features
             </Link>
+            <Link to="/roadmap" className="hover:text-neutral-200 transition-colors">
+              Roadmap
+            </Link>
             {SHOW_MONETIZATION && (
               <a href="/#pricing" className="hover:text-neutral-200 transition-colors">
                 Pricing
@@ -147,6 +150,13 @@ export default function SiteHeader() {
                 className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
               >
                 Features
+              </Link>
+              <Link
+                to="/roadmap"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 hover:bg-neutral-800 hover:text-white"
+              >
+                Roadmap
               </Link>
               {SHOW_MONETIZATION && (
                 <a
