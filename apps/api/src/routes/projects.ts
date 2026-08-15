@@ -4,7 +4,7 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { getUserTier } from "../lib/subscription.js";
-import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
+import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
 
 const BUCKET = "project-meshes";
 const THUMBNAIL_URL_TTL_SECONDS = 3600;
@@ -366,7 +366,11 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProUploadAccess(supabase, request.userId!, reply))) return;
+        // Re-rendering the thumbnail from an *existing* version (see the
+        // auto-fallback effect in ProjectDetailPage.tsx) isn't uploading a
+        // new version — it's cosmetic, so it follows the same sample-project
+        // exemption as viewing/comparing, not the stricter upload gate.
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: upload, error } = await supabase.storage
           .from(BUCKET)
