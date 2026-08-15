@@ -398,9 +398,12 @@ export default function ProjectDetailPage() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
+            className="flex items-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
           >
-            {isUploading ? "Uploading…" : "+ New Model"}
+            {isUploading && (
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-neutral-950/30 border-t-neutral-950" />
+            )}
+            {isUploading ? "Uploading" : "Upload"}
           </button>
           {project && (project.myRole === "owner" || project.myRole === "admin") && (
             <button
@@ -481,7 +484,7 @@ export default function ProjectDetailPage() {
           {comparisons.length === 0 && versions.length <= 1 && (
             <div className="px-4 py-10 text-center text-sm text-neutral-500">
               {versions.length === 0
-                ? "No versions yet — drop a file or click \"+ New Model\" to get started."
+                ? "No versions yet — drop a file or click \"Upload\" to get started."
                 : "Upload a second version to see your first comparison here."}
             </div>
           )}
@@ -531,7 +534,7 @@ export default function ProjectDetailPage() {
         </div>
       ) : versions.length === 0 ? (
         <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
-          No models yet — drop a file or click "+ New Model" to get started.
+          No models yet — drop a file or click "Upload" to get started.
         </div>
       ) : null}
 
