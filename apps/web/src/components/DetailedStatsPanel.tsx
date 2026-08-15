@@ -23,69 +23,71 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
 
   return (
     <div className="space-y-6 text-sm">
-      <CollapsibleSection title="Geometric Delta">
-        {!stats || !hasComparison ? (
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
-            Single version — no diff available
-          </div>
-        ) : (
-          <>
-            <PropertyList>
-              <PropertyRow
-                label="Volume"
-                value={`${stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³`}
-                valueClassName={stats.approxVolumeDeltaMm3 < 0 ? "text-red-400" : "text-emerald-400"}
-              />
-              <PropertyRow
-                label="Volume Change"
-                value={`${stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%`}
-                valueClassName={stats.approxVolumeDeltaPercent < 0 ? "text-red-400" : "text-emerald-400"}
-              />
-              <PropertyRow
-                label="Size Δ X"
-                value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
-                valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-neutral-500"}
-              />
-              <PropertyRow
-                label="Size Δ Y"
-                value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
-                valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-neutral-500"}
-              />
-              <PropertyRow
-                label="Size Δ Z"
-                value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
-                valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-neutral-500"}
-              />
-              <PropertyRow
-                label="Triangles"
-                value={`${stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}${stats.triangleDelta}`}
-                valueClassName={
-                  stats.triangleDelta > 0
-                    ? "text-emerald-400"
-                    : stats.triangleDelta < 0
-                      ? "text-red-400"
-                      : "text-neutral-500"
-                }
-              />
-              <PropertyRow
-                label="Surface Area"
-                value={`${stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}${Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²`}
-                valueClassName={stats.surfaceAreaDelta < 0 ? "text-red-400" : "text-emerald-400"}
-              />
-            </PropertyList>
-            {stats.thinWallWarning && (
-              <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-                ⚠ Thin walls detected (&lt; 0.8mm)
-              </div>
-            )}
-            {stats.maxOverhangAngle > 45 && (
-              <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-                ⚠ Overhangs detected ({stats.maxOverhangAngle.toFixed(1)}°)
-              </div>
-            )}
-          </>
-        )}
-      </CollapsibleSection>
+      {hasComparison && (
+        <CollapsibleSection title="Geometric Delta">
+          {!stats ? (
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
+              No comparison available
+            </div>
+          ) : (
+            <>
+              <PropertyList>
+                <PropertyRow
+                  label="Volume"
+                  value={`${stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³`}
+                  valueClassName={stats.approxVolumeDeltaMm3 < 0 ? "text-red-400" : "text-emerald-400"}
+                />
+                <PropertyRow
+                  label="Volume Change"
+                  value={`${stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%`}
+                  valueClassName={stats.approxVolumeDeltaPercent < 0 ? "text-red-400" : "text-emerald-400"}
+                />
+                <PropertyRow
+                  label="Size Δ X"
+                  value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
+                  valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-neutral-500"}
+                />
+                <PropertyRow
+                  label="Size Δ Y"
+                  value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
+                  valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-neutral-500"}
+                />
+                <PropertyRow
+                  label="Size Δ Z"
+                  value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
+                  valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-neutral-500"}
+                />
+                <PropertyRow
+                  label="Triangles"
+                  value={`${stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}${stats.triangleDelta}`}
+                  valueClassName={
+                    stats.triangleDelta > 0
+                      ? "text-emerald-400"
+                      : stats.triangleDelta < 0
+                        ? "text-red-400"
+                        : "text-neutral-500"
+                  }
+                />
+                <PropertyRow
+                  label="Surface Area"
+                  value={`${stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}${Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²`}
+                  valueClassName={stats.surfaceAreaDelta < 0 ? "text-red-400" : "text-emerald-400"}
+                />
+              </PropertyList>
+              {stats.thinWallWarning && (
+                <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+                  ⚠ Thin walls detected (&lt; 0.8mm)
+                </div>
+              )}
+              {stats.maxOverhangAngle > 45 && (
+                <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+                  ⚠ Overhangs detected ({stats.maxOverhangAngle.toFixed(1)}°)
+                </div>
+              )}
+            </>
+          )}
+        </CollapsibleSection>
+      )}
 
       <CollapsibleSection title="Version Stats">
         <PropertyList>

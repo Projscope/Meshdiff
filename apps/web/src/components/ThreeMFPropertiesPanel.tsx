@@ -73,13 +73,14 @@ function cleanMetadataValue(value: string): string {
 
 interface ThreeMFPropertiesPanelProps {
   properties: ThreeMFProperties;
+  defaultOpen?: boolean;
 }
 
-export default function ThreeMFPropertiesPanel({ properties }: ThreeMFPropertiesPanelProps) {
+export default function ThreeMFPropertiesPanel({ properties, defaultOpen = false }: ThreeMFPropertiesPanelProps) {
   const entries = Object.entries(properties.metadata);
 
   return (
-    <CollapsibleSection title="3MF Properties">
+    <CollapsibleSection title="3MF Properties" defaultOpen={defaultOpen}>
       <PropertyList>
         <PropertyRow label="Unit" value={properties.unit} />
         {entries.map(([key, value]) => (
