@@ -113,9 +113,17 @@ export default function ProjectDetailPage() {
     }
 
     const pairs = sorted.slice(1).map((toVersion, index) => ({ fromVersion: sorted[index], toVersion }));
-    const diffs = await Promise.all(
-      pairs.map(({ fromVersion, toVersion }) => getDiff(fromVersion.id, toVersion.id)),
-    );
+    // Sequential, not Promise.all — each of these is a real server-side
+    // mesh diff (voxelization, BVH construction), and firing all of a
+    // project's consecutive-pair diffs at once on every page load/upload
+    // was piling up enough concurrent memory on the API server to crash it
+    // outright, independent of any single file's size (see the API-side
+    // computeLock.ts, which now also serializes this server-side as a
+    // second line of defense).
+    const diffs: Awaited<ReturnType<typeof getDiff>>[] = [];
+    for (const { fromVersion, toVersion } of pairs) {
+      diffs.push(await getDiff(fromVersion.id, toVersion.id));
+    }
     setComparisons(
       pairs.map((pair, index) => {
         const diffResult = diffs[index];

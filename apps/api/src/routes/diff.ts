@@ -7,6 +7,7 @@ import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
 import { exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
 import { isUnderMemoryPressure } from "../lib/memoryGuard.js";
+import { runExclusive } from "../lib/computeLock.js";
 
 const BUCKET = "project-meshes";
 
@@ -76,56 +77,62 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           return { success: true, data: cached.stats };
         }
 
-        // Checked only on a cache miss, right before the expensive
-        // download/parse/diff path — a concurrent request may already have
-        // pushed the process close to its memory ceiling (see
-        // memoryGuard.ts).
-        if (isUnderMemoryPressure()) {
-          reply.code(503);
-          return { success: false, error: "Server is under heavy load, please try again shortly" };
-        }
+        // Everything from here through computeVoxelDiff is the expensive
+        // part — a project page fires one of these requests per consecutive
+        // version pair, all at once (see computeLock.ts), so this all runs
+        // serialized process-wide rather than N of these piling up in
+        // memory simultaneously. The point-in-time memory check still runs
+        // first (now serialized too), since a genuinely long queue could
+        // still leave the process near its ceiling by the time this
+        // request's turn comes up.
+        const computed = await runExclusive(async () => {
+          if (isUnderMemoryPressure()) {
+            return { ok: false as const, code: 503, error: "Server is under heavy load, please try again shortly" };
+          }
 
-        const [blobA, blobB] = await Promise.all([
-          supabase.storage.from(BUCKET).download(versionA.file_path),
-          supabase.storage.from(BUCKET).download(versionB.file_path),
-        ]);
-        if (blobA.error || !blobA.data || blobB.error || !blobB.data) {
-          app.log.error({ a: blobA.error, b: blobB.error }, "Failed to download version files");
-          reply.code(502);
-          return { success: false, error: "Failed to read version files" };
-        }
-        if (exceedsMaxFileSize(blobA.data) || exceedsMaxFileSize(blobB.data)) {
-          reply.code(413);
-          return { success: false, error: "File must be under 50MB" };
-        }
+          const [blobA, blobB] = await Promise.all([
+            supabase.storage.from(BUCKET).download(versionA.file_path),
+            supabase.storage.from(BUCKET).download(versionB.file_path),
+          ]);
+          if (blobA.error || !blobA.data || blobB.error || !blobB.data) {
+            app.log.error({ a: blobA.error, b: blobB.error }, "Failed to download version files");
+            return { ok: false as const, code: 502, error: "Failed to read version files" };
+          }
+          if (exceedsMaxFileSize(blobA.data) || exceedsMaxFileSize(blobB.data)) {
+            return { ok: false as const, code: 413, error: "File must be under 50MB" };
+          }
 
-        const [bufferA, bufferB] = await Promise.all([
-          blobA.data.arrayBuffer(),
-          blobB.data.arrayBuffer(),
-        ]);
-        const [geoAResult, geoBResult] = await Promise.all([
-          loadMeshGeometryServer(bufferA, versionA.file_format as "stl" | "obj" | "3mf"),
-          loadMeshGeometryServer(bufferB, versionB.file_format as "stl" | "obj" | "3mf"),
-        ]);
-        if (!geoAResult.success) {
-          reply.code(422);
-          return { success: false, error: geoAResult.error };
-        }
-        if (!geoBResult.success) {
-          reply.code(422);
-          return { success: false, error: geoBResult.error };
-        }
+          const [bufferA, bufferB] = await Promise.all([
+            blobA.data.arrayBuffer(),
+            blobB.data.arrayBuffer(),
+          ]);
+          const [geoAResult, geoBResult] = await Promise.all([
+            loadMeshGeometryServer(bufferA, versionA.file_format as "stl" | "obj" | "3mf"),
+            loadMeshGeometryServer(bufferB, versionB.file_format as "stl" | "obj" | "3mf"),
+          ]);
+          if (!geoAResult.success) {
+            return { ok: false as const, code: 422, error: geoAResult.error };
+          }
+          if (!geoBResult.success) {
+            return { ok: false as const, code: 422, error: geoBResult.error };
+          }
 
-        const diffResult = computeVoxelDiff(geoAResult.data, geoBResult.data, {
-          fileFormatA: versionA.file_format,
-          fileFormatB: versionB.file_format,
+          const diffResult = computeVoxelDiff(geoAResult.data, geoBResult.data, {
+            fileFormatA: versionA.file_format,
+            fileFormatB: versionB.file_format,
+          });
+          if (!diffResult.success) {
+            return { ok: false as const, code: 422, error: diffResult.error };
+          }
+
+          return { ok: true as const, stats: diffResult.data.stats };
         });
-        if (!diffResult.success) {
-          reply.code(422);
-          return { success: false, error: diffResult.error };
-        }
 
-        const { stats } = diffResult.data;
+        if (!computed.ok) {
+          reply.code(computed.code);
+          return { success: false, error: computed.error };
+        }
+        const { stats } = computed;
 
         const { error: insertError } = await supabase.from("version_diffs").upsert(
           {
