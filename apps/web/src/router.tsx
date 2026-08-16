@@ -9,6 +9,8 @@ import ProjectsListPage from "./pages/ProjectsListPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import VersionDetailPage from "./pages/VersionDetailPage";
 import CompareVersionsPage from "./pages/CompareVersionsPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
 import RootLayout from "./components/RootLayout";
@@ -70,6 +72,29 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ProjectsLayout>
               <CompareVersionsPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        // Any logged-in user can reach these routes — enforcement is
+        // entirely server-side via requireAdmin.ts; a non-admin gets an
+        // in-page 403 from the page component, not a redirect.
+        path: "/admin",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <AdminDashboardPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin/users",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <AdminUsersPage />
             </ProjectsLayout>
           </ProtectedRoute>
         ),
