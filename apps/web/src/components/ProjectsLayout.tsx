@@ -415,38 +415,50 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               </>
             )}
 
-            <div className="mt-4 flex items-center justify-between px-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Teams</span>
-              <button
-                type="button"
-                onClick={handleCreateTeamClick}
-                disabled={!isPro}
-                title={!isPro ? "Upgrade to Pro to create teams" : "New team"}
-                className={`flex h-5 w-5 items-center justify-center rounded ${
-                  isPro ? "text-neutral-500 hover:bg-neutral-800 hover:text-white" : "text-neutral-700 cursor-not-allowed"
-                }`}
-              >
-                +
-              </button>
-            </div>
-            <div className="mt-2 flex flex-col gap-0.5">
-              {teams.length === 0 && (
-                <p className="px-2 py-1.5 text-xs text-neutral-600">No teams yet.</p>
-              )}
-              {teams.map((team) => (
-                <button
-                  key={team.id}
-                  type="button"
-                  onClick={() => setTeamModal(team.id)}
-                  className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
-                >
-                  <span className="min-w-0 flex-1 truncate">{team.name}</span>
-                  <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[9px] uppercase text-neutral-500">
-                    {team.myRole}
-                  </span>
-                </button>
-              ))}
-            </div>
+            {/* Team is a separate, not-yet-purchasable tier from Pro (see
+                CLAUDE.md's pricing table) — a Pro user with no teams would
+                only ever see a "+" that dead-ends into an Upgrade-to-Team
+                prompt for a plan they can't actually buy yet, so hide the
+                whole section for them. Still shown for Free/restricted
+                users (their "+" correctly points at upgrading to Pro
+                first) and for anyone who already belongs to a team, so
+                existing team access is never hidden. */}
+            {(!isPro || teams.length > 0) && (
+              <>
+                <div className="mt-4 flex items-center justify-between px-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Teams</span>
+                  <button
+                    type="button"
+                    onClick={handleCreateTeamClick}
+                    disabled={!isPro}
+                    title={!isPro ? "Upgrade to Pro to create teams" : "New team"}
+                    className={`flex h-5 w-5 items-center justify-center rounded ${
+                      isPro ? "text-neutral-500 hover:bg-neutral-800 hover:text-white" : "text-neutral-700 cursor-not-allowed"
+                    }`}
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-col gap-0.5">
+                  {teams.length === 0 && (
+                    <p className="px-2 py-1.5 text-xs text-neutral-600">No teams yet.</p>
+                  )}
+                  {teams.map((team) => (
+                    <button
+                      key={team.id}
+                      type="button"
+                      onClick={() => setTeamModal(team.id)}
+                      className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{team.name}</span>
+                      <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[9px] uppercase text-neutral-500">
+                        {team.myRole}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
 
             {isAdmin && (
               <>
