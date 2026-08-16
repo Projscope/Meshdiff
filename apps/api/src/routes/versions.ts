@@ -14,7 +14,17 @@ import { MAX_FILE_BYTES, exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
 import { isUnderMemoryPressure } from "../lib/memoryGuard.js";
 import { runExclusive } from "../lib/computeLock.js";
 
-const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
+// OBJ/3MF uploads are disabled here — a 3MF's ZIP compression means its
+// on-disk size doesn't reliably predict its actual triangle count once
+// unpacked, which was a real factor in a series of OOM crashes on Render
+// (see project memory "render_oom_mesh_triangle_cap"). STL's size maps
+// directly to triangle count (50 bytes/triangle, fixed), so it's the only
+// format this route accepts until server memory/parsing headroom improves.
+// Scoped to just this route (the Projects workspace upload gate, the only
+// path that runs loadMeshGeometryServer/computeVoxelDiff server-side) —
+// share.ts's community share upload doesn't touch the diff engine at all
+// (diffing for shared links runs client-side), so it's untouched.
+const ALLOWED_EXTENSIONS = new Set(["stl"]);
 const DOWNLOAD_URL_TTL_SECONDS = 60;
 const BUCKET = "project-meshes";
 
@@ -70,7 +80,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       const extension = extensionOf(fileName);
       if (!ALLOWED_EXTENSIONS.has(extension)) {
         reply.code(400);
-        return { success: false, error: "File must be an STL, OBJ, or 3MF file" };
+        return { success: false, error: "File must be an STL file" };
       }
       if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_FILE_BYTES) {
         reply.code(400);
