@@ -353,10 +353,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
           <nav className="flex-1 overflow-y-auto px-2 py-3 pr-1">
             {isProjectsExpanded && (
-              // Indented + left-bordered so this whole block reads visually
-              // as nested under the workspace header above it (tree-style
-              // parent/child), not a sibling section.
-              <div className="ml-1.5 border-l border-neutral-800 pl-2.5">
+              // A tinted background groups this block visually under the
+              // workspace header above it (parent/child), instead of a
+              // connector line.
+              <div className="rounded-md bg-neutral-900/40 py-1">
                 <div className="flex items-center justify-between px-2">
                   <Link
                     to="/projects"
