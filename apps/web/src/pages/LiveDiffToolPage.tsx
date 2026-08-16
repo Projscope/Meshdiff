@@ -306,7 +306,13 @@ export default function LiveDiffToolPage() {
   }[activeHowItWorksMode];
 
   return (
-    <div className="flex h-screen flex-col overflow-y-auto bg-neutral-950 text-neutral-100 px-4 py-8 items-center">
+    // min-h-screen (not h-screen + overflow-y-auto) — the old fixed-height
+    // scroll box made this page scroll independently of the rest of the
+    // site, so the footer (rendered by RootLayout right after this page)
+    // sat immediately at that box's bottom edge with no visual gap,
+    // reading as if it were floating over/cutting into this page's own
+    // content instead of following it in normal document flow.
+    <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-100 px-4 py-8 items-center">
       <div className="mx-auto max-w-5xl border-b border-neutral-800 px-4 py-1.5 text-center text-xs text-neutral-600">
         Compare 3D models free — STL diff, OBJ diff, and 3MF diff, runs entirely in your browser
       </div>
@@ -830,19 +836,6 @@ export default function LiveDiffToolPage() {
           shareUrl={shareUrl}
         />
       )}
-
-      {/* In normal document flow (not fixed) — sits at the true bottom of
-          the page's content and scrolls with it, rather than staying
-          pinned over whatever's on screen. */}
-      <Link
-        to="/"
-        className="mt-8 flex items-center gap-1.5 self-center rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-[11px] text-neutral-400 shadow-lg hover:border-neutral-600 hover:text-neutral-200"
-      >
-        <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-[9px] font-bold leading-none text-neutral-950">
-          ^
-        </span>
-        Powered by Meshdiff
-      </Link>
     </div>
   );
 }
