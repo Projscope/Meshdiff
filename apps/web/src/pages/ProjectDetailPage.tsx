@@ -452,8 +452,16 @@ export default function ProjectDetailPage() {
       )}
 
       {error && (
-        <div className="mt-4 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
-          {error}
+        <div className="mt-4 flex items-start justify-between gap-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            aria-label="Dismiss error"
+            className="shrink-0 text-red-400 hover:text-red-200"
+          >
+            ✕
+          </button>
         </div>
       )}
 
