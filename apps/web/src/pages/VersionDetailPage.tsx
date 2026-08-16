@@ -24,6 +24,7 @@ import CommentPin from "../components/CommentPin";
 import AxisLegend from "../components/AxisLegend";
 import AxisLabels from "../components/AxisLabels";
 import BoundsResetBridge from "../components/BoundsResetBridge";
+import LoadingCube from "../components/LoadingCube";
 import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
 import CollapsibleSection, { PropertyList, PropertyRow } from "../components/CollapsibleSection";
 import MeasurementOverlay from "../components/MeasurementOverlay";
@@ -446,7 +447,7 @@ export default function VersionDetailPage() {
 
         {isMeshLoading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-950/80">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-700 border-t-emerald-500" />
+            <LoadingCube />
             <p className="text-xs text-neutral-400">Loading model…</p>
           </div>
         )}

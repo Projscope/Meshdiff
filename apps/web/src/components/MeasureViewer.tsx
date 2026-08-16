@@ -10,6 +10,7 @@ import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
+import LoadingCube from "./LoadingCube";
 import MeasurementOverlay from "./MeasurementOverlay";
 import RadiusOverlay from "./RadiusOverlay";
 import PrintabilityBadge from "./PrintabilityBadge";
@@ -441,7 +442,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
 
         {isLoading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-neutral-950/80">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-700 border-t-emerald-500" />
+            <LoadingCube />
             <p className="text-xs text-neutral-400">Loading model…</p>
           </div>
         )}
