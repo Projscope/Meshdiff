@@ -22,6 +22,7 @@ import {
 import ApprovalBadge from "../components/ApprovalBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
+import UploadProgressModal from "../components/UploadProgressModal";
 import RejectVersionModal from "../components/RejectVersionModal";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import { useRefreshProjectsSidebar, useAccountStatus } from "../components/ProjectsLayout";
@@ -74,6 +75,7 @@ export default function ProjectDetailPage() {
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; versionNumber: number } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -174,6 +176,7 @@ export default function ProjectDetailPage() {
     }
 
     setIsUploading(true);
+    setUploadingFileName(file.name);
     setError(null);
     const result = await uploadVersion(projectId, file);
     setIsUploading(false);
@@ -412,9 +415,6 @@ export default function ProjectDetailPage() {
             title={!isPro ? "Upgrade to Pro to upload new versions" : ""}
             className="flex items-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
           >
-            {isUploading && (
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-neutral-950/30 border-t-neutral-950" />
-            )}
             {isUploading ? "Uploading" : "Upload"}
           </button>
           {project && (project.myRole === "owner" || project.myRole === "admin") && (
@@ -753,6 +753,8 @@ export default function ProjectDetailPage() {
           onCancel={() => setIsDeleteProjectOpen(false)}
         />
       )}
+
+      {isUploading && <UploadProgressModal fileName={uploadingFileName} />}
     </div>
   );
 }
