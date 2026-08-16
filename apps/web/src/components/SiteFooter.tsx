@@ -47,6 +47,9 @@ export default function SiteFooter() {
             <a href="/#faq" className="hover:text-neutral-300">
               FAQ
             </a>
+            <Link to="/embed" className="hover:text-neutral-300">
+              Embed Badge
+            </Link>
             {/* TODO: Create privacy policy page and uncomment this link */}
             {/* <a href="/privacy" className="hover:text-neutral-300">
               Privacy Policy

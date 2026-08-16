@@ -5,6 +5,7 @@ import LiveDiffToolPage from "./pages/LiveDiffToolPage";
 import CompareStlFilesPage from "./pages/CompareStlFilesPage";
 import StlDiffToolPage from "./pages/StlDiffToolPage";
 import Compare3mfFilesPage from "./pages/Compare3mfFilesPage";
+import EmbedBadgePage from "./pages/EmbedBadgePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import RoadmapPage from "./pages/RoadmapPage";
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: "/compare-stl-files", element: <CompareStlFilesPage /> },
       { path: "/stl-diff-tool", element: <StlDiffToolPage /> },
       { path: "/compare-3mf-files", element: <Compare3mfFilesPage /> },
+      { path: "/embed", element: <EmbedBadgePage /> },
       { path: "/login", element: <LoginPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
       {
