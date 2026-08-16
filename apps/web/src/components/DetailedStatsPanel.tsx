@@ -89,6 +89,14 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
         </CollapsibleSection>
       )}
 
+      <CollapsibleSection title="Model Size">
+        <PropertyList>
+          <PropertyRow label="Size X" value={`${boundingBoxB[0].toFixed(1)} mm`} />
+          <PropertyRow label="Size Y" value={`${boundingBoxB[1].toFixed(1)} mm`} />
+          <PropertyRow label="Size Z" value={`${boundingBoxB[2].toFixed(1)} mm`} />
+        </PropertyList>
+      </CollapsibleSection>
+
       <CollapsibleSection title="Version Stats">
         <PropertyList>
           <PropertyRow label="Volume" value={stats ? `${volumeB.toFixed(0)} mm³` : "—"} />
