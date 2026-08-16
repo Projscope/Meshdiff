@@ -12,8 +12,13 @@ export default function RootLayout() {
   const isDashboard = location.pathname.startsWith("/projects") || location.pathname.startsWith("/admin");
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-neutral-950">
       {!isDashboard && <SiteHeader />}
+      {/* flex-1 stretches to fill leftover vertical space regardless of
+          how tall the page's own content is (e.g. a short page like
+          /embed) — without its own background, that leftover space
+          shows through as the browser default (white) instead of the
+          site's dark theme. */}
       <div className="flex-1">
         <Outlet />
       </div>

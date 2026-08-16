@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
@@ -23,6 +23,7 @@ import CommentsPanel from "../components/CommentsPanel";
 import CommentPin from "../components/CommentPin";
 import AxisLegend from "../components/AxisLegend";
 import AxisLabels from "../components/AxisLabels";
+import BoundsResetBridge from "../components/BoundsResetBridge";
 import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
 import CollapsibleSection, { PropertyList, PropertyRow } from "../components/CollapsibleSection";
 import MeasurementOverlay from "../components/MeasurementOverlay";
@@ -46,6 +47,7 @@ export default function VersionDetailPage() {
   const [diffStats, setDiffStats] = useState<VoxelDiffStats | null>(null);
   const [hasComparison, setHasComparison] = useState(false);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const resetViewRef = useRef<(() => void) | null>(null);
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [threeMFProperties, setThreeMFProperties] = useState<ThreeMFProperties | null>(null);
   const [boundingBox, setBoundingBox] = useState<[number, number, number]>([0, 0, 0]);
@@ -337,6 +339,18 @@ export default function VersionDetailPage() {
               : "border-neutral-800"
           }`}
       >
+        {geometry && (
+          <div className="absolute left-3 top-2 z-10">
+            <button
+              type="button"
+              onClick={() => resetViewRef.current?.()}
+              title="Reset camera to the loaded view"
+              className="rounded border border-neutral-700 bg-neutral-950/70 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+            >
+              ⟲ Reset View
+            </button>
+          </div>
+        )}
         <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
           <ambientLight intensity={0.6} />
           <directionalLight position={[10, 20, 10]} intensity={0.8} />
@@ -360,7 +374,8 @@ export default function VersionDetailPage() {
               <AxisLabels />
             </group>
             {geometry && (
-              <Bounds fit clip observe margin={1.2}>
+              <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
+                <BoundsResetBridge resetRef={resetViewRef} />
                 <mesh
                   geometry={geometry}
                   onClick={handleMeshClick}

@@ -9,6 +9,7 @@ import { extractThreeMFProperties, loadMeshForDisplay, type ThreeMFProperties } 
 import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
+import BoundsResetBridge from "./BoundsResetBridge";
 import MeasurementOverlay from "./MeasurementOverlay";
 import RadiusOverlay from "./RadiusOverlay";
 import PrintabilityBadge from "./PrintabilityBadge";
@@ -59,6 +60,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
   const [gridFadeDistance, setGridFadeDistance] = useState(100);
   const [axisOrigin, setAxisOrigin] = useState<[number, number, number]>([0, 0, 0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resetViewRef = useRef<(() => void) | null>(null);
 
   const [measureMode, setMeasureMode] = useState<"distance" | "radius">("distance");
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -311,8 +313,18 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
           }}
         />
 
-        <div className="absolute left-3 top-2 z-10">
+        <div className="absolute left-3 top-2 z-10 flex items-center gap-3">
           <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">Model</span>
+          {displayGeometry && (
+            <button
+              type="button"
+              onClick={() => resetViewRef.current?.()}
+              title="Reset camera to the loaded view"
+              className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+            >
+              Reset View
+            </button>
+          )}
         </div>
 
         {!displayGeometry && !isLoading && (
@@ -364,7 +376,8 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
               <AxisLabels />
             </group>
             {displayGeometry && (
-              <Bounds fit clip observe margin={1.2}>
+              <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
+                <BoundsResetBridge resetRef={resetViewRef} />
                 <mesh
                   geometry={displayGeometry}
                   onClick={handleMeshClick}

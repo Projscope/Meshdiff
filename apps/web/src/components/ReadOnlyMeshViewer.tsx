@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
+import BoundsResetBridge from "./BoundsResetBridge";
 
 interface ReadOnlyMeshViewerProps {
   /** Shown top-left. Pass the loaded version's label (e.g. "v1"); falls back to `fallbackLabel` when `geometry` is null. */
@@ -16,6 +17,8 @@ interface ReadOnlyMeshViewerProps {
 export interface ReadOnlyMeshViewerHandle {
   /** PNG data URL of the current render, or null if nothing has rendered yet. */
   captureScreenshot: () => string | null;
+  /** Re-frames the camera on the loaded model, undoing any pan/rotate/zoom. */
+  resetView: () => void;
 }
 
 const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshViewerProps>(function ReadOnlyMeshViewer(
@@ -23,9 +26,11 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
   ref,
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const resetViewRef = useRef<(() => void) | null>(null);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
+    resetView: () => resetViewRef.current?.(),
   }));
 
   return (
@@ -57,7 +62,11 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
           <axesHelper args={[30]} />
           <AxisLabels />
           {geometry && (
-            <Bounds fit clip observe margin={1.2}>
+            // Keyed by geometry so a newly-loaded model remounts Bounds
+            // (and BoundsResetBridge's captured "loaded" pose) instead of
+            // reusing whatever pose the previous model had settled on.
+            <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
+              <BoundsResetBridge resetRef={resetViewRef} />
               <mesh geometry={geometry}>
                 <meshStandardMaterial color={color} />
               </mesh>

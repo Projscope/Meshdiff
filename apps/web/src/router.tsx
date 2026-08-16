@@ -2,6 +2,10 @@ import { createBrowserRouter } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import FeaturesPage from "./pages/FeaturesPage";
 import LiveDiffToolPage from "./pages/LiveDiffToolPage";
+import CompareStlFilesPage from "./pages/CompareStlFilesPage";
+import StlDiffToolPage from "./pages/StlDiffToolPage";
+import Compare3mfFilesPage from "./pages/Compare3mfFilesPage";
+import EmbedBadgePage from "./pages/EmbedBadgePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import RoadmapPage from "./pages/RoadmapPage";
@@ -34,6 +38,12 @@ export const router = createBrowserRouter([
       { path: "/features", element: <FeaturesPage /> },
       { path: "/roadmap", element: <RoadmapPage /> },
       { path: "/live", element: <LiveDiffToolPage /> },
+      // SEO landing pages — same tool as /live, keyword-specific H1/meta,
+      // opened straight into Compare mode (see LiveDiffToolPage.tsx).
+      { path: "/compare-stl-files", element: <CompareStlFilesPage /> },
+      { path: "/stl-diff-tool", element: <StlDiffToolPage /> },
+      { path: "/compare-3mf-files", element: <Compare3mfFilesPage /> },
+      { path: "/embed", element: <EmbedBadgePage /> },
       { path: "/login", element: <LoginPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
       {

@@ -20,6 +20,7 @@ import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
+import BoundsResetBridge from "./BoundsResetBridge";
 
 export type DiffMode = "voxel" | "surface";
 
@@ -52,6 +53,8 @@ interface DiffViewProps {
 export interface DiffViewHandle {
   /** PNG data URL of the current render, or null if nothing has rendered yet. */
   captureScreenshot: () => string | null;
+  /** Re-frames the camera on the diff, undoing any pan/rotate/zoom. */
+  resetView: () => void;
 }
 
 interface CameraSyncProps {
@@ -219,9 +222,11 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
   ref,
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const resetViewRef = useRef<(() => void) | null>(null);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
+    resetView: () => resetViewRef.current?.(),
   }));
 
   // Voxelization, BVH building, and dilation are expensive — they run in a
@@ -352,6 +357,16 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           </div>
         )}
         {!isPending && !hasError && (
+          <button
+            type="button"
+            onClick={() => resetViewRef.current?.()}
+            title="Reset camera to the loaded view"
+            className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+          >
+            ⟲ Reset View
+          </button>
+        )}
+        {!isPending && !hasError && (
           <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
             Tolerance
             <input
@@ -416,7 +431,11 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           <axesHelper args={[30]} />
           <AxisLabels />
           {diff && !("error" in diff) && mode === "voxel" && (
-            <Bounds fit clip observe margin={1.2}>
+            // Keyed by the mesh pair so a new comparison remounts Bounds
+            // (and BoundsResetBridge's captured pose) instead of reusing
+            // whatever pose the previous pair had settled on.
+            <Bounds key={`voxel-${geometryA?.uuid}-${geometryB?.uuid}`} fit clip observe margin={1.2}>
+              <BoundsResetBridge resetRef={resetViewRef} />
               <VoxelLayer
                 grid={diff.grid}
                 voxelClass={VOXEL_UNCHANGED}
@@ -441,7 +460,8 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             </Bounds>
           )}
           {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
-            <Bounds fit clip observe margin={1.2}>
+            <Bounds key={`surface-${geometryA.uuid}-${geometryB.uuid}`} fit clip observe margin={1.2}>
+              <BoundsResetBridge resetRef={resetViewRef} />
               <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} toleranceMm={toleranceMm} />
               {/*
                 The vertex-based ghost in SurfaceHeatmap only catches removed

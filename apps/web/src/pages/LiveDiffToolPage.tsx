@@ -13,6 +13,7 @@ import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../l
 import { useAuth } from "../lib/AuthProvider";
 import { getSubscription } from "../lib/projectsApi";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
+import { useDocumentMeta } from "../lib/useDocumentMeta";
 
 import compareDiffImage from '../assets/compare.svg';
 import measureImage from '../assets/measure.svg';
@@ -38,10 +39,39 @@ const TOOLS: Array<{ id: LiveTool; icon: string; label: string; description: str
 
 type DiffStats = VoxelDiffStats & { toleranceMm: number };
 
-export default function LiveDiffToolPage() {
-  const [activeTool, setActiveTool] = useState<LiveTool | null>(null);
+const DEFAULT_H1 = "Compare 3D Models Online — Free STL, 3MF & OBJ Diff Tool";
+const DEFAULT_CTA = "Drag & drop two versions to see exactly what changed.";
+const DEFAULT_META_TITLE = "Meshdiff — Compare 3D Model Versions (STL, 3MF, OBJ Diff Tool)";
+const DEFAULT_META_DESCRIPTION =
+  "Free, browser-native tool to compare STL, 3MF, and OBJ files. Runs entirely locally — no uploads, no signup required.";
+
+interface LiveDiffToolPageProps {
+  /** Real <h1> for this route — distinct per SEO landing page. Falls back
+   * to a generic headline for the plain /live route. */
+  h1?: string;
+  /** Sub-headline directly under the H1, describing the one action to take. */
+  ctaText?: string;
+  /** Browser tab title / <title>, ideally built around the route's
+   * primary keyword — see useDocumentMeta. */
+  metaTitle?: string;
+  metaDescription?: string;
+  /** Skips the tool-picker cards and opens straight into Compare mode —
+   * used by keyword-specific compare landing pages, since their whole
+   * pitch is "the tool", not a menu of tools to choose from. */
+  autoOpenCompare?: boolean;
+}
+
+export default function LiveDiffToolPage({
+  h1 = DEFAULT_H1,
+  ctaText = DEFAULT_CTA,
+  metaTitle = DEFAULT_META_TITLE,
+  metaDescription = DEFAULT_META_DESCRIPTION,
+  autoOpenCompare = false,
+}: LiveDiffToolPageProps = {}) {
+  useDocumentMeta(metaTitle, metaDescription);
+  const [activeTool, setActiveTool] = useState<LiveTool | null>(autoOpenCompare ? "compare" : null);
   const [hoveredTool, setHoveredTool] = useState<LiveTool | null>(null);
-  const [isToolModalOpen, setIsToolModalOpen] = useState(false);
+  const [isToolModalOpen, setIsToolModalOpen] = useState(autoOpenCompare);
 
   const measureViewerRef = useRef<MeasureViewerHandle>(null);
   const [geometryA, setGeometryA] = useState<THREE.BufferGeometry | null>(null);
@@ -306,9 +336,16 @@ export default function LiveDiffToolPage() {
   }[activeHowItWorksMode];
 
   return (
-    <div className="flex h-screen flex-col overflow-y-auto bg-neutral-950 text-neutral-100 px-4 py-8 items-center">
-      <div className="mx-auto max-w-5xl border-b border-neutral-800 px-4 py-1.5 text-center text-xs text-neutral-600">
-        Compare 3D models free — STL diff, OBJ diff, and 3MF diff, runs entirely in your browser
+    // min-h-screen (not h-screen + overflow-y-auto) — the old fixed-height
+    // scroll box made this page scroll independently of the rest of the
+    // site, so the footer (rendered by RootLayout right after this page)
+    // sat immediately at that box's bottom edge with no visual gap,
+    // reading as if it were floating over/cutting into this page's own
+    // content instead of following it in normal document flow.
+    <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-100 px-4 py-8 items-center">
+      <div className="w-full max-w-3xl mx-auto pt-4 pb-2 text-center">
+        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{h1}</h1>
+        <p className="mt-2 text-sm text-neutral-400 sm:text-base">{ctaText}</p>
       </div>
 
       <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto py-6 gap-8">
@@ -623,6 +660,20 @@ export default function LiveDiffToolPage() {
                       />
                       <span className="text-xs text-neutral-300">Locked views</span>
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // The diff pane has its own Reset View button (see
+                        // DiffView.tsx) — this one only needs to cover the
+                        // two individual model viewers.
+                        viewerARef.current?.resetView();
+                        viewerBRef.current?.resetView();
+                      }}
+                      title="Reset both model views to how they loaded"
+                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+                    >
+                      ⟲ Reset Views
+                    </button>
                   </>
                 ) : (
                   <button
@@ -816,16 +867,6 @@ export default function LiveDiffToolPage() {
           shareUrl={shareUrl}
         />
       )}
-
-      <Link
-        to="/"
-        className="fixed bottom-3 right-3 z-40 flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-[11px] text-neutral-400 shadow-lg backdrop-blur hover:border-neutral-600 hover:text-neutral-200"
-      >
-        <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-[9px] font-bold leading-none text-neutral-950">
-          ^
-        </span>
-        Powered by Meshdiff
-      </Link>
     </div>
   );
 }

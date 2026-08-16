@@ -218,6 +218,21 @@ export default function CompareVersionsPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => {
+                // Resets all three viewers together — the point is
+                // undoing however much the user has panned/rotated/zoomed
+                // across the whole comparison, not just one pane.
+                viewerARef.current?.resetView();
+                viewerBRef.current?.resetView();
+                diffViewRef.current?.resetView();
+              }}
+              title="Reset all views to how they loaded"
+              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
+            >
+              ⟲ Reset View
+            </button>
+            <button
+              type="button"
               onClick={handleShareClick}
               className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
             >
