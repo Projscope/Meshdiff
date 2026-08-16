@@ -1,4 +1,20 @@
 User-agent: *
 Allow: /
 
+# AI engine crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
 Sitemap: https://meshdiff.com/sitemap.xml
