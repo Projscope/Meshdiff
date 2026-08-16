@@ -663,6 +663,20 @@ export default function LiveDiffToolPage({
                     <button
                       type="button"
                       onClick={() => {
+                        // The diff pane has its own Zoom to Model button
+                        // (see DiffView.tsx) — this one only needs to cover
+                        // the two individual model viewers.
+                        viewerARef.current?.zoomToFit();
+                        viewerBRef.current?.zoomToFit();
+                      }}
+                      title="Zoom to fit both models in view"
+                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+                    >
+                      Zoom to Models
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
                         // The diff pane has its own Reset View button (see
                         // DiffView.tsx) — this one only needs to cover the
                         // two individual model viewers.

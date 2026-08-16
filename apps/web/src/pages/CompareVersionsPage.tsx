@@ -227,6 +227,22 @@ export default function CompareVersionsPage() {
             <button
               type="button"
               onClick={() => {
+                // Fits all three viewers together, keeping each one's
+                // current rotation — the point is bringing the model back
+                // into frame after panning/zooming away, not undoing a
+                // deliberate rotation (that's what Reset View is for).
+                viewerARef.current?.zoomToFit();
+                viewerBRef.current?.zoomToFit();
+                diffViewRef.current?.zoomToFit();
+              }}
+              title="Zoom to fit all views"
+              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
+            >
+              Zoom to Model
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 // Resets all three viewers together — the point is
                 // undoing however much the user has panned/rotated/zoomed
                 // across the whole comparison, not just one pane.

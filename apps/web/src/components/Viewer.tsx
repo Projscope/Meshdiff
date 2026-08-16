@@ -8,6 +8,7 @@ import { loadMeshForDisplay } from "../engine/load3mfDisplayExtras";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
+import ZoomToFitBridge from "./ZoomToFitBridge";
 
 interface CameraSyncProps {
   syncedCameraState: { position: [number, number, number]; target: [number, number, number] } | undefined;
@@ -143,6 +144,8 @@ export interface ViewerHandle {
   captureScreenshot: () => string | null;
   /** Re-frames the camera on the loaded model, undoing any pan/rotate/zoom. */
   resetView: () => void;
+  /** Zooms/re-centers to fit the model, keeping the current rotation/angle. */
+  zoomToFit: () => void;
 }
 
 const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
@@ -163,6 +166,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const orbitControlsRef = useRef<any>(null);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
+  const zoomToFitRef = useRef<(() => void) | null>(null);
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -219,6 +223,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     loadFromBytes: (bytes, filename) => void handleFile(new File([bytes], filename)),
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
     resetView: () => resetViewRef.current?.(),
+    zoomToFit: () => zoomToFitRef.current?.(),
   }));
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -292,6 +297,13 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             </label>
             <button
               type="button"
+              onClick={() => zoomToFitRef.current?.()}
+              className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+            >
+              Zoom to model
+            </button>
+            <button
+              type="button"
               onClick={() => resetViewRef.current?.()}
               className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
             >
@@ -351,6 +363,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           {displayGeometry && (
             <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
+              <ZoomToFitBridge zoomRef={zoomToFitRef} />
               <mesh geometry={displayGeometry}>
                 {/* key forces a fresh material instance when hasVertexColors
                     flips — mutating vertexColors on an already-compiled

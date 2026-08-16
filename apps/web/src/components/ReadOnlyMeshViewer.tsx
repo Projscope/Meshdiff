@@ -5,6 +5,7 @@ import { Bounds, Grid, OrbitControls } from "@react-three/drei";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
+import ZoomToFitBridge from "./ZoomToFitBridge";
 
 interface ReadOnlyMeshViewerProps {
   /** Shown top-left. Pass the loaded version's label (e.g. "v1"); falls back to `fallbackLabel` when `geometry` is null. */
@@ -19,6 +20,8 @@ export interface ReadOnlyMeshViewerHandle {
   captureScreenshot: () => string | null;
   /** Re-frames the camera on the loaded model, undoing any pan/rotate/zoom. */
   resetView: () => void;
+  /** Zooms/re-centers to fit the model, keeping the current rotation/angle. */
+  zoomToFit: () => void;
 }
 
 const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshViewerProps>(function ReadOnlyMeshViewer(
@@ -27,10 +30,12 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
+  const zoomToFitRef = useRef<(() => void) | null>(null);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
     resetView: () => resetViewRef.current?.(),
+    zoomToFit: () => zoomToFitRef.current?.(),
   }));
 
   return (
@@ -67,6 +72,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
             // reusing whatever pose the previous model had settled on.
             <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
+              <ZoomToFitBridge zoomRef={zoomToFitRef} />
               <mesh geometry={geometry}>
                 <meshStandardMaterial color={color} />
               </mesh>
