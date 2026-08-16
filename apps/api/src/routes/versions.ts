@@ -11,6 +11,7 @@ import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES, exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
+import { isUnderMemoryPressure } from "../lib/memoryGuard.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const DOWNLOAD_URL_TTL_SECONDS = 60;
@@ -146,6 +147,14 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
         reply.code(500);
         return { success: false, error: "Projects are not configured" };
+      }
+      // Checked before any of this request's own downloads/parsing/diffing
+      // start — a concurrent request may already have pushed the process
+      // close to its memory ceiling, and starting more heavy work on top of
+      // that is what crashes the whole instance (see memoryGuard.ts).
+      if (isUnderMemoryPressure()) {
+        reply.code(503);
+        return { success: false, error: "Server is under heavy load, please try again shortly" };
       }
 
       try {

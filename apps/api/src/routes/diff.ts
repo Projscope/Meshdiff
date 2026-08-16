@@ -6,6 +6,7 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
 import { exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
+import { isUnderMemoryPressure } from "../lib/memoryGuard.js";
 
 const BUCKET = "project-meshes";
 
@@ -73,6 +74,15 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
         }
         if (cached) {
           return { success: true, data: cached.stats };
+        }
+
+        // Checked only on a cache miss, right before the expensive
+        // download/parse/diff path — a concurrent request may already have
+        // pushed the process close to its memory ceiling (see
+        // memoryGuard.ts).
+        if (isUnderMemoryPressure()) {
+          reply.code(503);
+          return { success: false, error: "Server is under heavy load, please try again shortly" };
         }
 
         const [blobA, blobB] = await Promise.all([
