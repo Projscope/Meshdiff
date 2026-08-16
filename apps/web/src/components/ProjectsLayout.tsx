@@ -430,6 +430,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   >
                     Dashboard
                   </Link>
+                  <Link
+                    to="/admin/users"
+                    className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                  >
+                    Users
+                  </Link>
                 </div>
               </>
             )}

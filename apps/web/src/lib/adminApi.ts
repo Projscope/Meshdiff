@@ -24,6 +24,22 @@ export interface AdminUsersPage {
   stats: AdminStats;
 }
 
+export type SignupGranularity = "week" | "month";
+
+export interface SignupBucket {
+  periodStart: string;
+  count: number;
+}
+
+export interface AdminDashboard {
+  stats: AdminStats;
+  signups: SignupBucket[];
+}
+
 export function listAdminUsers(page = 1): Promise<Result<AdminUsersPage>> {
   return request(`/admin/users?page=${page}`);
+}
+
+export function getAdminDashboard(granularity: SignupGranularity = "week"): Promise<Result<AdminDashboard>> {
+  return request(`/admin/stats?granularity=${granularity}`);
 }

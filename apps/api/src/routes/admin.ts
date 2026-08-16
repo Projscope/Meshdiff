@@ -3,11 +3,16 @@ import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
+import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 
 const PAGE_SIZE = 25;
 
 interface AdminUsersQuery {
   page?: string;
+}
+
+interface AdminStatsQuery {
+  granularity?: string;
 }
 
 interface SubscriptionRow {
@@ -18,6 +23,48 @@ interface SubscriptionRow {
 }
 
 export default async function adminRoute(app: FastifyInstance): Promise<void> {
+  // Lightweight stats-only endpoint for the Dashboard page — no paginated
+  // user list, just the stat cards plus the signups trend chart.
+  app.get<{ Querystring: AdminStatsQuery }>(
+    "/admin/stats",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const supabase = getSupabase();
+      if (!supabase) {
+        reply.code(500);
+        return { success: false, error: "Admin is not configured" };
+      }
+
+      const granularity: SignupGranularity = request.query.granularity === "month" ? "month" : "week";
+
+      try {
+        const [statsResult, signupsResult] = await Promise.all([
+          getAdminStats(supabase),
+          getSignupBuckets(supabase, granularity),
+        ]);
+        if (!statsResult.success) {
+          app.log.error("Failed to compute admin stats: " + statsResult.error);
+          reply.code(502);
+          return { success: false, error: "Failed to load stats" };
+        }
+        if (!signupsResult.success) {
+          app.log.error("Failed to compute signup buckets: " + signupsResult.error);
+          reply.code(502);
+          return { success: false, error: "Failed to load stats" };
+        }
+
+        return {
+          success: true,
+          data: { stats: statsResult.data, signups: signupsResult.data },
+        };
+      } catch (err) {
+        app.log.error(err, "Admin stats threw");
+        reply.code(502);
+        return { success: false, error: "Failed to load stats" };
+      }
+    },
+  );
+
   app.get<{ Querystring: AdminUsersQuery }>(
     "/admin/users",
     { preHandler: [requireAuth, requireAdmin] },
@@ -37,13 +84,19 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         // as ≥2 users exist system-wide) independent of the real page size
         // below. See apps/api/migrations/0007_get_user_id_by_email.sql's
         // comment for why there's no cheaper way to get this count.
-        const [totalProbe, pageResult] = await Promise.all([
+        const [totalProbe, pageResult, statsResult] = await Promise.all([
           supabase.auth.admin.listUsers({ page: 1, perPage: 1 }),
           supabase.auth.admin.listUsers({ page, perPage: PAGE_SIZE }),
+          getAdminStats(supabase),
         ]);
 
         if (pageResult.error) {
           app.log.error(pageResult.error, "Failed to list users");
+          reply.code(502);
+          return { success: false, error: "Failed to load users" };
+        }
+        if (!statsResult.success) {
+          app.log.error("Failed to compute admin stats: " + statsResult.error);
           reply.code(502);
           return { success: false, error: "Failed to load users" };
         }
@@ -79,52 +132,12 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           };
         });
 
-        // Conversion rate needs the true global Pro count, not just this
-        // page's — a direct count query on subscriptions rather than
-        // paginating every auth.users page.
-        const { count: proCount, error: proCountError } = await supabase
-          .from("subscriptions")
-          .select("*", { count: "exact", head: true })
-          .eq("tier", "pro")
-          .not("status", "in", `(${INACTIVE_SUBSCRIPTION_STATUSES.join(",")})`);
-        if (proCountError) {
-          app.log.error(proCountError, "Failed to count pro subscriptions");
-          reply.code(502);
-          return { success: false, error: "Failed to load users" };
-        }
-
-        // Share counts by who created them, using the tier snapshotted at
-        // share time (share_stats.tier_at_share — see migration 0016), not
-        // a live join: null = the anonymous public Live Diff tool
-        // ("community"), 'free'/'pro' = a signed-in project comparison
-        // share from an account at that tier when they shared.
-        const [communityShares, freeShares, proShares] = await Promise.all([
-          supabase.from("share_stats").select("*", { count: "exact", head: true }).is("tier_at_share", null),
-          supabase.from("share_stats").select("*", { count: "exact", head: true }).eq("tier_at_share", "free"),
-          supabase.from("share_stats").select("*", { count: "exact", head: true }).eq("tier_at_share", "pro"),
-        ]);
-        if (communityShares.error || freeShares.error || proShares.error) {
-          app.log.error(
-            { community: communityShares.error, free: freeShares.error, pro: proShares.error },
-            "Failed to count shares",
-          );
-          reply.code(502);
-          return { success: false, error: "Failed to load users" };
-        }
-
         return {
           success: true,
           data: {
             users,
             total: totalUsers,
-            stats: {
-              totalUsers,
-              proUsers: proCount ?? 0,
-              conversionRate: totalUsers > 0 ? Math.round(((proCount ?? 0) / totalUsers) * 1000) / 10 : 0,
-              communityShares: communityShares.count ?? 0,
-              freeShares: freeShares.count ?? 0,
-              proShares: proShares.count ?? 0,
-            },
+            stats: statsResult.data,
           },
         };
       } catch (err) {
