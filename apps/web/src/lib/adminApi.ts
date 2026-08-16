@@ -13,6 +13,9 @@ export interface AdminStats {
   totalUsers: number;
   proUsers: number;
   conversionRate: number;
+  communityShares: number;
+  freeShares: number;
+  proShares: number;
 }
 
 export interface AdminUsersPage {

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { sanitizeFilename, extensionOf } from "../lib/filename.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { getUserTier } from "../lib/subscription.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -105,7 +106,9 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
       // Best-effort: this is a permanent log for the future admin dashboard,
       // independent of the shares row's lifecycle (delete_expired_shares()
       // purges shares but never touches share_stats). A failure here
-      // shouldn't block the actual share creation.
+      // shouldn't block the actual share creation. tier_at_share stays null
+      // — this route is the anonymous public Live Diff tool, no signed-in
+      // user to snapshot a tier from (see migration 0016: null = community).
       const { error: statsError } = await supabase.from("share_stats").insert({
         share_id: id,
         expires_in_days: expiresInDays,
@@ -309,10 +312,15 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
 
         const shareUrl = `${request.headers.origin ?? "http://localhost:5173"}/live?share=${id}`;
 
+        // Snapshot the sharer's tier at this exact moment — a later
+        // upgrade/downgrade shouldn't silently rewrite historical admin
+        // dashboard counts (see migration 0016).
+        const { tier } = await getUserTier(supabase, request.userId!);
         const { error: statsError } = await supabase.from("share_stats").insert({
           share_id: id,
           expires_in_days: expiresInDays,
           share_url: shareUrl,
+          tier_at_share: tier,
         });
         if (statsError) {
           app.log.warn(statsError, "Failed to record share_stats row");

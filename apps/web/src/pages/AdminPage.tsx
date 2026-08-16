@@ -58,6 +58,15 @@ export default function AdminPage() {
             <StatCard label="Conversion Rate" value={`${data.stats.conversionRate}%`} />
           </div>
 
+          {/* Grouped by the sharer's subscription tier at the moment they
+              shared (see migration 0016) — community is the anonymous
+              public Live Diff tool, free/pro are signed-in project shares. */}
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard label="Community Shares" value={data.stats.communityShares} />
+            <StatCard label="Free-Tier Shares" value={data.stats.freeShares} />
+            <StatCard label="Pro Shares" value={data.stats.proShares} />
+          </div>
+
           <div className="mt-6 overflow-hidden rounded-lg border border-neutral-800">
             <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
               <span>Email</span>

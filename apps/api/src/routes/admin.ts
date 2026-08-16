@@ -93,6 +93,25 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           return { success: false, error: "Failed to load users" };
         }
 
+        // Share counts by who created them, using the tier snapshotted at
+        // share time (share_stats.tier_at_share — see migration 0016), not
+        // a live join: null = the anonymous public Live Diff tool
+        // ("community"), 'free'/'pro' = a signed-in project comparison
+        // share from an account at that tier when they shared.
+        const [communityShares, freeShares, proShares] = await Promise.all([
+          supabase.from("share_stats").select("*", { count: "exact", head: true }).is("tier_at_share", null),
+          supabase.from("share_stats").select("*", { count: "exact", head: true }).eq("tier_at_share", "free"),
+          supabase.from("share_stats").select("*", { count: "exact", head: true }).eq("tier_at_share", "pro"),
+        ]);
+        if (communityShares.error || freeShares.error || proShares.error) {
+          app.log.error(
+            { community: communityShares.error, free: freeShares.error, pro: proShares.error },
+            "Failed to count shares",
+          );
+          reply.code(502);
+          return { success: false, error: "Failed to load users" };
+        }
+
         return {
           success: true,
           data: {
@@ -102,6 +121,9 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
               totalUsers,
               proUsers: proCount ?? 0,
               conversionRate: totalUsers > 0 ? Math.round(((proCount ?? 0) / totalUsers) * 1000) / 10 : 0,
+              communityShares: communityShares.count ?? 0,
+              freeShares: freeShares.count ?? 0,
+              proShares: proShares.count ?? 0,
             },
           },
         };
