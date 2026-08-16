@@ -10,9 +10,9 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
+import { MAX_FILE_BYTES, exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
-const MAX_FILE_BYTES = 200 * 1024 * 1024;
 const DOWNLOAD_URL_TTL_SECONDS = 60;
 const BUCKET = "project-meshes";
 
@@ -72,7 +72,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       }
       if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_FILE_BYTES) {
         reply.code(400);
-        return { success: false, error: "File must be under 200MB" };
+        return { success: false, error: "File must be under 50MB" };
       }
 
       const supabase = getSupabase();
@@ -182,6 +182,10 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(502);
           return { success: false, error: "Failed to read uploaded file" };
         }
+        if (exceedsMaxFileSize(currentBlob)) {
+          reply.code(413);
+          return { success: false, error: "File must be under 50MB" };
+        }
 
         const currentBuffer = await currentBlob.arrayBuffer();
         const currentGeoResult = await loadMeshGeometryServer(
@@ -222,6 +226,10 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
             app.log.error(prevDownloadError, "Failed to download previous version file");
             reply.code(502);
             return { success: false, error: "Failed to read previous version file" };
+          }
+          if (exceedsMaxFileSize(prevBlob)) {
+            reply.code(413);
+            return { success: false, error: "Previous version file exceeds the 50MB limit" };
           }
           const prevBuffer = await prevBlob.arrayBuffer();
           const prevGeoResult = await loadMeshGeometryServer(

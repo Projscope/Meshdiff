@@ -29,7 +29,11 @@ import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
 
 const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
-const MAX_FILE_BYTES = 200 * 1024 * 1024;
+// Kept in sync with the server-side limit (apps/api/src/lib/fileSizeLimit.ts)
+// — this is just an early UI check so an oversized file is rejected before
+// spending time on a signed-upload-URL round trip; the server enforces the
+// real boundary independently.
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 interface Comparison {
   fromVersion: VersionSummary;
@@ -165,7 +169,7 @@ export default function ProjectDetailPage() {
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
-      setError("File must be under 200MB");
+      setError("File must be under 50MB");
       return;
     }
 
