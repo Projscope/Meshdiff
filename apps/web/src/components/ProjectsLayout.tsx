@@ -488,19 +488,21 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   </button>
                 </div>
                 {isAdminExpanded && (
-                <div className="mt-2 flex flex-col gap-0.5">
-                  <Link
-                    to="/admin"
-                    className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    to="/admin/users"
-                    className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
-                  >
-                    Users
-                  </Link>
+                <div className="mt-2 rounded-md bg-neutral-900/40 py-1">
+                  <div className="flex flex-col gap-0.5">
+                    <Link
+                      to="/admin"
+                      className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/admin/users"
+                      className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                    >
+                      Users
+                    </Link>
+                  </div>
                 </div>
                 )}
               </>
