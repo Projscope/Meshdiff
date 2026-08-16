@@ -3,12 +3,13 @@ interface UploadProgressModalProps {
 }
 
 /**
- * Blocking overlay shown while a new version uploads and finalizes
- * (upload → voxelize → wall-thickness/overhang analysis) — replaces the
- * small in-button spinner with a themed animation (a spinning wireframe
- * cube, echoing the voxel/mesh subject matter) since finalize() can take a
- * few seconds and a tiny spinner buried in the button gave no sense that
- * something was actually happening.
+ * Blocking overlay shown while a new version uploads and diffs (upload ->
+ * voxelize -> wall-thickness/overhang analysis, all client-side — see
+ * uploadVersion() in projectsApi.ts) — replaces the small in-button spinner
+ * with a themed animation (a spinning wireframe cube, echoing the
+ * voxel/mesh subject matter) since this can take a few seconds and a tiny
+ * spinner buried in the button gave no sense that something was actually
+ * happening.
  */
 export default function UploadProgressModal({ fileName }: UploadProgressModalProps) {
   return (

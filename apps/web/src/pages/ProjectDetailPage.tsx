@@ -30,10 +30,9 @@ import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
 
 // Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
-// — OBJ/3MF are disabled here specifically (the Projects workspace upload
-// path, which runs diffing server-side); the free community tool's OBJ/3MF
-// support is untouched since it runs entirely client-side.
-const ALLOWED_EXTENSIONS = [".stl"];
+// — all three formats are safe again now that diffing runs client-side
+// (see uploadVersion() in projectsApi.ts) rather than on the shared server.
+const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
 // Kept in sync with the server-side limit (apps/api/src/lib/fileSizeLimit.ts)
 // — this is just an early UI check so an oversized file is rejected before
 // spending time on a signed-upload-URL round trip; the server enforces the
@@ -179,7 +178,7 @@ export default function ProjectDetailPage() {
     }
     const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ALLOWED_EXTENSIONS.includes(extension)) {
-      setError("File must be an STL file");
+      setError("File must be an STL, 3MF, or OBJ file");
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
@@ -190,7 +189,11 @@ export default function ProjectDetailPage() {
     setIsUploading(true);
     setUploadingFileName(file.name);
     setError(null);
-    const result = await uploadVersion(projectId, file);
+    // versions is sorted ascending by versionNumber (see refresh()) — the
+    // last entry is whatever's currently latest, i.e. exactly what this
+    // new upload should be diffed against.
+    const previousVersionId = versions.length > 0 ? versions[versions.length - 1].id : null;
+    const result = await uploadVersion(projectId, file, previousVersionId);
     setIsUploading(false);
     if (!result.success) {
       setError(result.error);
@@ -359,7 +362,7 @@ export default function ProjectDetailPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".stl"
+        accept=".stl,.obj,.3mf"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -444,7 +447,7 @@ export default function ProjectDetailPage() {
 
       {isDragOver && (
         <div className="mt-4 rounded-lg border-2 border-dashed border-emerald-500 bg-emerald-500/5 py-4 text-center text-sm text-emerald-300">
-          Drop an STL to upload a new version
+          Drop STL, 3MF, or OBJ to upload a new version
         </div>
       )}
 
