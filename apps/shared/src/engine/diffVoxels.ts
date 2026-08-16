@@ -66,15 +66,20 @@ const FDM_MIN_WALL_THICKNESS_MM = 0.8;
 // merging. A ZIP-compressed 3MF can unpack to far more triangles than its
 // compressed byte size suggests, and that mismatch was observed crashing a
 // Render instance with an unrecoverable V8 heap OOM even after the 50MB
-// byte cap was in place. ~1,000,000 matches what a 50MB binary STL
-// (50 bytes/triangle) already implies, now enforced directly and uniformly
-// across STL/OBJ/3MF regardless of on-disk compression. Exported so
-// loadMeshServer.ts can reject an oversized mesh right after parsing —
-// before the expensive toNonIndexed()/merge expansion steps that duplicate
-// every vertex per triangle, which is where OBJ/3MF memory actually blows
-// up (this check alone, running only once diffing starts, is too late to
-// prevent that).
-export const MAX_TRIANGLES_PER_MESH = 1_000_000;
+// byte cap was in place. The cap was originally set at 1,000,000 (matching
+// what a 50MB binary STL implies), but finalize()/diff() hold TWO meshes
+// (previous + current) in memory at once, each getting its own BVH tree —
+// even after that cap shipped, Render reported the instance "ran out of
+// memory (used over 2GB)" on its Standard (2GB) plan, meaning real RSS, not
+// just V8's own heap ceiling. 200,000 leaves real headroom for two
+// simultaneous meshes plus Node/Fastify baseline overhead, while still
+// comfortably covering real-world FDM-printable parts (typically thousands
+// to tens of thousands of triangles). Exported so loadMeshServer.ts can
+// reject an oversized mesh right after parsing — before the expensive
+// toNonIndexed()/merge expansion steps that duplicate every vertex per
+// triangle, which is where OBJ/3MF memory actually blows up (this check
+// alone, running only once diffing starts, is too late to prevent that).
+export const MAX_TRIANGLES_PER_MESH = 200_000;
 
 function computeSurfaceArea(geometry: THREE.BufferGeometry): number {
   const position = geometry.getAttribute("position");
