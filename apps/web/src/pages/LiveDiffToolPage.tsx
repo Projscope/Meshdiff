@@ -623,6 +623,20 @@ export default function LiveDiffToolPage() {
                       />
                       <span className="text-xs text-neutral-300">Locked views</span>
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // The diff pane has its own Reset View button (see
+                        // DiffView.tsx) — this one only needs to cover the
+                        // two individual model viewers.
+                        viewerARef.current?.resetView();
+                        viewerBRef.current?.resetView();
+                      }}
+                      title="Reset both model views to how they loaded"
+                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+                    >
+                      ⟲ Reset Views
+                    </button>
                   </>
                 ) : (
                   <button

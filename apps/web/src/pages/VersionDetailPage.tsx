@@ -374,7 +374,7 @@ export default function VersionDetailPage() {
               <AxisLabels />
             </group>
             {geometry && (
-              <Bounds fit clip observe margin={1.2}>
+              <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
                 <BoundsResetBridge resetRef={resetViewRef} />
                 <mesh
                   geometry={geometry}

@@ -376,7 +376,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
               <AxisLabels />
             </group>
             {displayGeometry && (
-              <Bounds fit clip observe margin={1.2}>
+              <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
                 <BoundsResetBridge resetRef={resetViewRef} />
                 <mesh
                   geometry={displayGeometry}

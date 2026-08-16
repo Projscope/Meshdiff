@@ -7,6 +7,7 @@ import { loadMeshGeometry } from "../engine/loadMesh";
 import { loadMeshForDisplay } from "../engine/load3mfDisplayExtras";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
+import BoundsResetBridge from "./BoundsResetBridge";
 
 interface CameraSyncProps {
   syncedCameraState: { position: [number, number, number]; target: [number, number, number] } | undefined;
@@ -140,6 +141,8 @@ export interface ViewerHandle {
   loadFromBytes: (bytes: Blob, filename: string) => void;
   /** PNG data URL of the current render, or null if nothing has rendered yet. */
   captureScreenshot: () => string | null;
+  /** Re-frames the camera on the loaded model, undoing any pan/rotate/zoom. */
+  resetView: () => void;
 }
 
 const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
@@ -159,6 +162,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const fileInputRef = useRef<HTMLInputElement>(null);
   const orbitControlsRef = useRef<any>(null);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const resetViewRef = useRef<(() => void) | null>(null);
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -214,6 +218,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     loadDemo: () => void handleLoadDemo(),
     loadFromBytes: (bytes, filename) => void handleFile(new File([bytes], filename)),
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
+    resetView: () => resetViewRef.current?.(),
   }));
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -287,11 +292,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             </label>
             <button
               type="button"
-              onClick={() => {
-                if (orbitControlsRef.current) {
-                  orbitControlsRef.current.reset();
-                }
-              }}
+              onClick={() => resetViewRef.current?.()}
               className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
             >
               Reset view
@@ -348,7 +349,8 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           <axesHelper args={[30]} />
           <AxisLabels />
           {displayGeometry && (
-            <Bounds fit clip observe margin={1.2}>
+            <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
+              <BoundsResetBridge resetRef={resetViewRef} />
               <mesh geometry={displayGeometry}>
                 {/* key forces a fresh material instance when hasVertexColors
                     flips — mutating vertexColors on an already-compiled

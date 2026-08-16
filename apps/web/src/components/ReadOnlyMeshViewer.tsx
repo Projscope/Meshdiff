@@ -62,7 +62,10 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
           <axesHelper args={[30]} />
           <AxisLabels />
           {geometry && (
-            <Bounds fit clip observe margin={1.2}>
+            // Keyed by geometry so a newly-loaded model remounts Bounds
+            // (and BoundsResetBridge's captured "loaded" pose) instead of
+            // reusing whatever pose the previous model had settled on.
+            <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
               <mesh geometry={geometry}>
                 <meshStandardMaterial color={color} />
