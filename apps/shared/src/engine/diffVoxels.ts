@@ -59,6 +59,17 @@ const DEFAULT_TARGET_VOXELS_PER_AXIS = 32;
 const MAX_VOXELS_PER_AXIS = 96;
 const MIN_RESOLUTION_MM = 0.05;
 const FDM_MIN_WALL_THICKNESS_MM = 0.8;
+// A file-size cap (see apps/api/src/lib/fileSizeLimit.ts) only bounds bytes
+// on disk — it doesn't bound triangle count, and triangle count is what
+// actually drives memory here: MeshBVH builds a full tree per mesh, and
+// position/normal buffers get cloned multiple times over during loading and
+// merging. A ZIP-compressed 3MF can unpack to far more triangles than its
+// compressed byte size suggests, and that mismatch was observed crashing a
+// Render instance with an unrecoverable V8 heap OOM even after the 50MB
+// byte cap was in place. ~1,000,000 matches what a 50MB binary STL
+// (50 bytes/triangle) already implies, now enforced directly and uniformly
+// across STL/OBJ/3MF regardless of on-disk compression.
+const MAX_TRIANGLES_PER_MESH = 1_000_000;
 
 function computeSurfaceArea(geometry: THREE.BufferGeometry): number {
   const position = geometry.getAttribute("position");
@@ -421,6 +432,20 @@ export function computeVoxelDiffBase(
     fileFormatB?: string;
   },
 ): Result<VoxelDiffBase> {
+  // Checked before any heavy allocation (voxelization, BVH construction) —
+  // see MAX_TRIANGLES_PER_MESH above for why this can't just be a file-size
+  // check.
+  const indexA = geometryA.getIndex();
+  const indexB = geometryB.getIndex();
+  const triangleCountA = indexA ? indexA.count / 3 : (geometryA.getAttribute("position")?.count ?? 0) / 3;
+  const triangleCountB = indexB ? indexB.count / 3 : (geometryB.getAttribute("position")?.count ?? 0) / 3;
+  if (triangleCountA > MAX_TRIANGLES_PER_MESH || triangleCountB > MAX_TRIANGLES_PER_MESH) {
+    return {
+      success: false,
+      error: `Mesh has ${Math.max(triangleCountA, triangleCountB).toLocaleString()} triangles, exceeding the ${MAX_TRIANGLES_PER_MESH.toLocaleString()} limit for diffing`,
+    };
+  }
+
   geometryA.computeBoundingBox();
   geometryB.computeBoundingBox();
   const boxA = geometryA.boundingBox;
@@ -479,11 +504,8 @@ export function computeVoxelDiffBase(
   const boundingBoxDeltaY = Math.round((sizeB.y - sizeA.y) * 100) / 100;
   const boundingBoxDeltaZ = Math.round((sizeB.z - sizeA.z) * 100) / 100;
 
-  // Compute triangle count delta
-  const indexA = geometryA.getIndex();
-  const indexB = geometryB.getIndex();
-  const triangleCountA = indexA ? indexA.count / 3 : (geometryA.getAttribute("position")?.count ?? 0) / 3;
-  const triangleCountB = indexB ? indexB.count / 3 : (geometryB.getAttribute("position")?.count ?? 0) / 3;
+  // Triangle count delta (counts themselves already computed above, before
+  // the triangle-count guard)
   const triangleDeltaA = triangleCountA;
   const triangleDeltaB = triangleCountB;
   const triangleDelta = triangleCountB - triangleCountA;
