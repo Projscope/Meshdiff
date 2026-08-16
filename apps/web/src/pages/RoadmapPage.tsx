@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export default function RoadmapPage() {
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.0.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.1.0");
 
   const handleScrollToPricing = () => {
     window.location.href = "/#pricing";
@@ -33,6 +33,32 @@ export default function RoadmapPage() {
   };
 
   const changelog = [
+    {
+      version: "v1.1.0",
+      date: "2026-08-16",
+      title: "Creator growth tools, Reset View, and sidebar polish",
+      items: {
+        new: [
+          "Reset View button for the Compare tool and both Measure tools",
+          "Embeddable revision badge for Printables, MakerWorld, Thingiverse, and personal sites (/embed)",
+          "SEO landing pages for STL and 3MF comparison search terms",
+          "Search box for the sidebar project list",
+          "Collapsible Projects and Admin sections in the sidebar",
+        ],
+        improved: [
+          "Billing card moved below navigation, directly above the account footer",
+          "Tinted panel styling for the Projects and Admin sidebar sections",
+          "Teams section hidden for Pro users with no teams",
+          "HTML and Markdown snippet formats with a clickable live preview and optional share-link input",
+        ],
+        fixed: [
+          "Reset View wasn't restoring the original camera pose",
+          "'Powered by Meshdiff' footer badge floated instead of staying static",
+          "Nested scroll box causing the footer to overlap page content",
+          "White background gap on short pages caused by an unstyled layout wrapper",
+        ],
+      },
+    },
     {
       version: "v1.0.0",
       date: "2026-08-14",
