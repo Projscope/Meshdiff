@@ -20,6 +20,7 @@ import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
+import BoundsResetBridge from "./BoundsResetBridge";
 
 export type DiffMode = "voxel" | "surface";
 
@@ -52,6 +53,8 @@ interface DiffViewProps {
 export interface DiffViewHandle {
   /** PNG data URL of the current render, or null if nothing has rendered yet. */
   captureScreenshot: () => string | null;
+  /** Re-frames the camera on the diff, undoing any pan/rotate/zoom. */
+  resetView: () => void;
 }
 
 interface CameraSyncProps {
@@ -219,9 +222,11 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
   ref,
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const resetViewRef = useRef<(() => void) | null>(null);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
+    resetView: () => resetViewRef.current?.(),
   }));
 
   // Voxelization, BVH building, and dilation are expensive — they run in a
@@ -417,6 +422,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           <AxisLabels />
           {diff && !("error" in diff) && mode === "voxel" && (
             <Bounds fit clip observe margin={1.2}>
+              <BoundsResetBridge resetRef={resetViewRef} />
               <VoxelLayer
                 grid={diff.grid}
                 voxelClass={VOXEL_UNCHANGED}
@@ -442,6 +448,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           )}
           {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
             <Bounds fit clip observe margin={1.2}>
+              <BoundsResetBridge resetRef={resetViewRef} />
               <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} toleranceMm={toleranceMm} />
               {/*
                 The vertex-based ghost in SurfaceHeatmap only catches removed
