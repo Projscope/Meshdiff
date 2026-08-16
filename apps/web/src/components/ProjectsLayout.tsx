@@ -322,66 +322,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="border-b border-neutral-800 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Billing</p>
-            <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
-                {!isTeamMember && !isPro && (
-                  <button
-                    type="button"
-                    onClick={() => setShowUpgradeToPro(true)}
-                    className={`shrink-0 text-[11px] font-medium ${
-                      isRestricted ? "text-red-400 hover:text-red-300" : "text-emerald-400 hover:text-emerald-300"
-                    }`}
-                  >
-                    Upgrade
-                  </button>
-                )}
-              </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
-                {isTeamMember
-                  ? "Belongs to a team — Team billing isn't wired up yet."
-                  : isPro
-                    ? subscription?.cancelAtPeriodEnd
-                      ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
-                      : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
-                    : isRestricted
-                      ? "Subscribe to keep using Meshdiff — you can still sign in and delete projects."
-                      : "Project workspaces, version history, and comment pins — $15/mo."}
-              </p>
-              {isPro && (
-                <div className="mt-2 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleManageBilling()}
-                    className="text-[11px] font-medium text-neutral-400 hover:text-neutral-200"
-                  >
-                    Manage
-                  </button>
-                  {subscription?.cancelAtPeriodEnd ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleResume()}
-                      disabled={isResuming}
-                      className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
-                    >
-                      {isResuming ? "Resuming…" : "Resume"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowCancelConfirm(true)}
-                      className="text-[11px] font-medium text-neutral-500 hover:text-red-400"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
           <nav className="flex-1 overflow-y-auto px-2 py-3 pr-1">
             <div className="flex items-center justify-between px-2">
               <Link
@@ -497,6 +437,66 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               </>
             )}
           </nav>
+
+          <div className="border-t border-neutral-800 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Billing</p>
+            <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
+                {!isTeamMember && !isPro && (
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeToPro(true)}
+                    className={`shrink-0 text-[11px] font-medium ${
+                      isRestricted ? "text-red-400 hover:text-red-300" : "text-emerald-400 hover:text-emerald-300"
+                    }`}
+                  >
+                    Upgrade
+                  </button>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+                {isTeamMember
+                  ? "Belongs to a team — Team billing isn't wired up yet."
+                  : isPro
+                    ? subscription?.cancelAtPeriodEnd
+                      ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
+                      : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
+                    : isRestricted
+                      ? "Subscribe to keep using Meshdiff — you can still sign in and delete projects."
+                      : "Project workspaces, version history, and comment pins — $15/mo."}
+              </p>
+              {isPro && (
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleManageBilling()}
+                    className="text-[11px] font-medium text-neutral-400 hover:text-neutral-200"
+                  >
+                    Manage
+                  </button>
+                  {subscription?.cancelAtPeriodEnd ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleResume()}
+                      disabled={isResuming}
+                      className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                    >
+                      {isResuming ? "Resuming…" : "Resume"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowCancelConfirm(true)}
+                      className="text-[11px] font-medium text-neutral-500 hover:text-red-400"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="relative border-t border-neutral-800 p-3">
             <button
