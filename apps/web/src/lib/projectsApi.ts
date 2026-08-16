@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "./api";
 import { supabase } from "./supabaseClient";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
+import { loadMeshGeometry, extensionOf } from "../engine/loadMesh";
+import { computeVoxelDiffOffThread } from "./voxelDiffWorkerClient";
 
 export type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -335,8 +337,12 @@ export async function uploadVersionBytes(uploadUrl: string, file: File): Promise
 export function finalizeVersion(
   projectId: string,
   versionId: string,
+  stats: VoxelDiffStats,
 ): Promise<Result<{ versionId: string; triangleCount: number; changeSummary: string; printabilityStatus: string }>> {
-  return request(`/projects/${projectId}/versions/${versionId}/finalize`, { method: "POST" });
+  return request(`/projects/${projectId}/versions/${versionId}/finalize`, {
+    method: "POST",
+    body: JSON.stringify({ stats }),
+  });
 }
 
 export function listComments(projectId: string, versionId: string): Promise<Result<CommentSummary[]>> {
@@ -405,10 +411,28 @@ export async function downloadVersionFile(projectId: string, versionId: string):
   }
 }
 
-/** Orchestrates the 3-step upload flow: allocate -> PUT bytes -> finalize (diff + summary). */
+/**
+ * Orchestrates the upload flow: allocate -> PUT bytes -> diff client-side ->
+ * finalize (store the result). The diff itself (parse + voxelize + BVH)
+ * runs entirely in this browser tab, off the main thread — same engine the
+ * free Live Diff tool already uses — rather than on the shared server. That
+ * used to happen server-side in finalize(), which was the actual driver
+ * behind a series of out-of-memory crashes on Render: one process's memory
+ * was shared across every concurrent upload, so a single large or
+ * malformed mesh (or several diffs firing at once) could take down every
+ * user's request, not just the uploader's own. Computing it client-side
+ * means a large file can only ever affect that one user's tab.
+ *
+ * previousVersionId is the version this upload should be diffed against
+ * (i.e. whatever was the latest version before this upload) — null for a
+ * project's first version, in which case the mesh is diffed against itself
+ * (matching the old server behavior) so wall-thickness/overhang/
+ * printability stats still come out real, just with zero deltas.
+ */
 export async function uploadVersion(
   projectId: string,
   file: File,
+  previousVersionId: string | null,
 ): Promise<Result<{ versionId: string }>> {
   const allocated = await createVersion(projectId, file);
   if (!allocated.success) return allocated;
@@ -416,7 +440,44 @@ export async function uploadVersion(
   const uploaded = await uploadVersionBytes(allocated.data.uploadUrl, file);
   if (!uploaded.success) return uploaded;
 
-  const finalized = await finalizeVersion(projectId, allocated.data.versionId);
+  const currentGeoResult = await loadMeshGeometry(file);
+  if (!currentGeoResult.success) {
+    return { success: false, error: currentGeoResult.error };
+  }
+  const currentFormat = extensionOf(file.name);
+
+  let previousGeometry = currentGeoResult.data;
+  let previousFormat = currentFormat;
+  if (previousVersionId) {
+    const previousVersion = await getVersion(projectId, previousVersionId);
+    if (!previousVersion.success) return previousVersion;
+    let previousBlob: Blob;
+    try {
+      const response = await fetch(previousVersion.data.downloadUrl);
+      if (!response.ok) throw new Error();
+      previousBlob = await response.blob();
+    } catch {
+      return { success: false, error: "Failed to read previous version file" };
+    }
+    const previousGeoResult = await loadMeshGeometry(
+      new File([previousBlob], previousVersion.data.fileName),
+    );
+    if (!previousGeoResult.success) {
+      return { success: false, error: previousGeoResult.error };
+    }
+    previousGeometry = previousGeoResult.data;
+    previousFormat = previousVersion.data.fileFormat;
+  }
+
+  const diffResult = await computeVoxelDiffOffThread(previousGeometry, currentGeoResult.data, {
+    fileFormatA: previousFormat,
+    fileFormatB: currentFormat,
+  });
+  if (!diffResult.success) {
+    return { success: false, error: diffResult.error };
+  }
+
+  const finalized = await finalizeVersion(projectId, allocated.data.versionId, diffResult.data.stats);
   if (!finalized.success) return finalized;
 
   return { success: true, data: { versionId: allocated.data.versionId } };

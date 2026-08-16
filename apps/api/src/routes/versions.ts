@@ -3,34 +3,33 @@ import { ulid } from "ulid";
 import archiver from "archiver";
 import { getSupabase } from "../lib/supabase.js";
 import { extensionOf } from "../lib/filename.js";
-import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
-import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels.js";
+import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
-import { MAX_FILE_BYTES, exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
-import { isUnderMemoryPressure } from "../lib/memoryGuard.js";
-import { runExclusive } from "../lib/computeLock.js";
+import { MAX_FILE_BYTES } from "../lib/fileSizeLimit.js";
 
-// OBJ/3MF uploads are disabled here — a 3MF's ZIP compression means its
-// on-disk size doesn't reliably predict its actual triangle count once
-// unpacked, which was a real factor in a series of OOM crashes on Render
-// (see project memory "render_oom_mesh_triangle_cap"). STL's size maps
-// directly to triangle count (50 bytes/triangle, fixed), so it's the only
-// format this route accepts until server memory/parsing headroom improves.
-// Scoped to just this route (the Projects workspace upload gate, the only
-// path that runs loadMeshGeometryServer/computeVoxelDiff server-side) —
-// share.ts's community share upload doesn't touch the diff engine at all
-// (diffing for shared links runs client-side), so it's untouched.
-const ALLOWED_EXTENSIONS = new Set(["stl"]);
+// Diffing now runs client-side (see finalize() below and
+// ProjectDetailPage.tsx/projectsApi.ts) — the server never parses or
+// voxelizes mesh geometry for a Projects workspace upload anymore, so all
+// three formats are safe to accept again. This used to be STL-only while
+// finalize() did the diffing itself server-side (see project memory
+// "render_oom_mesh_triangle_cap" for why: a 3MF's on-disk size doesn't
+// reliably predict its actual triangle count once unpacked, and that drove
+// a series of OOM crashes on Render).
+const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const DOWNLOAD_URL_TTL_SECONDS = 60;
 const BUCKET = "project-meshes";
 
 interface CreateVersionBody {
   fileName?: string;
   fileSize?: number;
+}
+
+interface FinalizeVersionBody {
+  stats?: VoxelDiffStats;
 }
 
 interface VersionRow {
@@ -148,17 +147,31 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     },
   );
 
-  app.post<{ Params: { projectId: string; versionId: string } }>(
+  app.post<{ Params: { projectId: string; versionId: string }; Body: FinalizeVersionBody }>(
     "/projects/:projectId/versions/:versionId/finalize",
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
+      const { stats } = request.body ?? {};
       const supabase = getSupabase();
       if (!supabase) {
         app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
         reply.code(500);
         return { success: false, error: "Projects are not configured" };
       }
+      // The client computes the diff itself now — parsing/voxelizing/BVH
+      // work happens in the uploader's own browser (off-main-thread, same
+      // engine the free Live Diff tool already uses), not on this shared
+      // server. finalize() just accepts and stores the result. See project
+      // memory "render_oom_mesh_triangle_cap" for why this moved: the
+      // server computing it itself was the actual driver behind a series
+      // of out-of-memory crashes, since one process's memory was shared
+      // across every concurrent upload/comparison.
+      if (!stats || typeof stats !== "object") {
+        reply.code(400);
+        return { success: false, error: "stats is required" };
+      }
+
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
         if (!access.role) {
@@ -201,80 +214,6 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           previousRow = prev as VersionRow | null;
         }
 
-        // Everything from here through computeVoxelDiff is the expensive
-        // part — a project page fires one of these per consecutive version
-        // pair, all at once, on every page load (see computeLock.ts), so
-        // this all runs serialized process-wide rather than several piling
-        // up in memory simultaneously.
-        const computed = await runExclusive(async () => {
-          if (isUnderMemoryPressure()) {
-            return { ok: false as const, code: 503, error: "Server is under heavy load, please try again shortly" };
-          }
-
-          const { data: currentBlob, error: currentDownloadError } = await supabase.storage
-            .from(BUCKET)
-            .download(currentRow.file_path);
-          if (currentDownloadError || !currentBlob) {
-            app.log.error(currentDownloadError, "Failed to download current version file");
-            return { ok: false as const, code: 502, error: "Failed to read uploaded file" };
-          }
-          if (exceedsMaxFileSize(currentBlob)) {
-            return { ok: false as const, code: 413, error: "File must be under 50MB" };
-          }
-
-          const currentBuffer = await currentBlob.arrayBuffer();
-          const currentGeoResult = await loadMeshGeometryServer(
-            currentBuffer,
-            currentRow.file_format as "stl" | "obj" | "3mf",
-          );
-          if (!currentGeoResult.success) {
-            return { ok: false as const, code: 422, error: currentGeoResult.error };
-          }
-
-          // No previous version (v1): diff the mesh against itself so the
-          // same computeVoxelDiff path still yields real per-mesh wall
-          // thickness/overhang/printability stats, with zero deltas.
-          let previousGeometry = currentGeoResult.data;
-          let previousFormat = currentRow.file_format;
-          if (previousRow) {
-            const { data: prevBlob, error: prevDownloadError } = await supabase.storage
-              .from(BUCKET)
-              .download(previousRow.file_path);
-            if (prevDownloadError || !prevBlob) {
-              app.log.error(prevDownloadError, "Failed to download previous version file");
-              return { ok: false as const, code: 502, error: "Failed to read previous version file" };
-            }
-            if (exceedsMaxFileSize(prevBlob)) {
-              return { ok: false as const, code: 413, error: "Previous version file exceeds the 50MB limit" };
-            }
-            const prevBuffer = await prevBlob.arrayBuffer();
-            const prevGeoResult = await loadMeshGeometryServer(
-              prevBuffer,
-              previousRow.file_format as "stl" | "obj" | "3mf",
-            );
-            if (!prevGeoResult.success) {
-              return { ok: false as const, code: 422, error: prevGeoResult.error };
-            }
-            previousGeometry = prevGeoResult.data;
-            previousFormat = previousRow.file_format;
-          }
-
-          const diffResult = computeVoxelDiff(previousGeometry, currentGeoResult.data, {
-            fileFormatA: previousFormat,
-            fileFormatB: currentRow.file_format,
-          });
-          if (!diffResult.success) {
-            return { ok: false as const, code: 422, error: diffResult.error };
-          }
-
-          return { ok: true as const, stats: diffResult.data.stats };
-        });
-
-        if (!computed.ok) {
-          reply.code(computed.code);
-          return { success: false, error: computed.error };
-        }
-        const { stats } = computed;
         const changeSummary = generateChangeSummary(stats);
         const triangleCount = Math.round(stats.triangleDeltaB);
 
