@@ -68,8 +68,13 @@ const FDM_MIN_WALL_THICKNESS_MM = 0.8;
 // Render instance with an unrecoverable V8 heap OOM even after the 50MB
 // byte cap was in place. ~1,000,000 matches what a 50MB binary STL
 // (50 bytes/triangle) already implies, now enforced directly and uniformly
-// across STL/OBJ/3MF regardless of on-disk compression.
-const MAX_TRIANGLES_PER_MESH = 1_000_000;
+// across STL/OBJ/3MF regardless of on-disk compression. Exported so
+// loadMeshServer.ts can reject an oversized mesh right after parsing —
+// before the expensive toNonIndexed()/merge expansion steps that duplicate
+// every vertex per triangle, which is where OBJ/3MF memory actually blows
+// up (this check alone, running only once diffing starts, is too late to
+// prevent that).
+export const MAX_TRIANGLES_PER_MESH = 1_000_000;
 
 function computeSurfaceArea(geometry: THREE.BufferGeometry): number {
   const position = geometry.getAttribute("position");

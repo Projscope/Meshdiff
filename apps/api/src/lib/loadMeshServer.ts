@@ -5,11 +5,34 @@ import { ThreeMFLoader } from "three/examples/jsm/loaders/3MFLoader.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOMParser } from "linkedom";
 import { parseProductionThreeMF } from "../../../shared/dist/engine/parseProductionThreeMF.js";
+import { MAX_TRIANGLES_PER_MESH } from "../../../shared/dist/engine/diffVoxels.js";
 import type { Result } from "../../../shared/dist/types/diff.js";
 
 const stlLoader = new STLLoader();
 const objLoader = new OBJLoader();
 const threeMFLoader = new ThreeMFLoader();
+
+function triangleCountOf(geometry: THREE.BufferGeometry): number {
+  const index = geometry.getIndex();
+  const position = geometry.getAttribute("position");
+  return index ? index.count / 3 : (position?.count ?? 0) / 3;
+}
+
+class MeshTooLargeError extends Error {}
+
+// Sums triangle counts across every mesh object as they're collected,
+// throwing as soon as the running total crosses the cap — before
+// toNonIndexed() (which duplicates every vertex per triangle) or the final
+// merge ever run on the oversized data. Checking only after the whole file
+// is parsed/expanded/merged is too late: that expansion is what actually
+// exhausts memory for OBJ/3MF, well before any per-mesh diffing starts.
+function assertWithinTriangleBudget(runningTotal: number): void {
+  if (runningTotal > MAX_TRIANGLES_PER_MESH) {
+    throw new MeshTooLargeError(
+      `Mesh has more than ${MAX_TRIANGLES_PER_MESH.toLocaleString()} triangles, exceeding the limit for diffing`,
+    );
+  }
+}
 
 // ThreeMFLoader calls `new DOMParser().parseFromString(...)` internally,
 // which doesn't exist in plain Node. linkedom implements enough of the DOM
@@ -50,10 +73,13 @@ export async function loadMeshGeometryServer(
       group.updateWorldMatrix(true, true);
 
       const geometries: THREE.BufferGeometry[] = [];
+      let triangleTotal = 0;
       group.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           let geometry = child.geometry.clone();
           geometry.applyMatrix4(child.matrixWorld);
+          triangleTotal += triangleCountOf(geometry);
+          assertWithinTriangleBudget(triangleTotal);
           if (geometry.index) geometry = geometry.toNonIndexed();
           for (const name of Object.keys(geometry.attributes)) {
             if (name !== "position") geometry.deleteAttribute(name);
@@ -91,10 +117,13 @@ export async function loadMeshGeometryServer(
     group.updateWorldMatrix(true, true);
 
     const geometries: THREE.BufferGeometry[] = [];
+    let triangleTotal = 0;
     group.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         let geometry = child.geometry.clone();
         geometry.applyMatrix4(child.matrixWorld);
+        triangleTotal += triangleCountOf(geometry);
+        assertWithinTriangleBudget(triangleTotal);
         if (geometry.index) geometry = geometry.toNonIndexed();
         for (const name of Object.keys(geometry.attributes)) {
           if (name !== "position") geometry.deleteAttribute(name);

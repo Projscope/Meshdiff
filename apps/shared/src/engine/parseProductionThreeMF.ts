@@ -2,6 +2,7 @@ import * as fflate from "fflate";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Result } from "../types/diff.js";
+import { MAX_TRIANGLES_PER_MESH } from "./diffVoxels.js";
 
 /**
  * Fallback parser for the 3MF Production Extension, which three.js's stock
@@ -366,6 +367,15 @@ export function parseProductionThreeMF(buffer: ArrayBuffer): Result<THREE.Buffer
     const bambuColors = parseBambuStudioColors(zip, decoder);
     const geometries: THREE.BufferGeometry[] = [];
 
+    // This function builds fully non-indexed position/color buffers per
+    // object (below) — 9 floats per triangle, doubled by the parallel color
+    // buffer — before any merge ever runs. A multi-plate/multi-instance
+    // Production Extension export (this parser's whole reason for
+    // existing) can carry a lot of triangles across many objects, so the
+    // budget is checked here, before each object's buffers are allocated,
+    // not just once at the end.
+    let triangleTotal = 0;
+
     function resolve(objectId: string, filePath: string, matrix: THREE.Matrix4): void {
       const model = getModel(filePath);
       const obj = model.objects.get(objectId);
@@ -375,6 +385,12 @@ export function parseProductionThreeMF(buffer: ArrayBuffer): Result<THREE.Buffer
 
       if (obj.meshData) {
         const { vertices, triangles } = obj.meshData;
+        triangleTotal += triangles.length;
+        if (triangleTotal > MAX_TRIANGLES_PER_MESH) {
+          throw new Error(
+            `Mesh has more than ${MAX_TRIANGLES_PER_MESH.toLocaleString()} triangles, exceeding the limit for diffing`,
+          );
+        }
         const objectColor: [number, number, number] =
           obj.pid !== undefined && obj.pindex !== undefined
             ? (model.materials.get(obj.pid)?.[obj.pindex] ?? WHITE)

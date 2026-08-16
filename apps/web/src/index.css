@@ -25,3 +25,54 @@ body {
     transition: none;
   }
 }
+
+/* Upload progress modal: a spinning wireframe cube (UploadProgressModal.tsx) */
+@keyframes cube-spin {
+  from {
+    transform: rotateX(-25deg) rotateY(0deg);
+  }
+  to {
+    transform: rotateX(-25deg) rotateY(360deg);
+  }
+}
+.upload-cube-scene {
+  perspective: 400px;
+}
+.upload-cube {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  transform-style: preserve-3d;
+  animation: cube-spin 2.4s linear infinite;
+}
+.upload-cube-face {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border: 2px solid rgb(16 185 129 / 0.85);
+  background: rgb(16 185 129 / 0.08);
+}
+.upload-cube-face-front {
+  transform: translateZ(28px);
+}
+.upload-cube-face-back {
+  transform: rotateY(180deg) translateZ(28px);
+}
+.upload-cube-face-right {
+  transform: rotateY(90deg) translateZ(28px);
+}
+.upload-cube-face-left {
+  transform: rotateY(-90deg) translateZ(28px);
+}
+.upload-cube-face-top {
+  transform: rotateX(90deg) translateZ(28px);
+}
+.upload-cube-face-bottom {
+  transform: rotateX(-90deg) translateZ(28px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .upload-cube {
+    animation: none;
+    transform: rotateX(-25deg) rotateY(35deg);
+  }
+}
