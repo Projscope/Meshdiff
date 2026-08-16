@@ -831,9 +831,12 @@ export default function LiveDiffToolPage() {
         />
       )}
 
+      {/* In normal document flow (not fixed) — sits at the true bottom of
+          the page's content and scrolls with it, rather than staying
+          pinned over whatever's on screen. */}
       <Link
         to="/"
-        className="fixed bottom-3 right-3 z-40 flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-[11px] text-neutral-400 shadow-lg backdrop-blur hover:border-neutral-600 hover:text-neutral-200"
+        className="mt-8 flex items-center gap-1.5 self-center rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-[11px] text-neutral-400 shadow-lg hover:border-neutral-600 hover:text-neutral-200"
       >
         <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-[9px] font-bold leading-none text-neutral-950">
           ^
