@@ -12,6 +12,7 @@ import { requireProjectTierAccess, requireProUploadAccess } from "../lib/require
 import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES, exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
 import { isUnderMemoryPressure } from "../lib/memoryGuard.js";
+import { runExclusive } from "../lib/computeLock.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const DOWNLOAD_URL_TTL_SECONDS = 60;
@@ -148,15 +149,6 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         reply.code(500);
         return { success: false, error: "Projects are not configured" };
       }
-      // Checked before any of this request's own downloads/parsing/diffing
-      // start — a concurrent request may already have pushed the process
-      // close to its memory ceiling, and starting more heavy work on top of
-      // that is what crashes the whole instance (see memoryGuard.ts).
-      if (isUnderMemoryPressure()) {
-        reply.code(503);
-        return { success: false, error: "Server is under heavy load, please try again shortly" };
-      }
-
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
         if (!access.role) {
@@ -183,29 +175,6 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
         const currentRow = current as VersionRow;
 
-        const { data: currentBlob, error: currentDownloadError } = await supabase.storage
-          .from(BUCKET)
-          .download(currentRow.file_path);
-        if (currentDownloadError || !currentBlob) {
-          app.log.error(currentDownloadError, "Failed to download current version file");
-          reply.code(502);
-          return { success: false, error: "Failed to read uploaded file" };
-        }
-        if (exceedsMaxFileSize(currentBlob)) {
-          reply.code(413);
-          return { success: false, error: "File must be under 50MB" };
-        }
-
-        const currentBuffer = await currentBlob.arrayBuffer();
-        const currentGeoResult = await loadMeshGeometryServer(
-          currentBuffer,
-          currentRow.file_format as "stl" | "obj" | "3mf",
-        );
-        if (!currentGeoResult.success) {
-          reply.code(422);
-          return { success: false, error: currentGeoResult.error };
-        }
-
         let previousRow: VersionRow | null = null;
         if (currentRow.version_number > 1) {
           const { data: prev, error: prevError } = await supabase
@@ -222,47 +191,80 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           previousRow = prev as VersionRow | null;
         }
 
-        // No previous version (v1): diff the mesh against itself so the
-        // same computeVoxelDiff path still yields real per-mesh wall
-        // thickness/overhang/printability stats, with zero deltas.
-        let previousGeometry = currentGeoResult.data;
-        let previousFormat = currentRow.file_format;
-        if (previousRow) {
-          const { data: prevBlob, error: prevDownloadError } = await supabase.storage
+        // Everything from here through computeVoxelDiff is the expensive
+        // part — a project page fires one of these per consecutive version
+        // pair, all at once, on every page load (see computeLock.ts), so
+        // this all runs serialized process-wide rather than several piling
+        // up in memory simultaneously.
+        const computed = await runExclusive(async () => {
+          if (isUnderMemoryPressure()) {
+            return { ok: false as const, code: 503, error: "Server is under heavy load, please try again shortly" };
+          }
+
+          const { data: currentBlob, error: currentDownloadError } = await supabase.storage
             .from(BUCKET)
-            .download(previousRow.file_path);
-          if (prevDownloadError || !prevBlob) {
-            app.log.error(prevDownloadError, "Failed to download previous version file");
-            reply.code(502);
-            return { success: false, error: "Failed to read previous version file" };
+            .download(currentRow.file_path);
+          if (currentDownloadError || !currentBlob) {
+            app.log.error(currentDownloadError, "Failed to download current version file");
+            return { ok: false as const, code: 502, error: "Failed to read uploaded file" };
           }
-          if (exceedsMaxFileSize(prevBlob)) {
-            reply.code(413);
-            return { success: false, error: "Previous version file exceeds the 50MB limit" };
+          if (exceedsMaxFileSize(currentBlob)) {
+            return { ok: false as const, code: 413, error: "File must be under 50MB" };
           }
-          const prevBuffer = await prevBlob.arrayBuffer();
-          const prevGeoResult = await loadMeshGeometryServer(
-            prevBuffer,
-            previousRow.file_format as "stl" | "obj" | "3mf",
+
+          const currentBuffer = await currentBlob.arrayBuffer();
+          const currentGeoResult = await loadMeshGeometryServer(
+            currentBuffer,
+            currentRow.file_format as "stl" | "obj" | "3mf",
           );
-          if (!prevGeoResult.success) {
-            reply.code(422);
-            return { success: false, error: prevGeoResult.error };
+          if (!currentGeoResult.success) {
+            return { ok: false as const, code: 422, error: currentGeoResult.error };
           }
-          previousGeometry = prevGeoResult.data;
-          previousFormat = previousRow.file_format;
-        }
 
-        const diffResult = computeVoxelDiff(previousGeometry, currentGeoResult.data, {
-          fileFormatA: previousFormat,
-          fileFormatB: currentRow.file_format,
+          // No previous version (v1): diff the mesh against itself so the
+          // same computeVoxelDiff path still yields real per-mesh wall
+          // thickness/overhang/printability stats, with zero deltas.
+          let previousGeometry = currentGeoResult.data;
+          let previousFormat = currentRow.file_format;
+          if (previousRow) {
+            const { data: prevBlob, error: prevDownloadError } = await supabase.storage
+              .from(BUCKET)
+              .download(previousRow.file_path);
+            if (prevDownloadError || !prevBlob) {
+              app.log.error(prevDownloadError, "Failed to download previous version file");
+              return { ok: false as const, code: 502, error: "Failed to read previous version file" };
+            }
+            if (exceedsMaxFileSize(prevBlob)) {
+              return { ok: false as const, code: 413, error: "Previous version file exceeds the 50MB limit" };
+            }
+            const prevBuffer = await prevBlob.arrayBuffer();
+            const prevGeoResult = await loadMeshGeometryServer(
+              prevBuffer,
+              previousRow.file_format as "stl" | "obj" | "3mf",
+            );
+            if (!prevGeoResult.success) {
+              return { ok: false as const, code: 422, error: prevGeoResult.error };
+            }
+            previousGeometry = prevGeoResult.data;
+            previousFormat = previousRow.file_format;
+          }
+
+          const diffResult = computeVoxelDiff(previousGeometry, currentGeoResult.data, {
+            fileFormatA: previousFormat,
+            fileFormatB: currentRow.file_format,
+          });
+          if (!diffResult.success) {
+            return { ok: false as const, code: 422, error: diffResult.error };
+          }
+
+          return { ok: true as const, stats: diffResult.data.stats };
         });
-        if (!diffResult.success) {
-          reply.code(422);
-          return { success: false, error: diffResult.error };
-        }
 
-        const { stats } = diffResult.data;
+        if (!computed.ok) {
+          reply.code(computed.code);
+          return { success: false, error: computed.error };
+        }
+        const { stats } = computed;
         const changeSummary = generateChangeSummary(stats);
         const triangleCount = Math.round(stats.triangleDeltaB);
 
