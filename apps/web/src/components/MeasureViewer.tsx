@@ -39,7 +39,7 @@ interface MeasureViewerProps {
 /**
  * Single-model viewer with the same feature set as the project workspace's
  * version viewer (VersionDetailPage.tsx) — color rendering, 3MF properties,
- * printability/stats via a self-diff, and the vertex-snapping measure tool
+ * printability/stats via a self-diff, and the vertex/edge-snapping measure tool
  * — minus comments, which need a saved project/version to attach to and
  * don't make sense for a locally-dropped file with nothing to persist to.
  */
@@ -172,27 +172,51 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
     if (file) void handleFile(file);
   }
 
-  function nearestTriangleVertex(event: ThreeEvent<MouseEvent>): THREE.Vector3 | null {
+  // Snaps to the nearest of the clicked triangle's 3 vertices OR the nearest
+  // point along any of its 3 edges, whichever is closer to the actual click
+  // point — clicking a corner snaps to that vertex, clicking along an edge
+  // snaps to that point on the edge instead of jumping to whichever
+  // endpoint happens to be nearest.
+  function nearestMeasurePoint(event: ThreeEvent<MouseEvent>): THREE.Vector3 | null {
     if (!event.face || !(event.object instanceof THREE.Mesh)) return null;
     const position = event.object.geometry.getAttribute("position");
-    const candidate = new THREE.Vector3();
-    let closest: THREE.Vector3 | null = null;
-    let closestDist = Infinity;
-    for (const index of [event.face.a, event.face.b, event.face.c]) {
-      candidate.fromBufferAttribute(position, index).applyMatrix4(event.object.matrixWorld);
-      const dist = candidate.distanceTo(event.point);
+    const matrixWorld = event.object.matrixWorld;
+    const vertices = [event.face.a, event.face.b, event.face.c].map((index) =>
+      new THREE.Vector3().fromBufferAttribute(position, index).applyMatrix4(matrixWorld),
+    );
+
+    let closest = vertices[0];
+    let closestDist = vertices[0].distanceTo(event.point);
+    for (const vertex of vertices.slice(1)) {
+      const dist = vertex.distanceTo(event.point);
       if (dist < closestDist) {
         closestDist = dist;
-        closest = candidate.clone();
+        closest = vertex;
       }
     }
-    return closest?.applyMatrix4(GROUP_ROTATION_INVERSE) ?? null;
+
+    const edgePoint = new THREE.Vector3();
+    const edges: Array<[THREE.Vector3, THREE.Vector3]> = [
+      [vertices[0], vertices[1]],
+      [vertices[1], vertices[2]],
+      [vertices[2], vertices[0]],
+    ];
+    for (const [start, end] of edges) {
+      new THREE.Line3(start, end).closestPointToPoint(event.point, true, edgePoint);
+      const dist = edgePoint.distanceTo(event.point);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = edgePoint.clone();
+      }
+    }
+
+    return closest.applyMatrix4(GROUP_ROTATION_INVERSE);
   }
 
   function handleMeasureHover(event: ThreeEvent<MouseEvent>) {
     if (!isMeasuring) return;
     event.stopPropagation();
-    const snapped = nearestTriangleVertex(event);
+    const snapped = nearestMeasurePoint(event);
 
     if (measureMode === "radius" && snapped) {
       const loop = findNearestLoop(boundaryLoops, snapped, 1e-3);
@@ -225,7 +249,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
       return;
     }
 
-    const snapped = nearestTriangleVertex(event);
+    const snapped = nearestMeasurePoint(event);
     if (!snapped) return;
     const point: [number, number, number] = [snapped.x, snapped.y, snapped.z];
     if (measureMode === "distance") {
@@ -479,19 +503,19 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
               <p className="mt-1.5 text-xs text-neutral-500">
                 {measureMode === "distance"
                   ? measureA && measureB
-                    ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected vertices.`
+                    ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected points.`
                     : isMeasuring
                       ? measureA
-                        ? "First point set — click a second vertex."
-                        : "Click a vertex on the model to start."
-                      : "Click two vertices on the model to measure the distance between them."
+                        ? "First point set — click a second point (vertex or edge)."
+                        : "Click a vertex or edge on the model to start."
+                      : "Click two points (vertices or edges) on the model to measure the distance between them."
                   : radiusCommittedFit
                     ? `R ${radiusCommittedFit.radius.toFixed(2)} mm, ⌀ ${(radiusCommittedFit.radius * 2).toFixed(2)} mm.`
                     : radiusPreviewFit
                       ? `Detected hole — R ${radiusPreviewFit.radius.toFixed(2)} mm, ⌀ ${(radiusPreviewFit.radius * 2).toFixed(2)} mm. Click to confirm.`
                       : isMeasuring
                         ? radiusPoints.length > 0
-                          ? `Click ${3 - radiusPoints.length} more vertex${3 - radiusPoints.length === 1 ? "" : "es"} on the rim, or hover a hole to auto-detect it.`
+                          ? `Click ${3 - radiusPoints.length} more point${3 - radiusPoints.length === 1 ? "" : "s"} on the rim, or hover a hole to auto-detect it.`
                           : "Hover a hole or boss to auto-detect its edge, or click 3 points on it manually."
                         : "Click a hole/boss to measure its radius (auto-detected), or click 3 points manually."}
               </p>

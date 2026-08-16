@@ -5,6 +5,7 @@ import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
+import { exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
 
 const BUCKET = "project-meshes";
 
@@ -82,6 +83,10 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           app.log.error({ a: blobA.error, b: blobB.error }, "Failed to download version files");
           reply.code(502);
           return { success: false, error: "Failed to read version files" };
+        }
+        if (exceedsMaxFileSize(blobA.data) || exceedsMaxFileSize(blobB.data)) {
+          reply.code(413);
+          return { success: false, error: "File must be under 50MB" };
         }
 
         const [bufferA, bufferB] = await Promise.all([
