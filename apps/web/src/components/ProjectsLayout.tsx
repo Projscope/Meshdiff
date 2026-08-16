@@ -89,6 +89,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [isProjectsExpanded, setIsProjectsExpanded] = useState(
     () => localStorage.getItem("meshdiff_projects_expanded") !== "false",
   );
+  const [isAdminExpanded, setIsAdminExpanded] = useState(
+    () => localStorage.getItem("meshdiff_admin_expanded") !== "false",
+  );
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -117,6 +120,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem("meshdiff_projects_expanded", String(isProjectsExpanded));
   }, [isProjectsExpanded]);
+
+  useEffect(() => {
+    localStorage.setItem("meshdiff_admin_expanded", String(isAdminExpanded));
+  }, [isAdminExpanded]);
 
   useEffect(() => {
     fetchProjects();
@@ -444,8 +451,28 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             {isAdmin && (
               <>
                 <div className="mt-4 px-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Admin</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdminExpanded((expanded) => !expanded)}
+                    className="flex items-center gap-1 text-left"
+                    title={isAdminExpanded ? "Collapse admin" : "Expand admin"}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`h-3 w-3 shrink-0 text-neutral-600 transition-transform ${isAdminExpanded ? "rotate-90" : ""}`}
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Admin</span>
+                  </button>
                 </div>
+                {isAdminExpanded && (
                 <div className="mt-2 flex flex-col gap-0.5">
                   <Link
                     to="/admin"
@@ -460,6 +487,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     Users
                   </Link>
                 </div>
+                )}
               </>
             )}
           </nav>
