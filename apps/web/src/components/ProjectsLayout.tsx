@@ -69,6 +69,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
   const isAdmin = !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  // The sidebar is a full-screen overlay below the md breakpoint (see
+  // <aside> below) — closed by default so it doesn't cover the page on
+  // first load.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [teams, setTeams] = useState<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -109,6 +113,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     listMyTeams().then((result) => {
       if (result.success) setTeams(result.data);
     });
+    // Close the mobile overlay sidebar on navigation — otherwise it stays
+    // open covering the page the user just tapped through to.
+    setIsSidebarOpen(false);
   }, [location.pathname, fetchProjects]);
 
   // The workspace name is per-user, not per-route — fetch it once rather
@@ -246,8 +253,39 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
     <AccountStatusContext.Provider value={{ isRestricted, isPro }}>
-      <div className="flex min-h-screen bg-neutral-950 text-neutral-100">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-800">
+      <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-100 md:flex-row">
+        {/* Mobile-only top bar — the sidebar below becomes a hidden overlay
+            under the md breakpoint, so this is the only way to open it or
+            see the logo on a phone-width screen. */}
+        <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3 md:hidden">
+          <Link to="/" className="flex items-center gap-2">
+            <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-neutral-950">
+              <span className="text-sm font-bold leading-none">^</span>
+            </div>
+            <h1 className="text-sm font-semibold text-white">Meshdiff</h1>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen((open) => !open)}
+            aria-label="Toggle navigation menu"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              {isSidebarOpen ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
+            </svg>
+          </button>
+        </div>
+
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/60 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        <aside
+          className={`${isSidebarOpen ? "flex" : "hidden"} fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-neutral-800 bg-neutral-950 md:static md:z-auto md:flex md:w-64 md:shrink-0`}
+        >
           <Link to="/" className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
             <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-neutral-950">
               <span className="text-sm font-bold leading-none">^</span>
