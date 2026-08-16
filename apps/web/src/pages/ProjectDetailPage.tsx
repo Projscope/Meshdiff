@@ -29,7 +29,11 @@ import { useRefreshProjectsSidebar, useAccountStatus } from "../components/Proje
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
 
-const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
+// Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
+// — OBJ/3MF are disabled here specifically (the Projects workspace upload
+// path, which runs diffing server-side); the free community tool's OBJ/3MF
+// support is untouched since it runs entirely client-side.
+const ALLOWED_EXTENSIONS = [".stl"];
 // Kept in sync with the server-side limit (apps/api/src/lib/fileSizeLimit.ts)
 // — this is just an early UI check so an oversized file is rejected before
 // spending time on a signed-upload-URL round trip; the server enforces the
@@ -175,7 +179,7 @@ export default function ProjectDetailPage() {
     }
     const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ALLOWED_EXTENSIONS.includes(extension)) {
-      setError("File must be an STL, 3MF, or OBJ file");
+      setError("File must be an STL file");
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
@@ -355,7 +359,7 @@ export default function ProjectDetailPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".stl,.obj,.3mf"
+        accept=".stl"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -440,7 +444,7 @@ export default function ProjectDetailPage() {
 
       {isDragOver && (
         <div className="mt-4 rounded-lg border-2 border-dashed border-emerald-500 bg-emerald-500/5 py-4 text-center text-sm text-emerald-300">
-          Drop STL, 3MF, or OBJ to upload a new version
+          Drop an STL to upload a new version
         </div>
       )}
 
