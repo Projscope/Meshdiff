@@ -74,6 +74,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // first load.
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
+  const [projectSearch, setProjectSearch] = useState("");
   const [teams, setTeams] = useState<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -249,6 +250,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const sortedProjects = projects
     ? [...projects].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
     : null;
+  const visibleProjects = sortedProjects?.filter((project) =>
+    project.name.toLowerCase().includes(projectSearch.trim().toLowerCase()),
+  );
 
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
@@ -398,6 +402,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               )}
             </div>
 
+            {sortedProjects !== null && sortedProjects.length > 0 && (
+              <div className="mt-2 px-2">
+                <input
+                  type="text"
+                  value={projectSearch}
+                  onChange={(e) => setProjectSearch(e.target.value)}
+                  placeholder="Search projects…"
+                  className="w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-300 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none"
+                />
+              </div>
+            )}
+
             <div className="mt-2 flex flex-col gap-0.5">
               {sortedProjects === null && (
                 <p className="px-2 py-1.5 text-xs text-neutral-600">Loading…</p>
@@ -405,7 +421,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               {sortedProjects?.length === 0 && (
                 <p className="px-2 py-1.5 text-xs text-neutral-600">No projects yet.</p>
               )}
-              {sortedProjects?.map((project) => {
+              {sortedProjects !== null && sortedProjects.length > 0 && visibleProjects?.length === 0 && (
+                <p className="px-2 py-1.5 text-xs text-neutral-600">No projects match "{projectSearch}".</p>
+              )}
+              {visibleProjects?.map((project) => {
                 const isActive = project.id === projectId;
                 return (
                   <Link
