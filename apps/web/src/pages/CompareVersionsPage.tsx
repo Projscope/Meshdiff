@@ -7,6 +7,7 @@ import DiffView, { type DiffMode, type DiffViewHandle } from "../components/Diff
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import ReadOnlyMeshViewer, { type ReadOnlyMeshViewerHandle } from "../components/ReadOnlyMeshViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
+import LoadingModal from "../components/LoadingModal";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
 
@@ -74,6 +75,7 @@ export default function CompareVersionsPage() {
     setVersionB(null);
     setGeometryA(null);
     setGeometryB(null);
+    setStats(null);
     setError(null);
 
     async function loadVersion(id: string): Promise<{ detail: VersionDetail; geometry: THREE.BufferGeometry } | null> {
@@ -142,6 +144,12 @@ export default function CompareVersionsPage() {
     }
     setIsShareSubmitting(false);
   }
+
+  // "Fully loaded" means both meshes have been fetched/parsed AND DiffView
+  // has finished computing the diff between them (stats only lands once
+  // that's done) — not just the two side viewers, so the combined view
+  // isn't left half-rendered under the modal.
+  const isFullyLoaded = geometryA !== null && geometryB !== null && stats !== null;
 
   return (
     <div className="flex h-[calc(100vh-2rem)] w-full gap-4 px-4 py-4">
@@ -322,6 +330,10 @@ export default function CompareVersionsPage() {
           />
         )}
       </div>
+
+      {!isFullyLoaded && !error && (
+        <LoadingModal title="Loading comparison" subtitle="Fetching both models and computing the diff…" />
+      )}
     </div>
   );
 }
