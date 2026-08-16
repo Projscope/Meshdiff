@@ -436,13 +436,25 @@ export async function uploadVersion(
 ): Promise<Result<{ versionId: string }>> {
   const allocated = await createVersion(projectId, file);
   if (!allocated.success) return allocated;
+  const versionId = allocated.data.versionId;
+
+  // Any failure after this point rolls back the allocated row — otherwise
+  // a failed diff/upload leaves an unfinalized version (triangleCount still
+  // null, shown as "? tris") sitting in the list forever, since nothing
+  // else ever retries or cleans it up. The server allows deleting your own
+  // still-unfinalized upload specifically for this (see versions.ts's
+  // DELETE handler — normally owner/admin-only).
+  async function fail(error: string): Promise<Result<{ versionId: string }>> {
+    await deleteVersion(projectId, versionId);
+    return { success: false, error };
+  }
 
   const uploaded = await uploadVersionBytes(allocated.data.uploadUrl, file);
-  if (!uploaded.success) return uploaded;
+  if (!uploaded.success) return fail(uploaded.error);
 
   const currentGeoResult = await loadMeshGeometry(file);
   if (!currentGeoResult.success) {
-    return { success: false, error: currentGeoResult.error };
+    return fail(currentGeoResult.error);
   }
   const currentFormat = extensionOf(file.name);
 
@@ -450,20 +462,20 @@ export async function uploadVersion(
   let previousFormat = currentFormat;
   if (previousVersionId) {
     const previousVersion = await getVersion(projectId, previousVersionId);
-    if (!previousVersion.success) return previousVersion;
+    if (!previousVersion.success) return fail(previousVersion.error);
     let previousBlob: Blob;
     try {
       const response = await fetch(previousVersion.data.downloadUrl);
       if (!response.ok) throw new Error();
       previousBlob = await response.blob();
     } catch {
-      return { success: false, error: "Failed to read previous version file" };
+      return fail("Failed to read previous version file");
     }
     const previousGeoResult = await loadMeshGeometry(
       new File([previousBlob], previousVersion.data.fileName),
     );
     if (!previousGeoResult.success) {
-      return { success: false, error: previousGeoResult.error };
+      return fail(previousGeoResult.error);
     }
     previousGeometry = previousGeoResult.data;
     previousFormat = previousVersion.data.fileFormat;
@@ -474,13 +486,13 @@ export async function uploadVersion(
     fileFormatB: currentFormat,
   });
   if (!diffResult.success) {
-    return { success: false, error: diffResult.error };
+    return fail(diffResult.error);
   }
 
-  const finalized = await finalizeVersion(projectId, allocated.data.versionId, diffResult.data.stats);
-  if (!finalized.success) return finalized;
+  const finalized = await finalizeVersion(projectId, versionId, diffResult.data.stats);
+  if (!finalized.success) return fail(finalized.error);
 
-  return { success: true, data: { versionId: allocated.data.versionId } };
+  return { success: true, data: { versionId } };
 }
 
 /** Create a shareable comparison link from project versions. */

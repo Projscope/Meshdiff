@@ -22,7 +22,7 @@ import {
 import ApprovalBadge from "../components/ApprovalBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
-import UploadProgressModal from "../components/UploadProgressModal";
+import LoadingModal from "../components/LoadingModal";
 import RejectVersionModal from "../components/RejectVersionModal";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import { useRefreshProjectsSidebar, useAccountStatus } from "../components/ProjectsLayout";
@@ -769,7 +769,12 @@ export default function ProjectDetailPage() {
         />
       )}
 
-      {isUploading && <UploadProgressModal fileName={uploadingFileName} />}
+      {isUploading && (
+        <LoadingModal
+          title={`Uploading ${uploadingFileName}`}
+          subtitle="Voxelizing mesh and checking printability…"
+        />
+      )}
     </div>
   );
 }

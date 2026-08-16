@@ -532,14 +532,10 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Project not found" };
         }
         if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
-        if (access.role !== "owner" && access.role !== "admin") {
-          reply.code(403);
-          return { success: false, error: "Only project owners and team admins can delete versions" };
-        }
 
         const { data: row, error: lookupError } = await supabase
           .from("versions")
-          .select("file_path")
+          .select("file_path, uploaded_by_user_id, triangle_count")
           .eq("id", versionId)
           .eq("project_id", projectId)
           .maybeSingle();
@@ -551,6 +547,22 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         if (!row) {
           reply.code(404);
           return { success: false, error: "Version not found" };
+        }
+        const versionRow = row as { file_path: string; uploaded_by_user_id: string | null; triangle_count: number | null };
+
+        // Normally only an owner/admin can delete a version — but diffing
+        // now happens client-side (see uploadVersion() in projectsApi.ts),
+        // and a failed diff/finalize step leaves an allocated version row
+        // behind with no triangle_count ("? tris" in the UI, permanently,
+        // since nothing else ever retries or cleans it up). Anyone who
+        // uploaded a version is allowed to delete their own still-
+        // unfinalized attempt — this is strictly narrower than general
+        // delete rights: it never applies once triangle_count is set.
+        const isOwnUnfinalizedUpload =
+          versionRow.triangle_count === null && versionRow.uploaded_by_user_id === request.userId;
+        if (access.role !== "owner" && access.role !== "admin" && !isOwnUnfinalizedUpload) {
+          reply.code(403);
+          return { success: false, error: "Only project owners and team admins can delete versions" };
         }
 
         // comments and version_diffs cascade via FK; only the storage
@@ -567,7 +579,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
         const { error: storageError } = await supabase.storage
           .from(BUCKET)
-          .remove([(row as { file_path: string }).file_path]);
+          .remove([versionRow.file_path]);
         if (storageError) {
           app.log.warn(storageError, "Failed to remove version file from storage");
         }
