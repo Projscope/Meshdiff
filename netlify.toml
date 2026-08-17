@@ -4,3 +4,30 @@
 
 [functions]
   directory = "netlify/functions"
+
+# Security headers (securityheaders.com flagged these as missing). CSP
+# origins reflect what the app actually loads client-side:
+# - script-src: Google Tag Manager (index.html's two gtag.js snippets) and
+#   the UXCam recording SDK (index.html's inline loader), plus
+#   'unsafe-inline' for their inline config <script> blocks — a nonce-based
+#   CSP isn't practical on a static Netlify build with no per-request
+#   server render.
+# - connect-src: Supabase (auth + direct-to-storage signed URLs, any
+#   *.supabase.co project), the Fastify API (meshdiff-api.onrender.com,
+#   see VITE_API_URL in api.ts), and GA/UXCam's own reporting endpoints
+#   (wildcarded — GA4 reports through regionalized subdomains).
+# - worker-src: this app's entire diff/measure pipeline runs in Web
+#   Workers (CLAUDE.md "3D Performance Rules") — 'self' covers Vite's
+#   built worker bundles, blob: is a defensive fallback.
+# - style-src 'unsafe-inline': a few components use inline style={{}} for
+#   dynamic values (e.g. camera/canvas-driven positioning).
+# frame-ancestors 'none' + X-Frame-Options: DENY together cover clickjacking
+# protection across older and newer browsers.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
