@@ -21,8 +21,18 @@
 #   function" (seen in prod after the CSP was first added).
 # - connect-src: Supabase (auth + direct-to-storage signed URLs, any
 #   *.supabase.co project), the Fastify API (meshdiff-api.onrender.com,
-#   see VITE_API_URL in api.ts), and GA/UXCam's own reporting endpoints
-#   (wildcarded — GA4 reports through regionalized subdomains).
+#   see VITE_API_URL in api.ts), GA/UXCam's own reporting endpoints
+#   (wildcarded — GA4 reports through regionalized subdomains), and
+#   cdn.jsdelivr.net — troika-three-text's unicode-font-resolver (used by
+#   drei's <Text>/<Text3D>, e.g. AxisLabels) fetches glyph-coverage data
+#   from jsDelivr on demand for characters outside the bundled font's
+#   basic range.
+# - img-src: 'self' data: blob: plus GA's tracking-pixel domain, and
+#   *.supabase.co — project/version thumbnails are public Supabase
+#   Storage URLs (see ProjectDetailPage.tsx/ProjectsListPage.tsx),
+#   already allowed under connect-src but img-src is evaluated
+#   separately for <img> loads and was missing it, blocking every
+#   thumbnail.
 # - worker-src: this app's entire diff/measure pipeline runs in Web
 #   Workers (CLAUDE.md "3D Performance Rules") — 'self' covers Vite's
 #   built worker bundles, blob: is a defensive fallback.
@@ -30,11 +40,14 @@
 #   dynamic values (e.g. camera/canvas-driven positioning).
 # frame-ancestors 'none' + X-Frame-Options: DENY together cover clickjacking
 # protection across older and newer browsers.
+# - Permissions-Policy omits interest-cohort — it was a FLoC-era feature
+#   no current browser recognizes; including it just produced a harmless
+#   but noisy "Unrecognized feature" console warning.
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
