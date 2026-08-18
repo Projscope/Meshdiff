@@ -27,12 +27,13 @@
 #   drei's <Text>/<Text3D>, e.g. AxisLabels) fetches glyph-coverage data
 #   from jsDelivr on demand for characters outside the bundled font's
 #   basic range.
-# - img-src: 'self' data: blob: plus GA's tracking-pixel domain, and
+# - img-src: 'self' data: blob: plus GA's tracking-pixel domain,
 #   *.supabase.co — project/version thumbnails are public Supabase
 #   Storage URLs (see ProjectDetailPage.tsx/ProjectsListPage.tsx),
 #   already allowed under connect-src but img-src is evaluated
 #   separately for <img> loads and was missing it, blocking every
-#   thumbnail.
+#   thumbnail — and blog.adafruit.com, hotlinked directly for their logo
+#   in the landing page's testimonial section (LandingPage.tsx).
 # - worker-src: this app's entire diff/measure pipeline runs in Web
 #   Workers (CLAUDE.md "3D Performance Rules") — 'self' covers Vite's
 #   built worker bundles, blob: is a defensive fallback.
@@ -50,4 +51,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
