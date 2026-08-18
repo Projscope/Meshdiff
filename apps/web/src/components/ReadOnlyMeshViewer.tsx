@@ -1,9 +1,9 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { Bounds, Grid, OrbitControls } from "@react-three/drei";
+import { Bounds, OrbitControls } from "@react-three/drei";
 import AxisLegend from "./AxisLegend";
-import AxisLabels from "./AxisLabels";
+import ModelScene from "./ModelScene";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
@@ -58,17 +58,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
           canvasElRef.current = gl.domElement;
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 20, 10]} intensity={0.8} />
-        <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
-        {/* The grid is drei's default Y-up floor; this app's model data is
-            Z-up (see diffVoxels.ts's gravity vector), so the displayed
-            content is rotated -90° around X to lay it flat on that floor.
-            Purely a presentation transform — doesn't touch the geometry
-            used for diffing/printability. */}
-        <group rotation={[-Math.PI / 2, 0, 0]}>
-          <axesHelper args={[30]} />
-          <AxisLabels />
+        <ModelScene>
           {geometry && (
             // Keyed by geometry so a newly-loaded model remounts Bounds
             // (and BoundsResetBridge's captured "loaded" pose) instead of
@@ -81,7 +71,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
               </mesh>
             </Bounds>
           )}
-        </group>
+        </ModelScene>
         <OrbitControls makeDefault enableZoom enablePan enableRotate mouseButtons={mouseButtons} />
       </Canvas>
       <AxisLegend />

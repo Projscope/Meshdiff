@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { getUserTier, INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
 import { toVersionSummary, type VersionRow } from "./versions.js";
 import { logTeamAudit } from "../lib/teamAuditLog.js";
@@ -16,13 +16,10 @@ interface AddMemberBody {
 }
 
 export default async function teamsRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   app.get("/teams", { preHandler: [requireAuth, requireActiveAccess] }, async (request, reply) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-      reply.code(500);
-      return { success: false, error: "Teams are not configured" };
-    }
+    const supabase = request.supabase!;
 
     try {
       const { data: memberships, error: membershipError } = await supabase
@@ -73,13 +70,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
       return { success: false, error: "name is required" };
     }
 
-    const supabase = getSupabase();
-    if (!supabase) {
-      app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-      reply.code(500);
-      return { success: false, error: "Teams are not configured" };
-    }
-
+    const supabase = request.supabase!;
     const { tier } = await getUserTier(supabase, request.userId!);
     if (tier !== "team") {
       reply.code(403);
@@ -136,12 +127,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { teamId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Teams are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const { data: membership } = await supabase
@@ -237,12 +223,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { teamId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Teams are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const { data: membership } = await supabase
@@ -307,12 +288,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth, requireActiveAccess] },
     async (request, reply) => {
       const { teamId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Teams are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const { data: membership } = await supabase
@@ -383,12 +359,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
         return { success: false, error: "role must be 'admin', 'approver', or 'member'" };
       }
 
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Teams are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const { data: team } = await supabase
@@ -504,12 +475,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
         return { success: false, error: "You can't remove yourself from the team" };
       }
 
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Teams are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const { data: team } = await supabase

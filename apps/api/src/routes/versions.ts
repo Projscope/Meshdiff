@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { ulid } from "ulid";
 import archiver from "archiver";
-import { getSupabase } from "../lib/supabase.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { extensionOf } from "../lib/filename.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
 import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels.js";
@@ -66,6 +66,8 @@ export function toVersionSummary(row: VersionRow) {
 }
 
 export default async function versionsRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   app.post<{ Params: { projectId: string }; Body: CreateVersionBody }>(
     "/projects/:projectId/versions",
     { preHandler: requireAuth },
@@ -87,12 +89,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         return { success: false, error: "File must be under 50MB" };
       }
 
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -154,12 +151,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { stats } = request.body ?? {};
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
       // The client computes the diff itself now — parsing/voxelizing/BVH
       // work happens in the uploader's own browser (off-main-thread, same
       // engine the free Live Diff tool already uses), not on this shared
@@ -296,12 +288,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -364,12 +351,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { reason } = request.body ?? {};
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -429,12 +411,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     "/projects/:projectId/versions",
     { preHandler: requireAuth },
     async (request, reply) => {
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, request.params.projectId, request.userId!);
@@ -469,12 +446,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -542,12 +514,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -622,12 +589,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       const access = await getProjectAccess(supabase, projectId, request.userId!);
       if (!access.role) {
@@ -692,12 +654,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);

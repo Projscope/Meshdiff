@@ -7,8 +7,8 @@ import {
   useEffect,
 } from "react";
 import * as THREE from "three";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { Bounds, Grid, OrbitControls } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { Bounds } from "@react-three/drei";
 import {
   VOXEL_ADDED,
   VOXEL_REMOVED,
@@ -19,10 +19,10 @@ import {
 import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 import AxisLegend from "./AxisLegend";
-import AxisLabels from "./AxisLabels";
+import ModelScene from "./ModelScene";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
-import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
+import CameraSync from "./CameraSync";
 
 export type DiffMode = "voxel" | "surface";
 
@@ -59,111 +59,6 @@ export interface DiffViewHandle {
   resetView: () => void;
   /** Zooms/re-centers to fit the diff, keeping the current rotation/angle. */
   zoomToFit: () => void;
-}
-
-interface CameraSyncProps {
-  syncedCameraState: { position: [number, number, number]; target: [number, number, number] } | undefined;
-  onCameraChange: ((state: { position: [number, number, number]; target: [number, number, number] }) => void) | undefined;
-  isSyncEnabled: boolean;
-}
-
-function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled }: CameraSyncProps) {
-  const { camera } = useThree();
-  const controlsRef = useRef<any>(null);
-  const frameCountRef = useRef(0);
-  const lastPosRef = useRef(new THREE.Vector3());
-  const lastTargetRef = useRef(new THREE.Vector3());
-  const lastLocalPosRef = useRef(new THREE.Vector3());
-  const userInteractingRef = useRef(false);
-  const interactionCooldownRef = useRef(0);
-  const idleFramesRef = useRef(0);
-  const [controlScheme] = useControlScheme();
-  const mouseButtons = useOrbitMouseButtons(controlScheme);
-
-  useFrame(() => {
-    const controls = controlsRef.current;
-    if (!controls?.target) return;
-
-    // Only do sync logic if sync is enabled
-    if (!isSyncEnabled) return;
-
-    frameCountRef.current++;
-
-    // Initialize on first frame
-    if (frameCountRef.current === 1) {
-      lastPosRef.current.copy(camera.position);
-      lastTargetRef.current.copy(controls.target);
-      lastLocalPosRef.current.copy(camera.position);
-    }
-
-    // Skip sync for first 60 frames (model loading phase to avoid shake)
-    const isLoading = frameCountRef.current < 60;
-
-    // Detect if user is actively rotating (not zooming)
-    // Zoom = distance from camera to target changed significantly
-    // Rotation = camera moved but distance to target stayed roughly same
-    const curDist = camera.position.distanceTo(controls.target);
-    const lastDist = lastLocalPosRef.current.distanceTo(controls.target);
-    const distanceChange = Math.abs(curDist - lastDist);
-    const positionMovement = camera.position.distanceTo(lastLocalPosRef.current);
-
-    // If distance changed a lot, it's zoom - don't block sync
-    // If position moved but distance didn't change much, it's rotation - block sync
-    if (positionMovement > 0.5 && distanceChange < 0.15) {
-      userInteractingRef.current = true;
-      interactionCooldownRef.current = 15;
-      idleFramesRef.current = 0;
-    }
-    if (interactionCooldownRef.current > 0) {
-      interactionCooldownRef.current--;
-    } else {
-      userInteractingRef.current = false;
-    }
-
-    // Track idle frames (no user interaction)
-    if (!userInteractingRef.current && positionMovement < 0.01) {
-      idleFramesRef.current++;
-    } else {
-      idleFramesRef.current = 0;
-    }
-    lastLocalPosRef.current.copy(camera.position);
-
-    // Broadcast local changes every frame
-    const curPos = camera.position;
-    const curTarget = controls.target;
-
-    const posChanged = !curPos.equals(lastPosRef.current);
-    const targetChanged = !curTarget.equals(lastTargetRef.current);
-
-    if (posChanged || targetChanged) {
-      lastPosRef.current.copy(curPos);
-      lastTargetRef.current.copy(curTarget);
-
-      onCameraChange?.({
-        position: curPos.toArray() as [number, number, number],
-        target: curTarget.toArray() as [number, number, number],
-      });
-    }
-
-    // Apply synced state: skip during loading, during rotation, and until truly idle (5+ idle frames)
-    if (syncedCameraState && !isLoading && !userInteractingRef.current && idleFramesRef.current >= 5 && frameCountRef.current % 2 === 0) {
-      camera.position.set(...syncedCameraState.position);
-      controls.target.set(...syncedCameraState.target);
-      controls.update();
-    }
-  });
-
-  return (
-    <OrbitControls
-      ref={controlsRef}
-      makeDefault
-      enableZoom={true}
-      enablePan={true}
-      enableRotate={true}
-      autoRotate={false}
-      mouseButtons={mouseButtons}
-    />
-  );
 }
 
 interface VoxelLayerProps {
@@ -438,17 +333,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           canvasElRef.current = gl.domElement;
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 20, 10]} intensity={0.8} />
-        <Grid infiniteGrid fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />
-        {/* The grid is drei's default Y-up floor; this app's model data is
-            Z-up (see diffVoxels.ts's gravity vector), so the displayed
-            content is rotated -90° around X to lay it flat on that floor.
-            Purely a presentation transform — doesn't touch the geometry
-            used for diffing/printability. */}
-        <group rotation={[-Math.PI / 2, 0, 0]}>
-          <axesHelper args={[30]} />
-          <AxisLabels />
+        <ModelScene gridFadeDistance={gridFadeDistance}>
           {diff && !("error" in diff) && mode === "voxel" && (
             // Keyed by the mesh pair so a new comparison remounts Bounds
             // (and BoundsResetBridge's captured pose) instead of reusing
@@ -503,7 +388,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               />
             </Bounds>
           )}
-        </group>
+        </ModelScene>
         <CameraSync syncedCameraState={syncedCameraState} onCameraChange={onCameraChange} isSyncEnabled={isSyncEnabled} />
       </Canvas>
       <AxisLegend />

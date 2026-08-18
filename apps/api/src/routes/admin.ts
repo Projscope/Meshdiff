@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 
@@ -23,18 +23,15 @@ interface SubscriptionRow {
 }
 
 export default async function adminRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   // Lightweight stats-only endpoint for the Dashboard page — no paginated
   // user list, just the stat cards plus the signups trend chart.
   app.get<{ Querystring: AdminStatsQuery }>(
     "/admin/stats",
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
-      const supabase = getSupabase();
-      if (!supabase) {
-        reply.code(500);
-        return { success: false, error: "Admin is not configured" };
-      }
-
+      const supabase = request.supabase!;
       const granularity: SignupGranularity = request.query.granularity === "month" ? "month" : "week";
 
       try {
@@ -69,12 +66,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
     "/admin/users",
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
-      const supabase = getSupabase();
-      if (!supabase) {
-        reply.code(500);
-        return { success: false, error: "Admin is not configured" };
-      }
-
+      const supabase = request.supabase!;
       const page = Math.max(1, parseInt(request.query.page ?? "1", 10) || 1);
 
       try {

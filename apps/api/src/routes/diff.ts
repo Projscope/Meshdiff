@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { getSupabase } from "../lib/supabase.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
@@ -19,17 +19,14 @@ interface VersionRow {
 }
 
 export default async function diffRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   app.get<{ Params: { versionAId: string; versionBId: string } }>(
     "/diff/:versionAId/:versionBId",
     { preHandler: requireAuth },
     async (request, reply) => {
       const { versionAId, versionBId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Diffing is not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         // Ownership must be checked before the cache lookup below — a

@@ -1,14 +1,14 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { Bounds, Grid, OrbitControls } from "@react-three/drei";
+import { Bounds, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { extractThreeMFProperties, loadMeshForDisplay, type ThreeMFProperties } from "../engine/load3mfDisplayExtras";
 import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import AxisLegend from "./AxisLegend";
-import AxisLabels from "./AxisLabels";
+import ModelScene from "./ModelScene";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
 import ControlSchemeSelect from "./ControlSchemeSelect";
@@ -400,23 +400,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
         )}
 
         <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[10, 20, 10]} intensity={0.8} />
-          <Grid
-            infiniteGrid
-            position={gridPosition}
-            fadeDistance={gridFadeDistance}
-            cellColor="#333"
-            sectionColor="#555"
-          />
-          {/* The grid is drei's default Y-up floor; this app's model data is
-              Z-up, so the displayed content is rotated -90° around X to lay
-              it flat on that floor. Purely a presentation transform. */}
-          <group rotation={[-Math.PI / 2, 0, 0]}>
-            <group position={axisOrigin}>
-              <axesHelper args={[30]} />
-              <AxisLabels />
-            </group>
+          <ModelScene gridPosition={gridPosition} gridFadeDistance={gridFadeDistance} axisOrigin={axisOrigin}>
             {displayGeometry && (
               <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
                 <BoundsResetBridge resetRef={resetViewRef} />
@@ -453,7 +437,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                 isPreview={!radiusCommittedFit && radiusPreviewFit !== null}
               />
             )}
-          </group>
+          </ModelScene>
           <OrbitControls makeDefault mouseButtons={mouseButtons} />
         </Canvas>
         <AxisLegend />

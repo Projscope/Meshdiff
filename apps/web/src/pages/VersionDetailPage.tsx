@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { Bounds, Grid, OrbitControls } from "@react-three/drei";
+import { Bounds, OrbitControls } from "@react-three/drei";
 import {
   getVersion,
   getDiff,
@@ -22,7 +22,7 @@ import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import CommentsPanel from "../components/CommentsPanel";
 import CommentPin from "../components/CommentPin";
 import AxisLegend from "../components/AxisLegend";
-import AxisLabels from "../components/AxisLabels";
+import ModelScene from "../components/ModelScene";
 import BoundsResetBridge from "../components/BoundsResetBridge";
 import ZoomToFitBridge from "../components/ZoomToFitBridge";
 import ControlSchemeSelect from "../components/ControlSchemeSelect";
@@ -390,27 +390,10 @@ export default function VersionDetailPage() {
           </div>
         )}
         <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[10, 20, 10]} intensity={0.8} />
-          <Grid
-            infiniteGrid
-            position={gridPosition}
-            fadeDistance={gridFadeDistance}
-            cellColor="#333"
-            sectionColor="#555"
-          />
-          {/* The grid is drei's default Y-up floor; this app's model data is
-              Z-up (see diffVoxels.ts's gravity vector), so the displayed
-              content — including comment pins, whose stored positions come
-              from raycasting against the (now rotated) mesh — is rotated
-              -90° around X to lay it flat on that floor. Purely a
-              presentation transform, doesn't touch the geometry used for
-              diffing/printability. */}
-          <group rotation={[-Math.PI / 2, 0, 0]}>
-            <group position={axisOrigin}>
-              <axesHelper args={[30]} />
-              <AxisLabels />
-            </group>
+          {/* Comment pins' stored positions come from raycasting against the
+              (rotated) mesh — see ModelScene.tsx for the Z-up-to-Y-up
+              transform they, and everything else here, inherit. */}
+          <ModelScene gridPosition={gridPosition} gridFadeDistance={gridFadeDistance} axisOrigin={axisOrigin}>
             {geometry && (
               <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
                 <BoundsResetBridge resetRef={resetViewRef} />
@@ -456,7 +439,7 @@ export default function VersionDetailPage() {
                 isPreview={!radiusCommittedFit && radiusPreviewFit !== null}
               />
             )}
-          </group>
+          </ModelScene>
           <OrbitControls makeDefault mouseButtons={mouseButtons} />
         </Canvas>
         <AxisLegend />

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
 
@@ -38,17 +38,14 @@ function toCommentSummary(row: CommentRow) {
 }
 
 export default async function commentsRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   app.get<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/comments",
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Comments are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -107,12 +104,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
         return { success: false, error: "normal must be [x, y, z] when provided" };
       }
 
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Comments are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
