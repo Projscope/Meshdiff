@@ -10,6 +10,7 @@ import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES } from "../lib/fileSizeLimit.js";
+import { logTeamAudit } from "../lib/teamAuditLog.js";
 
 // Diffing now runs client-side (see finalize() below and
 // ProjectDetailPage.tsx/projectsApi.ts) — the server never parses or
@@ -336,6 +337,18 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Version not found" };
         }
 
+        // Audit log is team-scoped — no-op for personal/Pro projects
+        // (the majority of traffic), which have no team_id to log against.
+        if (access.teamId) {
+          const { data: project } = await supabase.from("projects").select("name").eq("id", projectId).maybeSingle();
+          await logTeamAudit(supabase, app.log, {
+            teamId: access.teamId,
+            actorUserId: request.userId!,
+            action: "version_approved",
+            summary: `Approved v${(row as VersionRow).version_number} of ${project?.name ?? "Unknown project"}`,
+          });
+        }
+
         return { success: true, data: toVersionSummary(row as VersionRow) };
       } catch (err) {
         app.log.error(err, "Version approve threw");
@@ -390,6 +403,17 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         if (!row) {
           reply.code(404);
           return { success: false, error: "Version not found" };
+        }
+
+        if (access.teamId) {
+          const { data: project } = await supabase.from("projects").select("name").eq("id", projectId).maybeSingle();
+          const trimmedReason = typeof reason === "string" && reason.trim() ? reason.trim() : null;
+          await logTeamAudit(supabase, app.log, {
+            teamId: access.teamId,
+            actorUserId: request.userId!,
+            action: "version_rejected",
+            summary: `Rejected v${(row as VersionRow).version_number} of ${project?.name ?? "Unknown project"}${trimmedReason ? `: ${trimmedReason}` : ""}`,
+          });
         }
 
         return { success: true, data: toVersionSummary(row as VersionRow) };

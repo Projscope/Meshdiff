@@ -4,6 +4,7 @@ import { useAuth } from "../lib/AuthProvider";
 import {
   getTeam,
   getTeamPendingVersions,
+  getTeamAuditLog,
   addTeamMember,
   removeTeamMember,
   approveVersion,
@@ -11,6 +12,7 @@ import {
   openBillingPortal,
   type TeamDetail,
   type TeamPendingVersion,
+  type TeamAuditLogEntry,
 } from "../lib/projectsApi";
 import ApprovalBadge from "../components/ApprovalBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -18,6 +20,19 @@ import RejectVersionModal from "../components/RejectVersionModal";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function timeSince(iso: string): string {
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
 }
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
@@ -34,6 +49,7 @@ export default function TeamDashboardPage() {
   const { user } = useAuth();
   const [team, setTeam] = useState<TeamDetail | null>(null);
   const [pending, setPending] = useState<TeamPendingVersion[] | null>(null);
+  const [activity, setActivity] = useState<TeamAuditLogEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "approver" | "member">("member");
@@ -53,11 +69,15 @@ export default function TeamDashboardPage() {
     getTeamPendingVersions(teamId).then((result) => {
       if (result.success) setPending(result.data);
     });
+    getTeamAuditLog(teamId).then((result) => {
+      if (result.success) setActivity(result.data);
+    });
   }
 
   useEffect(() => {
     setTeam(null);
     setPending(null);
+    setActivity(null);
     setError(null);
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -269,6 +289,25 @@ export default function TeamDashboardPage() {
                     </button>
                   </>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Activity</p>
+        {activity === null ? (
+          <p className="mt-3 text-sm text-neutral-500">Loading…</p>
+        ) : activity.length === 0 ? (
+          <p className="mt-3 text-sm text-neutral-500">No activity yet.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {activity.map((entry) => (
+              <li key={entry.id} className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
+                <span className="font-medium text-neutral-300">{entry.actorEmail ?? "Someone"}</span>
+                <span className="text-neutral-400">{entry.summary}</span>
+                <span className="ml-auto shrink-0 text-xs text-neutral-600">{timeSince(entry.createdAt)}</span>
               </li>
             ))}
           </ul>

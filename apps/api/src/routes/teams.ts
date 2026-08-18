@@ -4,6 +4,7 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getUserTier, INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
 import { toVersionSummary, type VersionRow } from "./versions.js";
+import { logTeamAudit } from "../lib/teamAuditLog.js";
 
 interface CreateTeamBody {
   name?: string;
@@ -114,6 +115,13 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
         reply.code(502);
         return { success: false, error: "Failed to create team, please try again" };
       }
+
+      await logTeamAudit(supabase, app.log, {
+        teamId: team.id,
+        actorUserId: request.userId!,
+        action: "team_created",
+        summary: "Created the team",
+      });
 
       return { success: true, data: { id: team.id, name: team.name, createdAt: team.created_at } };
     } catch (err) {
@@ -292,6 +300,73 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
     },
   );
 
+  const AUDIT_LOG_PAGE_SIZE = 50;
+
+  app.get<{ Params: { teamId: string } }>(
+    "/teams/:teamId/audit-log",
+    { preHandler: [requireAuth, requireActiveAccess] },
+    async (request, reply) => {
+      const { teamId } = request.params;
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Teams are not configured" };
+      }
+
+      try {
+        const { data: membership } = await supabase
+          .from("team_members")
+          .select("role")
+          .eq("team_id", teamId)
+          .eq("user_id", request.userId)
+          .maybeSingle();
+        if (!membership) {
+          reply.code(404);
+          return { success: false, error: "Team not found" };
+        }
+
+        const { data: entries, error: entriesError } = await supabase
+          .from("team_audit_log")
+          .select("id, actor_user_id, action, summary, created_at")
+          .eq("team_id", teamId)
+          .order("created_at", { ascending: false })
+          .limit(AUDIT_LOG_PAGE_SIZE);
+        if (entriesError) {
+          app.log.error(entriesError, "Failed to load audit log");
+          reply.code(502);
+          return { success: false, error: "Failed to load activity" };
+        }
+        if (!entries || entries.length === 0) {
+          return { success: true, data: [] };
+        }
+
+        const actorIds = [...new Set(entries.map((e) => e.actor_user_id).filter((id): id is string => !!id))];
+        const { data: emailRows, error: emailError } = await supabase.rpc("get_user_emails_by_ids", {
+          p_ids: actorIds,
+        });
+        if (emailError) {
+          app.log.warn(emailError, "Failed to resolve audit log actor emails");
+        }
+        const emailByUserId = new Map((emailRows ?? []).map((r: { id: string; email: string }) => [r.id, r.email]));
+
+        const data = entries.map((e) => ({
+          id: e.id,
+          actorEmail: e.actor_user_id ? (emailByUserId.get(e.actor_user_id) ?? null) : null,
+          action: e.action,
+          summary: e.summary,
+          createdAt: e.created_at,
+        }));
+
+        return { success: true, data };
+      } catch (err) {
+        app.log.error(err, "Team audit-log threw");
+        reply.code(502);
+        return { success: false, error: "Failed to load activity" };
+      }
+    },
+  );
+
   app.post<{ Params: { teamId: string }; Body: AddMemberBody }>(
     "/teams/:teamId/members",
     { preHandler: [requireAuth, requireActiveAccess] },
@@ -399,6 +474,13 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
           return { success: false, error: "Failed to add member, please try again" };
         }
 
+        await logTeamAudit(supabase, app.log, {
+          teamId,
+          actorUserId: request.userId!,
+          action: "member_invited",
+          summary: `Invited ${email.trim().toLowerCase()} as ${role}`,
+        });
+
         return { success: true, data: { userId, role } };
       } catch (err) {
         app.log.error(err, "Add team member threw");
@@ -456,6 +538,12 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
           }
         }
 
+        // Resolved before the delete purely so the audit summary reads
+        // naturally ("Removed jane@co.com") — the auth.users row itself
+        // is untouched by removing a team_members row either way.
+        const { data: emailRows } = await supabase.rpc("get_user_emails_by_ids", { p_ids: [targetUserId] });
+        const targetEmail = (emailRows as { id: string; email: string }[] | null)?.[0]?.email ?? null;
+
         const { error } = await supabase
           .from("team_members")
           .delete()
@@ -466,6 +554,13 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
           reply.code(502);
           return { success: false, error: "Failed to remove member, please try again" };
         }
+
+        await logTeamAudit(supabase, app.log, {
+          teamId,
+          actorUserId: request.userId!,
+          action: "member_removed",
+          summary: `Removed ${targetEmail ?? targetUserId}`,
+        });
 
         return { success: true, data: true };
       } catch (err) {

@@ -204,6 +204,18 @@ export function getTeamPendingVersions(teamId: string): Promise<Result<TeamPendi
   return request(`/teams/${teamId}/pending-versions`);
 }
 
+export interface TeamAuditLogEntry {
+  id: string;
+  actorEmail: string | null;
+  action: "team_created" | "member_invited" | "member_removed" | "version_approved" | "version_rejected";
+  summary: string;
+  createdAt: string;
+}
+
+export function getTeamAuditLog(teamId: string): Promise<Result<TeamAuditLogEntry[]>> {
+  return request(`/teams/${teamId}/audit-log`);
+}
+
 export function addTeamMember(
   teamId: string,
   email: string,
