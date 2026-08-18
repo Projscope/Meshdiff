@@ -20,6 +20,7 @@ import SectionHeader from "../components/SectionHeader";
 import { useCountUp } from "../hooks/useCountUp";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import liveDiffPreview from "../assets/live-diff-preview.png";
+import liveDiffPreviewWebp from "../assets/live-diff-preview.webp";
 import { SHOW_MONETIZATION, LAUNCH_OFFER_DEADLINE } from "../lib/featureFlags";
 import { useCountdown } from "../hooks/useCountdown";
 import { supabase } from "../lib/supabaseClient";
@@ -302,11 +303,17 @@ export default function LandingPage() {
             aria-label="Open the free diff tool"
             className="group relative mx-auto mt-12 block max-w-6xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
           >
-            <img
-              src={liveDiffPreview}
-              alt="Meshdiff Live Diff tool: side-by-side 3D viewers for Version A and Version B, with a voxel diff panel showing added and removed geometry"
-              className="block w-full"
-            />
+            <picture>
+              <source srcSet={liveDiffPreviewWebp} type="image/webp" />
+              <img
+                src={liveDiffPreview}
+                alt="Meshdiff Live Diff tool: side-by-side 3D viewers for Version A and Version B, with a voxel diff panel showing added and removed geometry"
+                className="block w-full"
+                fetchPriority="high"
+                width={1200}
+                height={620}
+              />
+            </picture>
             <div className="absolute inset-0 flex items-center justify-center bg-neutral-950/0 opacity-0 transition group-hover:bg-neutral-950/60 group-hover:opacity-100">
               <span className="rounded-full bg-neutral-900/90 px-4 py-2 text-xs font-medium text-emerald-400 shadow-lg">
                 Open the free diff tool
