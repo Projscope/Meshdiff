@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export default function RoadmapPage() {
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.1.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.1.2");
 
   const handleScrollToPricing = () => {
     window.location.href = "/#pricing";
@@ -33,6 +33,23 @@ export default function RoadmapPage() {
   };
 
   const changelog = [
+    {
+      version: "v1.1.2",
+      date: "2026-08-18",
+      title: "Control Scheme selector and faster page loads",
+      items: {
+        new: [
+          "Control Scheme selector — switch between Meshdiff's native mouse bindings and CAD-style bindings (Fusion 360 / SolidWorks / AutoCAD) for orbit, pan, and zoom, with a shortcut legend",
+        ],
+        improved: [
+          "Faster landing page load times",
+          "Added extra security headers to protect against common web vulnerabilities",
+        ],
+        fixed: [
+          "Right-click and Shift+middle-click drag not rotating the camera correctly in CAD control scheme",
+        ],
+      },
+    },
     {
       version: "v1.1.0",
       date: "2026-08-16",

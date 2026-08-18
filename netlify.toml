@@ -11,7 +11,14 @@
 #   the UXCam recording SDK (index.html's inline loader), plus
 #   'unsafe-inline' for their inline config <script> blocks — a nonce-based
 #   CSP isn't practical on a static Netlify build with no per-request
-#   server render.
+#   server render. Also needs blob: — drei's <Text>/<Text3D> (used by
+#   AxisLabels and others) renders SDF fonts via troika-three-text, which
+#   runs in a Web Worker that calls importScripts() on a blob: URL to load
+#   its worker-module code. worker-src permits *creating* that worker, but
+#   importScripts() calls made from inside an already-running worker are
+#   governed by script-src, not worker-src — without blob: here, those
+#   imports get blocked and the worker throws "did not return a callable
+#   function" (seen in prod after the CSP was first added).
 # - connect-src: Supabase (auth + direct-to-storage signed URLs, any
 #   *.supabase.co project), the Fastify API (meshdiff-api.onrender.com,
 #   see VITE_API_URL in api.ts), and GA/UXCam's own reporting endpoints
@@ -30,4 +37,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
