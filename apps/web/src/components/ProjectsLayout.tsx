@@ -57,7 +57,11 @@ export function useRefreshProjectsSidebar(): () => void {
 // Lets nested pages (currently just ProjectsListPage, the one page that
 // still renders normally for a restricted account — see the route-level
 // lock below) react to subscription state without a second
-// GET /billing/subscription call of their own.
+// GET /billing/subscription call of their own. Despite the name, isPro
+// means "has full paid access" — true for Pro, for a Team subscription's
+// owner, and for a team member riding the owner's seats (mirrors the
+// backend's getAccountAccess().status==='pro', not a raw tier check —
+// see ProjectDetailPage.tsx/ProjectsListPage.tsx's upload/create gating).
 const AccountStatusContext = createContext<{ isRestricted: boolean; isPro: boolean }>({ isRestricted: false, isPro: false });
 export function useAccountStatus(): { isRestricted: boolean; isPro: boolean } {
   return useContext(AccountStatusContext);
@@ -247,17 +251,24 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
 
-  // isTeamMember is a display-only signal (true for the paying owner AND
-  // any invited member riding their seats — both should see "Team plan" in
-  // the sidebar). The real gating signal for billing-gated actions (create
-  // team, manage seats) is subscription.tier === "team" — see
-  // handleCreateTeamClick() above.
-  const isTeamMember = teams.length > 0;
+  // isTeamMember is a display-only signal, true for the paying owner AND
+  // any invited member riding their seats. It's OR'd with
+  // subscription.tier==='team' below because a fresh Team subscriber isn't
+  // a team_members row yet until they actually create their team (teams
+  // and subscriptions are separate — see billing.ts) — without the OR,
+  // someone who just paid for Team but hasn't created a team yet would
+  // wrongly show as "Free".
+  const isTeamMember = teams.length > 0 || subscription?.tier === "team";
   const isPro = subscription?.tier === "pro";
   // No trial — a non-Pro, non-team account is restricted from day one (see
   // requireActiveAccess.ts). Stays false until the subscription fetch
   // resolves, so the sidebar doesn't flash a locked state on first load.
   const isRestricted = subscription?.accountStatus === "restricted";
+  // Distinct from isTeamMember: a regular team member (not the owner) has
+  // no subscription/stripe_customers row of their own, so /billing/portal
+  // would 404 for them — only the actual subscriber (Pro or Team) gets the
+  // Manage/Cancel/Resume controls below.
+  const isBillingOwner = subscription?.tier === "pro" || subscription?.tier === "team";
   const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : "Free";
   const planTextClass = isTeamMember
     ? "text-violet-400"
@@ -281,7 +292,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
-    <AccountStatusContext.Provider value={{ isRestricted, isPro }}>
+    <AccountStatusContext.Provider value={{ isRestricted, isPro: subscription?.accountStatus === "pro" }}>
       <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-100 md:flex-row">
         {/* Mobile-only top bar — the sidebar below becomes a hidden overlay
             under the md breakpoint, so this is the only way to open it or
@@ -528,17 +539,17 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 )}
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
-                {isTeamMember
-                  ? "Belongs to a team — Team billing isn't wired up yet."
-                  : isPro
-                    ? subscription?.cancelAtPeriodEnd
-                      ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
-                      : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
+                {isBillingOwner
+                  ? subscription?.cancelAtPeriodEnd
+                    ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
+                    : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
+                  : isTeamMember
+                    ? "Access via your team's plan."
                     : isRestricted
                       ? "Subscribe to keep using Meshdiff — you can still sign in and delete projects."
                       : "Project workspaces, version history, and comment pins — $15/mo."}
               </p>
-              {isPro && (
+              {isBillingOwner && (
                 <div className="mt-2 flex items-center gap-3">
                   <button
                     type="button"
