@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
@@ -6,6 +6,24 @@ import LoadingCube from "./LoadingCube";
 
 export default function RootLayout() {
   const location = useLocation();
+
+  // index.html ships one static <link rel="canonical"> pointing at "/" —
+  // fine for the very first paint, but every route past that (an SPA
+  // serves the same index.html everywhere) inherited that same tag, so
+  // Lighthouse flagged e.g. /projects as canonicalizing to the homepage
+  // instead of itself. Query strings/hashes are dropped so query-param
+  // variants of the same page (e.g. pagination) still canonicalize to one
+  // URL, matching how the sitemap/SEO landing pages already treat routes.
+  useEffect(() => {
+    let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.setAttribute("rel", "canonical");
+      document.head.appendChild(link);
+    }
+    link.setAttribute("href", `https://meshdiff.com${location.pathname}`);
+  }, [location.pathname]);
+
   // The signed-in dashboard (ProjectsLayout) has its own sidebar with a
   // logo/link, so the marketing site's header and footer would just be
   // redundant chrome there. /admin is also wrapped in ProjectsLayout (see

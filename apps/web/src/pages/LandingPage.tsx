@@ -28,9 +28,9 @@ import { getSubscription } from "../lib/projectsApi";
 import { markPendingProCheckout } from "../lib/pendingCheckout";
 import AlreadyProModal from "../components/AlreadyProModal";
 
-import teamsImg from '../assets/teams.png';
+import teamsImg from '../assets/teams.webp';
 import proImg from '../assets/pro.jpeg';
-import soloImg from '../assets/solo.png';
+import soloImg from '../assets/solo.webp';
 
 interface PricingTier {
   name: string;
@@ -190,7 +190,7 @@ function HeroStatItem({ stat }: { stat: HeroStat }) {
         <span ref={ref}>{value}</span>
         <span className="text-emerald-400">{stat.suffix}</span>
       </span>
-      <span className="mt-1 block text-xs text-neutral-500">{stat.label}</span>
+      <span className="mt-1 block text-xs text-neutral-400">{stat.label}</span>
     </div>
   );
 }
@@ -265,7 +265,7 @@ export default function LandingPage() {
         {/* Hero: eyebrow, accent-split headline, dual CTAs, animated stat row */}
         <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-neutral-950">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+            <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
               Diff &middot; Review &middot; Approve
             </p>
             <h1 className="mt-4 text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
@@ -416,7 +416,7 @@ export default function LandingPage() {
                       {feature.tags.map((tag) => (
                         <li
                           key={tag}
-                          className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-[11px] text-neutral-500"
+                          className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-[11px] text-neutral-400"
                         >
                           {tag}
                         </li>
@@ -485,7 +485,7 @@ export default function LandingPage() {
                 >
                   <LinkSimple size={18} weight="light" className="shrink-0 text-emerald-400" />
                   <span className="w-14 shrink-0 text-sm font-semibold text-white">{item.label}</span>
-                  <span className="text-xs text-neutral-500">{item.detail}</span>
+                  <span className="text-xs text-neutral-400">{item.detail}</span>
                 </div>
               ))}
               <p className="mt-1 text-xs text-neutral-600">
@@ -556,11 +556,11 @@ export default function LandingPage() {
                     <div className="mt-2 flex items-baseline gap-1.5">
                       <span className="text-3xl font-bold text-white">{tier.price}</span>
                       {tier.originalPrice && (
-                        <span className="text-sm text-neutral-500 line-through">{tier.originalPrice}</span>
+                        <span className="text-sm text-neutral-400 line-through">{tier.originalPrice}</span>
                       )}
-                      {tier.period && <span className="text-xs text-neutral-500">{tier.period}</span>}
+                      {tier.period && <span className="text-xs text-neutral-400">{tier.period}</span>}
                     </div>
-                    <p className="mt-1 text-xs text-neutral-500">{tier.audience}</p>
+                    <p className="mt-1 text-xs text-neutral-400">{tier.audience}</p>
                     {tier.urgency && (
                       <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-purple-400">
                         <span className="rounded-full bg-purple-400" />
@@ -626,7 +626,13 @@ export default function LandingPage() {
               rel="noreferrer"
               className="mt-5 inline-flex items-center gap-3"
             >
-              <img src="https://blog.adafruit.com/app/themes/adafruit2013/images/logos/logo_2x.png" alt="Adafruit" className="h-8 w-auto" />
+              <img
+                src="https://blog.adafruit.com/app/themes/adafruit2013/images/logos/logo_2x.png"
+                alt="Adafruit"
+                className="h-8 w-auto"
+                width={92}
+                height={32}
+              />
             </a>
           </div>
         </section>
@@ -660,13 +666,13 @@ export default function LandingPage() {
 
             <div className="rounded-xl border border-emerald-500/20 bg-neutral-900 p-8">
               <p className="text-sm font-semibold text-white">Claim your founding spot</p>
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-neutral-400">
                 50% off Pro and Team for 3 months, before public launch.
               </p>
               <div className="mt-4">
                 <WaitlistForm />
               </div>
-              <p className="mt-4 text-center text-xs text-neutral-500">
+              <p className="mt-4 text-center text-xs text-neutral-400">
                 No spam. One launch email, then you decide.
               </p>
             </div>
