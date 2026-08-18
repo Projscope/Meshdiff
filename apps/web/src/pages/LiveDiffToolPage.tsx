@@ -9,6 +9,7 @@ import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureVi
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
+import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { useAuth } from "../lib/AuthProvider";
 import { getSubscription } from "../lib/projectsApi";
@@ -688,6 +689,7 @@ export default function LiveDiffToolPage({
                     >
                       ⟲ Reset Views
                     </button>
+                    <ControlSchemeSelect />
                   </>
                 ) : (
                   <button

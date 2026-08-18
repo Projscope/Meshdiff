@@ -22,6 +22,7 @@ import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
+import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 
 export type DiffMode = "voxel" | "surface";
 
@@ -76,6 +77,8 @@ function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled }: Camera
   const userInteractingRef = useRef(false);
   const interactionCooldownRef = useRef(0);
   const idleFramesRef = useRef(0);
+  const [controlScheme] = useControlScheme();
+  const mouseButtons = useOrbitMouseButtons(controlScheme);
 
   useFrame(() => {
     const controls = controlsRef.current;
@@ -158,6 +161,7 @@ function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled }: Camera
       enablePan={true}
       enableRotate={true}
       autoRotate={false}
+      mouseButtons={mouseButtons}
     />
   );
 }

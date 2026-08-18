@@ -11,6 +11,8 @@ import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
+import ControlSchemeSelect from "./ControlSchemeSelect";
+import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import LoadingCube from "./LoadingCube";
 import MeasurementOverlay from "./MeasurementOverlay";
 import RadiusOverlay from "./RadiusOverlay";
@@ -64,6 +66,8 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
+  const [controlScheme] = useControlScheme();
+  const mouseButtons = useOrbitMouseButtons(controlScheme);
 
   const [measureMode, setMeasureMode] = useState<"distance" | "radius">("distance");
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -360,6 +364,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
               >
                 Reset View
               </button>
+              <ControlSchemeSelect />
             </>
           )}
         </div>
@@ -449,7 +454,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
               />
             )}
           </group>
-          <OrbitControls makeDefault />
+          <OrbitControls makeDefault mouseButtons={mouseButtons} />
         </Canvas>
         <AxisLegend />
 

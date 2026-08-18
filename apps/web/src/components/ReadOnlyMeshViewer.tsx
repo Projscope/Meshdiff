@@ -6,6 +6,7 @@ import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
+import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 
 interface ReadOnlyMeshViewerProps {
   /** Shown top-left. Pass the loaded version's label (e.g. "v1"); falls back to `fallbackLabel` when `geometry` is null. */
@@ -31,6 +32,8 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
+  const [controlScheme] = useControlScheme();
+  const mouseButtons = useOrbitMouseButtons(controlScheme);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
@@ -79,7 +82,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
             </Bounds>
           )}
         </group>
-        <OrbitControls makeDefault enableZoom enablePan enableRotate />
+        <OrbitControls makeDefault enableZoom enablePan enableRotate mouseButtons={mouseButtons} />
       </Canvas>
       <AxisLegend />
     </div>

@@ -9,6 +9,7 @@ import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
+import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 
 interface CameraSyncProps {
   syncedCameraState: { position: [number, number, number]; target: [number, number, number] } | undefined;
@@ -23,6 +24,8 @@ function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled, zoomSpee
   const { camera } = useThree();
   const controlsRef = useRef<any>(null);
   const readyRef = useRef(false);
+  const [controlScheme] = useControlScheme();
+  const mouseButtons = useOrbitMouseButtons(controlScheme);
   const frameCountRef = useRef(0);
   const lastPosRef = useRef(new THREE.Vector3());
   const lastTargetRef = useRef(new THREE.Vector3());
@@ -118,6 +121,7 @@ function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled, zoomSpee
       enablePan={true}
       enableRotate={true}
       autoRotate={false}
+      mouseButtons={mouseButtons}
     />
   );
 }

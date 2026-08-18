@@ -8,6 +8,7 @@ import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import ReadOnlyMeshViewer, { type ReadOnlyMeshViewerHandle } from "../components/ReadOnlyMeshViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import LoadingModal from "../components/LoadingModal";
+import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
 
@@ -255,6 +256,7 @@ export default function CompareVersionsPage() {
             >
               ⟲ Reset View
             </button>
+            <ControlSchemeSelect />
             <button
               type="button"
               onClick={handleShareClick}

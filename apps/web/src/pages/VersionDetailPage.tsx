@@ -25,6 +25,8 @@ import AxisLegend from "../components/AxisLegend";
 import AxisLabels from "../components/AxisLabels";
 import BoundsResetBridge from "../components/BoundsResetBridge";
 import ZoomToFitBridge from "../components/ZoomToFitBridge";
+import ControlSchemeSelect from "../components/ControlSchemeSelect";
+import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import LoadingCube from "../components/LoadingCube";
 import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
 import CollapsibleSection, { PropertyList, PropertyRow } from "../components/CollapsibleSection";
@@ -51,6 +53,8 @@ export default function VersionDetailPage() {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
+  const [controlScheme] = useControlScheme();
+  const mouseButtons = useOrbitMouseButtons(controlScheme);
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [threeMFProperties, setThreeMFProperties] = useState<ThreeMFProperties | null>(null);
   const [boundingBox, setBoundingBox] = useState<[number, number, number]>([0, 0, 0]);
@@ -382,6 +386,7 @@ export default function VersionDetailPage() {
             >
               ⟲ Reset View
             </button>
+            <ControlSchemeSelect />
           </div>
         )}
         <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
@@ -452,7 +457,7 @@ export default function VersionDetailPage() {
               />
             )}
           </group>
-          <OrbitControls makeDefault />
+          <OrbitControls makeDefault mouseButtons={mouseButtons} />
         </Canvas>
         <AxisLegend />
 
