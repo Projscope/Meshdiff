@@ -5,7 +5,6 @@ import {
   getProject,
   getVersion,
   listVersions,
-  uploadVersion,
   downloadVersionFile,
   deleteVersion,
   deleteProject,
@@ -19,6 +18,7 @@ import {
   type VersionSummary,
   type ProjectDetail,
 } from "../lib/projectsApi";
+import { uploadVersion } from "../lib/uploadVersion";
 import ApprovalBadge from "../components/ApprovalBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
@@ -31,7 +31,7 @@ import { renderMeshThumbnail } from "../engine/renderThumbnail";
 
 // Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
 // — all three formats are safe again now that diffing runs client-side
-// (see uploadVersion() in projectsApi.ts) rather than on the shared server.
+// (see uploadVersion() in lib/uploadVersion.ts) rather than on the shared server.
 const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
 // Kept in sync with the server-side limit (apps/api/src/lib/fileSizeLimit.ts)
 // — this is just an early UI check so an oversized file is rejected before

@@ -26,6 +26,19 @@ export default defineConfig({
         },
       },
     },
+    // Vite auto-injects <link rel="modulepreload"> for chunks reachable via
+    // React.lazy()'s dynamic import()s (router.tsx), even though they're
+    // never executed unless that route is actually visited — normally a
+    // nice latency win, but three-vendor is ~900KB uncompressed and was
+    // still competing with the landing page's LCP image for initial-load
+    // bandwidth even though it never runs there (see Lighthouse audit —
+    // resourceEntries confirmed initiatorType "other"/prefetch, not
+    // "script"/executed, but the bytes were still downloaded). Excluding
+    // it from the preload list means it's fetched lazily, on-demand, only
+    // once a route that actually needs it (e.g. /live) is visited.
+    modulePreload: {
+      resolveDependencies: (_filename, deps) => deps.filter((dep) => !dep.includes("three-vendor")),
+    },
   },
   test: {
     environment: "node",

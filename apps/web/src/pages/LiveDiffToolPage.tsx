@@ -9,6 +9,7 @@ import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureVi
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
+import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { useAuth } from "../lib/AuthProvider";
 import { getSubscription } from "../lib/projectsApi";
@@ -663,6 +664,20 @@ export default function LiveDiffToolPage({
                     <button
                       type="button"
                       onClick={() => {
+                        // The diff pane has its own Zoom to Model button
+                        // (see DiffView.tsx) — this one only needs to cover
+                        // the two individual model viewers.
+                        viewerARef.current?.zoomToFit();
+                        viewerBRef.current?.zoomToFit();
+                      }}
+                      title="Zoom to fit both models in view"
+                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+                    >
+                      Zoom to Models
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
                         // The diff pane has its own Reset View button (see
                         // DiffView.tsx) — this one only needs to cover the
                         // two individual model viewers.
@@ -674,6 +689,7 @@ export default function LiveDiffToolPage({
                     >
                       ⟲ Reset Views
                     </button>
+                    <ControlSchemeSelect />
                   </>
                 ) : (
                   <button

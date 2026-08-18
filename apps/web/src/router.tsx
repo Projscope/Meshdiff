@@ -1,23 +1,33 @@
+import { lazy } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import FeaturesPage from "./pages/FeaturesPage";
-import LiveDiffToolPage from "./pages/LiveDiffToolPage";
-import CompareStlFilesPage from "./pages/CompareStlFilesPage";
-import StlDiffToolPage from "./pages/StlDiffToolPage";
-import Compare3mfFilesPage from "./pages/Compare3mfFilesPage";
 import EmbedBadgePage from "./pages/EmbedBadgePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import RoadmapPage from "./pages/RoadmapPage";
 import ProjectsListPage from "./pages/ProjectsListPage";
-import ProjectDetailPage from "./pages/ProjectDetailPage";
-import VersionDetailPage from "./pages/VersionDetailPage";
-import CompareVersionsPage from "./pages/CompareVersionsPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
 import RootLayout from "./components/RootLayout";
+
+// Lazy-loaded: every page here pulls in three.js/@react-three (directly, or
+// via engine/loadMesh.ts + engine/renderThumbnail.ts) — a Lighthouse audit
+// of the production landing page found the three.js vendor chunk (231KB)
+// and most of the main app bundle were 77-82% unused on `/`, because
+// nothing on the marketing page actually needs them. Splitting these into
+// their own chunks means `/` (and other static-content routes) never
+// download this weight at all — only a route that's actually reached pays
+// for it. RootLayout.tsx's single <Suspense> boundary covers all of these.
+const LiveDiffToolPage = lazy(() => import("./pages/LiveDiffToolPage"));
+const CompareStlFilesPage = lazy(() => import("./pages/CompareStlFilesPage"));
+const StlDiffToolPage = lazy(() => import("./pages/StlDiffToolPage"));
+const Compare3mfFilesPage = lazy(() => import("./pages/Compare3mfFilesPage"));
+const ProjectDetailPage = lazy(() => import("./pages/ProjectDetailPage"));
+const VersionDetailPage = lazy(() => import("./pages/VersionDetailPage"));
+const CompareVersionsPage = lazy(() => import("./pages/CompareVersionsPage"));
 
 /**
  * The landing page (marketing) and the actual interactive diff tool are

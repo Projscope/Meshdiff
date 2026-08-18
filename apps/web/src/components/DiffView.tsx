@@ -21,6 +21,8 @@ import SurfaceHeatmap from "./SurfaceHeatmap";
 import AxisLegend from "./AxisLegend";
 import AxisLabels from "./AxisLabels";
 import BoundsResetBridge from "./BoundsResetBridge";
+import ZoomToFitBridge from "./ZoomToFitBridge";
+import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 
 export type DiffMode = "voxel" | "surface";
 
@@ -55,6 +57,8 @@ export interface DiffViewHandle {
   captureScreenshot: () => string | null;
   /** Re-frames the camera on the diff, undoing any pan/rotate/zoom. */
   resetView: () => void;
+  /** Zooms/re-centers to fit the diff, keeping the current rotation/angle. */
+  zoomToFit: () => void;
 }
 
 interface CameraSyncProps {
@@ -73,6 +77,8 @@ function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled }: Camera
   const userInteractingRef = useRef(false);
   const interactionCooldownRef = useRef(0);
   const idleFramesRef = useRef(0);
+  const [controlScheme] = useControlScheme();
+  const mouseButtons = useOrbitMouseButtons(controlScheme);
 
   useFrame(() => {
     const controls = controlsRef.current;
@@ -155,6 +161,7 @@ function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled }: Camera
       enablePan={true}
       enableRotate={true}
       autoRotate={false}
+      mouseButtons={mouseButtons}
     />
   );
 }
@@ -223,10 +230,12 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
+  const zoomToFitRef = useRef<(() => void) | null>(null);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
     resetView: () => resetViewRef.current?.(),
+    zoomToFit: () => zoomToFitRef.current?.(),
   }));
 
   // Voxelization, BVH building, and dilation are expensive — they run in a
@@ -359,6 +368,16 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         {!isPending && !hasError && (
           <button
             type="button"
+            onClick={() => zoomToFitRef.current?.()}
+            title="Zoom to fit the model in view"
+            className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+          >
+            Zoom to Model
+          </button>
+        )}
+        {!isPending && !hasError && (
+          <button
+            type="button"
             onClick={() => resetViewRef.current?.()}
             title="Reset camera to the loaded view"
             className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
@@ -436,6 +455,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             // whatever pose the previous pair had settled on.
             <Bounds key={`voxel-${geometryA?.uuid}-${geometryB?.uuid}`} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
+              <ZoomToFitBridge zoomRef={zoomToFitRef} />
               <VoxelLayer
                 grid={diff.grid}
                 voxelClass={VOXEL_UNCHANGED}
@@ -462,6 +482,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           {diff && !("error" in diff) && mode === "surface" && geometryA && geometryB && (
             <Bounds key={`surface-${geometryA.uuid}-${geometryB.uuid}`} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
+              <ZoomToFitBridge zoomRef={zoomToFitRef} />
               <SurfaceHeatmap geometry={geometryB} baseGeometry={geometryA} toleranceMm={toleranceMm} />
               {/*
                 The vertex-based ghost in SurfaceHeatmap only catches removed
