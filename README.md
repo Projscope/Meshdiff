@@ -32,6 +32,10 @@ persistent version history, comments, and team review.
 
 ### Projects workspace (signed in via Supabase Auth)
 
+Full workspace access is [Pro](pro.md) (or [Team](teams.md)) — payable from day one,
+no trial. A free account gets a read/write-but-not-uploadable Sample Project to try
+before subscribing (see [pro.md](pro.md) for exactly what's gated).
+
 - Persistent projects with a full version history (not just a single share link)
 - **Printability gate** — real per-version wall-thickness, overhang, and unsupported-
   area analysis (not a placeholder), with a tooltip explaining the pass/warn/fail
@@ -118,11 +122,11 @@ Edit `apps/api/.env` with:
 - **Supabase credentials** (from `supabase status` output)
   - `SUPABASE_URL`: From local Supabase
   - `SUPABASE_SERVICE_ROLE_KEY`: From local Supabase
-- **Stripe credentials** (optional, for payment testing)
+- **Stripe credentials** (optional, for payment testing — see [pro.md](pro.md#setup) / [teams.md](teams.md#setup) for creating these products/prices)
   - `STRIPE_SECRET_KEY`: Test key from Stripe Dashboard
   - `STRIPE_WEBHOOK_SECRET`: Will update when running Stripe CLI
-  - `STRIPE_PRO_PRICE_ID`: Test price ID from Stripe
-  - `STRIPE_TEAM_PRICE_ID`: Test price ID for the Team tier — see [teams.md](teams.md#setup) for creating this product/price
+  - `STRIPE_PRO_PRICE_ID`: Test price ID for the Pro tier
+  - `STRIPE_TEAM_PRICE_ID`: Test price ID for the Team tier
 - **Other**
   - `FRONTEND_URL`: http://localhost:5173 (already set)
   - `CONVERTKIT_API_KEY` / `CONVERTKIT_API_SECRET`: Leave as-is for local dev
@@ -246,6 +250,7 @@ supabase start --force-pull         # Force re-download images
 ```
 Meshdiff/
   CLAUDE.md                 # product spec and engineering rules
+  pro.md                    # Pro tier: what's gated, billing setup, promo codes
   teams.md                  # Team tier: concept, roles, billing setup, audit log
   apps/shared/               # Pure diff/voxelize engine, shared by web + api
     src/engine/               # voxelizer, voxel diff + printability analysis (tested)
