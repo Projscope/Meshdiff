@@ -7,9 +7,8 @@
 
 # Security headers (securityheaders.com flagged these as missing). CSP
 # origins reflect what the app actually loads client-side:
-# - script-src: Google Tag Manager (index.html's two gtag.js snippets) and
-#   the UXCam recording SDK (index.html's inline loader), plus
-#   'unsafe-inline' for their inline config <script> blocks — a nonce-based
+# - script-src: Google Tag Manager (index.html's gtag.js snippet), plus
+#   'unsafe-inline' for its inline config <script> block — a nonce-based
 #   CSP isn't practical on a static Netlify build with no per-request
 #   server render. Also needs blob: — drei's <Text>/<Text3D> (used by
 #   AxisLabels and others) renders SDF fonts via troika-three-text, which
@@ -21,12 +20,12 @@
 #   function" (seen in prod after the CSP was first added).
 # - connect-src: Supabase (auth + direct-to-storage signed URLs, any
 #   *.supabase.co project), the Fastify API (meshdiff-api.onrender.com,
-#   see VITE_API_URL in api.ts), GA/UXCam's own reporting endpoints
-#   (wildcarded — GA4 reports through regionalized subdomains), and
-#   cdn.jsdelivr.net — troika-three-text's unicode-font-resolver (used by
-#   drei's <Text>/<Text3D>, e.g. AxisLabels) fetches glyph-coverage data
-#   from jsDelivr on demand for characters outside the bundled font's
-#   basic range.
+#   see VITE_API_URL in api.ts), GA's own reporting endpoints (wildcarded
+#   — GA4 reports through regionalized subdomains), and cdn.jsdelivr.net
+#   — troika-three-text's unicode-font-resolver (used by drei's
+#   <Text>/<Text3D>, e.g. AxisLabels) fetches glyph-coverage data from
+#   jsDelivr on demand for characters outside the bundled font's basic
+#   range.
 # - img-src: 'self' data: blob: plus GA's tracking-pixel domain,
 #   *.supabase.co — project/version thumbnails are public Supabase
 #   Storage URLs (see ProjectDetailPage.tsx/ProjectsListPage.tsx),
@@ -51,4 +50,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com https://websdk-recording.uxcam.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://*.uxcam.com wss://*.uxcam.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
