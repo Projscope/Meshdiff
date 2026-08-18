@@ -32,7 +32,7 @@ interface FinalizeVersionBody {
   stats?: VoxelDiffStats;
 }
 
-interface VersionRow {
+export interface VersionRow {
   id: string;
   project_id: string;
   version_number: number;
@@ -48,7 +48,7 @@ interface VersionRow {
   created_at: string;
 }
 
-function toVersionSummary(row: VersionRow) {
+export function toVersionSummary(row: VersionRow) {
   return {
     id: row.id,
     versionNumber: row.version_number,

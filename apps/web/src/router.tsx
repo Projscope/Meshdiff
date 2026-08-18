@@ -28,6 +28,7 @@ const Compare3mfFilesPage = lazy(() => import("./pages/Compare3mfFilesPage"));
 const ProjectDetailPage = lazy(() => import("./pages/ProjectDetailPage"));
 const VersionDetailPage = lazy(() => import("./pages/VersionDetailPage"));
 const CompareVersionsPage = lazy(() => import("./pages/CompareVersionsPage"));
+const TeamDashboardPage = lazy(() => import("./pages/TeamDashboardPage"));
 
 /**
  * The landing page (marketing) and the actual interactive diff tool are
@@ -92,6 +93,16 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ProjectsLayout>
               <CompareVersionsPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/teams/:teamId",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <TeamDashboardPage />
             </ProjectsLayout>
           </ProtectedRoute>
         ),

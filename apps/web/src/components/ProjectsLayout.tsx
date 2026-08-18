@@ -82,8 +82,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [teams, setTeams] = useState<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // null = closed, "new" = create-team modal, otherwise a team id to manage.
-  const [teamModal, setTeamModal] = useState<"new" | string | null>(null);
+  // TeamModal is create-only now — managing an existing team is a full page
+  // at /teams/:teamId (see TeamDashboardPage.tsx) instead of this popup.
+  const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showUpgradeToPro, setShowUpgradeToPro] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("My Workspace");
@@ -109,7 +110,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     if (subscription?.tier !== "team") {
       setShowUpgrade(true);
     } else {
-      setTeamModal("new");
+      setShowCreateTeam(true);
     }
   }
 
@@ -463,7 +464,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     <button
                       key={team.id}
                       type="button"
-                      onClick={() => setTeamModal(team.id)}
+                      onClick={() => navigate(`/teams/${team.id}`)}
                       className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
                     >
                       <span className="min-w-0 flex-1 truncate">{team.name}</span>
@@ -644,13 +645,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           />
         )}
 
-        {teamModal && (
+        {showCreateTeam && (
           <TeamModal
-            teamId={teamModal === "new" ? null : teamModal}
-            onClose={() => setTeamModal(null)}
+            onClose={() => setShowCreateTeam(false)}
             onCreated={(team) => {
               setTeams((prev) => [...prev, { ...team, myRole: "admin" }]);
-              setTeamModal(null);
+              setShowCreateTeam(false);
+              navigate(`/teams/${team.id}`);
             }}
           />
         )}

@@ -195,6 +195,15 @@ export function getTeam(teamId: string): Promise<Result<TeamDetail>> {
   return request(`/teams/${teamId}`);
 }
 
+export interface TeamPendingVersion extends VersionSummary {
+  projectId: string;
+  projectName: string;
+}
+
+export function getTeamPendingVersions(teamId: string): Promise<Result<TeamPendingVersion[]>> {
+  return request(`/teams/${teamId}/pending-versions`);
+}
+
 export function addTeamMember(
   teamId: string,
   email: string,

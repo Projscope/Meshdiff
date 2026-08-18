@@ -3,6 +3,7 @@ import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { getUserTier, INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
+import { toVersionSummary, type VersionRow } from "./versions.js";
 
 interface CreateTeamBody {
   name?: string;
@@ -214,6 +215,79 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
         app.log.error(err, "Team lookup threw");
         reply.code(502);
         return { success: false, error: "Failed to load team" };
+      }
+    },
+  );
+
+  // Cross-project queue for the team dashboard — everything a reviewer
+  // would otherwise have to visit each project individually to find.
+  // Two-step (project ids, then versions in those ids) rather than a
+  // Supabase embedded-join, matching this file's existing style (see
+  // GET /teams above: memberships -> teams is the same shape).
+  app.get<{ Params: { teamId: string } }>(
+    "/teams/:teamId/pending-versions",
+    { preHandler: [requireAuth, requireActiveAccess] },
+    async (request, reply) => {
+      const { teamId } = request.params;
+      const supabase = getSupabase();
+      if (!supabase) {
+        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
+        reply.code(500);
+        return { success: false, error: "Teams are not configured" };
+      }
+
+      try {
+        const { data: membership } = await supabase
+          .from("team_members")
+          .select("role")
+          .eq("team_id", teamId)
+          .eq("user_id", request.userId)
+          .maybeSingle();
+        if (!membership) {
+          reply.code(404);
+          return { success: false, error: "Team not found" };
+        }
+
+        const { data: projects, error: projectsError } = await supabase
+          .from("projects")
+          .select("id, name")
+          .eq("team_id", teamId);
+        if (projectsError) {
+          app.log.error(projectsError, "Failed to list team projects");
+          reply.code(502);
+          return { success: false, error: "Failed to load pending versions" };
+        }
+        if (!projects || projects.length === 0) {
+          return { success: true, data: [] };
+        }
+        const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
+
+        const { data: versions, error: versionsError } = await supabase
+          .from("versions")
+          .select("*")
+          .in(
+            "project_id",
+            projects.map((p) => p.id),
+          )
+          .eq("approval_status", "pending")
+          .order("created_at", { ascending: true }); // oldest-waiting-first — an action queue, not a feed
+        if (versionsError) {
+          app.log.error(versionsError, "Failed to load pending versions");
+          reply.code(502);
+          return { success: false, error: "Failed to load pending versions" };
+        }
+
+        const data = (versions as VersionRow[]).map((row) => ({
+          ...toVersionSummary(row),
+          projectId: row.project_id,
+          projectName: projectNameById.get(row.project_id) ?? "Unknown project",
+        }));
+
+        return { success: true, data };
+      } catch (err) {
+        app.log.error(err, "Team pending-versions threw");
+        reply.code(502);
+        return { success: false, error: "Failed to load pending versions" };
       }
     },
   );
