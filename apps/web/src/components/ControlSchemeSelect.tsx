@@ -1,21 +1,38 @@
-import { useControlScheme } from "../lib/controlScheme";
+import { CONTROL_SCHEME_LEGEND, useControlScheme } from "../lib/controlScheme";
 
 /**
  * A single global preference (see controlScheme.ts) — rendering this in
  * multiple viewers at once (e.g. both sides of a comparison) is fine, they
  * all read/write the same shared value and stay in sync immediately.
+ *
+ * The row of labels next to the dropdown names every bindable action (Pan,
+ * Orbit/Rotate, Zoom, Left Click, Right Click); hovering any one of them
+ * shows its exact key/mouse combination for whichever scheme is currently
+ * active, via CONTROL_SCHEME_LEGEND — so the shortcut reference updates
+ * immediately when the scheme is switched, without needing its own copy.
  */
 export default function ControlSchemeSelect() {
   const [scheme, setScheme] = useControlScheme();
   return (
-    <select
-      value={scheme}
-      onChange={(event) => setScheme(event.target.value === "cad" ? "cad" : "meshdiff")}
-      title="Camera controls: which mouse scheme to use for orbit/pan/zoom"
-      className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500"
-    >
-      <option value="meshdiff">Controls: Meshdiff</option>
-      <option value="cad">Controls: CAD (Fusion/AutoCAD)</option>
-    </select>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <select
+        value={scheme}
+        onChange={(event) => setScheme(event.target.value === "cad" ? "cad" : "meshdiff")}
+        title="Camera controls: which mouse scheme to use for orbit/pan/zoom"
+        className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500"
+      >
+        <option value="meshdiff">Controls: Meshdiff</option>
+        <option value="cad">Controls: CAD (Fusion/AutoCAD)</option>
+      </select>
+      {CONTROL_SCHEME_LEGEND[scheme].map(({ label, combo }) => (
+        <span
+          key={label}
+          title={combo}
+          className="cursor-default rounded border border-neutral-800 bg-neutral-900 px-1.5 py-0.5 text-[10px] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+        >
+          {label}
+        </span>
+      ))}
+    </div>
   );
 }
