@@ -115,6 +115,14 @@ export default function TeamModal({ teamId, onClose, onCreated }: TeamModalProps
           ) : (
             <>
               <h3 className="text-sm font-semibold text-white">{team?.name ?? "Team"}</h3>
+              {team?.seats && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  {team.seats.used} of {team.seats.purchased} seats used
+                  {team.seats.used >= team.seats.purchased && (
+                    <span className="ml-1 text-amber-400">— increase seats in Billing to invite more</span>
+                  )}
+                </p>
+              )}
               <p className="mt-3 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Members</p>
               <ul className="mt-1.5 flex flex-col gap-1.5">
                 {team?.members.map((member) => {

@@ -17,7 +17,7 @@ interface AdminStatsQuery {
 
 interface SubscriptionRow {
   user_id: string;
-  tier: "pro";
+  tier: "pro" | "team";
   status: string;
   current_period_end: string;
 }
@@ -121,14 +121,14 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
 
         const users = pageResult.data.users.map((u) => {
           const sub = subsByUser.get(u.id);
-          const isPro = !!sub && sub.tier === "pro" && !INACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
+          const isActive = !!sub && !INACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
           return {
             id: u.id,
             email: u.email ?? null,
             signupDate: u.created_at,
-            tier: isPro ? "pro" : "free",
+            tier: isActive ? sub!.tier : "free",
             status: sub?.status ?? null,
-            currentPeriodEnd: isPro ? sub!.current_period_end : null,
+            currentPeriodEnd: isActive ? sub!.current_period_end : null,
           };
         });
 

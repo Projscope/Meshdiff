@@ -98,11 +98,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
 
-  // Creating a team is a Team-plan feature. Until Stripe billing is wired up,
-  // use existing team membership as a stand-in signal for "already on Team" —
-  // a Pro user with no teams gets prompted to upgrade instead of a create form.
+  // Creating a team is a Team-plan feature, gated on the real subscription
+  // tier — a non-Team user (Free or Pro) gets prompted to upgrade instead
+  // of a create form.
   function handleCreateTeamClick() {
-    if (teams.length === 0) {
+    if (subscription?.tier !== "team") {
       setShowUpgrade(true);
     } else {
       setTeamModal("new");
@@ -174,7 +174,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     if (!checkout) return;
 
     if (checkout === "success") {
-      setNotice({ type: "success", message: "You're now on the Pro plan." });
+      // Which tier this checkout was for isn't known from the redirect URL
+      // alone (Stripe's success_url is the same for both — see
+      // billing.ts's /billing/checkout) — show a tier-neutral message until
+      // the subscription poll below resolves the real tier.
+      setNotice({ type: "success", message: "Activating your plan…" });
       // The Stripe webhook that records the subscription can take several
       // seconds. Retry aggressively for up to 10 seconds with exponential backoff.
       const retryGetSubscription = async () => {
@@ -182,8 +186,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         for (let i = 0; i < delays.length; i++) {
           await new Promise((resolve) => setTimeout(resolve, delays[i]));
           const result = await getSubscription();
-          if (result.success && result.data.tier === "pro") {
+          if (result.success && (result.data.tier === "pro" || result.data.tier === "team")) {
             setSubscription(result.data);
+            setNotice({
+              type: "success",
+              message: result.data.tier === "team" ? "You're now on the Team plan." : "You're now on the Pro plan.",
+            });
             return;
           }
         }
@@ -239,10 +247,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
 
-  // Team membership is still a proxy for "Team plan" (Team billing isn't
-  // built yet — see handleCreateTeamClick() above, same signal). Pro is now
-  // real: subscription.tier comes straight from the subscriptions table via
-  // GET /billing/subscription.
+  // isTeamMember is a display-only signal (true for the paying owner AND
+  // any invited member riding their seats — both should see "Team plan" in
+  // the sidebar). The real gating signal for billing-gated actions (create
+  // team, manage seats) is subscription.tier === "team" — see
+  // handleCreateTeamClick() above.
   const isTeamMember = teams.length > 0;
   const isPro = subscription?.tier === "pro";
   // No trial — a non-Pro, non-team account is restricted from day one (see
@@ -418,26 +427,19 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               </div>
             )}
 
-            {/* Team is a separate, not-yet-purchasable tier from Pro (see
-                CLAUDE.md's pricing table) — a Pro user with no teams would
-                only ever see a "+" that dead-ends into an Upgrade-to-Team
-                prompt for a plan they can't actually buy yet, so hide the
-                whole section for them. Still shown for Free/restricted
-                users (their "+" correctly points at upgrading to Pro
-                first) and for anyone who already belongs to a team, so
-                existing team access is never hidden. */}
-            {(!isPro || teams.length > 0) && (
-              <>
+            {/* Team billing is real now — anyone (Free, Pro, or already on
+                a team) can click "+" to buy Team directly, so the section
+                is always shown; the button itself just gates on whether
+                they're already the Team subscriber (in which case "+"
+                opens the create-team form instead of a checkout prompt). */}
+            <>
                 <div className="mt-4 flex items-center justify-between px-2">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Teams</span>
                   <button
                     type="button"
                     onClick={handleCreateTeamClick}
-                    disabled={!isPro}
-                    title={!isPro ? "Upgrade to Pro to create teams" : "New team"}
-                    className={`flex h-5 w-5 items-center justify-center rounded ${
-                      isPro ? "text-neutral-500 hover:bg-neutral-800 hover:text-white" : "text-neutral-700 cursor-not-allowed"
-                    }`}
+                    title={subscription?.tier === "team" ? "New team" : "Upgrade to the Team plan to create a team"}
+                    className="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-white"
                   >
                     +
                   </button>
@@ -461,7 +463,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   ))}
                 </div>
               </>
-            )}
 
             {isAdmin && (
               <>

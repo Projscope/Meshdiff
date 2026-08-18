@@ -84,7 +84,7 @@ export default function RoadmapPage() {
         new: [
           "Project management with version history and team collaboration",
           "Team creation and member invitations with role-based access",
-          "Version approval workflows (Pending/Changes/Approved/Rejected)",
+          "Version approval workflows (Pending/Approved/Rejected)",
           "PDF diff reports with screenshots from Compare and Measure views",
           "Auto-generated sample projects for new workspace creation",
         ],

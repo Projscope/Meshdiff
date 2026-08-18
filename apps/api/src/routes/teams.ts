@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
-import { getUserTier } from "../lib/subscription.js";
+import { getUserTier, INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
 
 interface CreateTeamBody {
   name?: string;
@@ -79,9 +79,9 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
     }
 
     const { tier } = await getUserTier(supabase, request.userId!);
-    if (tier === "free") {
+    if (tier !== "team") {
       reply.code(403);
-      return { success: false, error: "Upgrade to create teams. Use the Sample Project to learn the platform." };
+      return { success: false, error: "Upgrade to the Team plan to create a team." };
     }
 
     try {
@@ -91,6 +91,13 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
         .select("id, name, created_at")
         .single();
       if (error) {
+        if (error.code === "23505") {
+          reply.code(409);
+          return {
+            success: false,
+            error: "You already own a team — Meshdiff supports one team per Team-plan subscription.",
+          };
+        }
         app.log.error(error, "Failed to create team");
         reply.code(502);
         return { success: false, error: "Failed to create team, please try again" };
@@ -168,6 +175,19 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
         }
         const emailByUserId = new Map((emailRows ?? []).map((r: { id: string; email: string }) => [r.id, r.email]));
 
+        // Seats purchased come from the owner's own subscription — not the
+        // requester's, since a non-owner admin/approver viewing this page
+        // has no subscription of their own to read.
+        const { data: ownerSub } = await supabase
+          .from("subscriptions")
+          .select("tier, status, quantity")
+          .eq("user_id", team.owner_user_id)
+          .maybeSingle();
+        const seats =
+          ownerSub && ownerSub.tier === "team" && !INACTIVE_SUBSCRIPTION_STATUSES.includes(ownerSub.status)
+            ? { purchased: ownerSub.quantity, used: (members ?? []).length }
+            : null;
+
         return {
           success: true,
           data: {
@@ -180,6 +200,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
             // and "can this specific row be removed" (never the owner's)
             // need to know who the owner actually is.
             isOwner: team.owner_user_id === request.userId,
+            seats,
             members: (members ?? []).map((m) => ({
               userId: m.user_id,
               email: emailByUserId.get(m.user_id) ?? null,
@@ -241,6 +262,41 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
             reply.code(403);
             return { success: false, error: "Only the team owner or an admin can add members" };
           }
+        }
+
+        // Seat limit, checked before the (paid) email-lookup RPC so an
+        // over-capacity invite fails fast. Seats come from the owner's own
+        // subscription — quantity 0 if they're not an active Team
+        // subscriber (shouldn't normally happen since POST /teams itself
+        // requires tier==='team', but a lapsed/downgraded subscription
+        // after team creation should still block new invites).
+        const { data: ownerSub } = await supabase
+          .from("subscriptions")
+          .select("tier, status, quantity")
+          .eq("user_id", team.owner_user_id)
+          .maybeSingle();
+        const purchasedSeats =
+          ownerSub && ownerSub.tier === "team" && !INACTIVE_SUBSCRIPTION_STATUSES.includes(ownerSub.status)
+            ? ownerSub.quantity
+            : 0;
+
+        const { count: memberCount, error: countError } = await supabase
+          .from("team_members")
+          .select("id", { count: "exact", head: true })
+          .eq("team_id", teamId);
+        if (countError) {
+          app.log.error(countError, "Failed to count team members");
+          reply.code(502);
+          return { success: false, error: "Failed to add member, please try again" };
+        }
+
+        if ((memberCount ?? 0) >= purchasedSeats) {
+          reply.code(403);
+          return {
+            success: false,
+            error: `Seat limit reached (${memberCount ?? 0}/${purchasedSeats} used). Increase your seat count in Billing to invite more members.`,
+            code: "seat_limit_reached",
+          };
         }
 
         const { data: userId, error: lookupError } = await supabase.rpc("get_user_id_by_email", {

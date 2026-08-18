@@ -65,6 +65,7 @@ export interface TeamDetail {
   name: string;
   myRole: "admin" | "approver" | "member";
   isOwner: boolean;
+  seats: { purchased: number; used: number } | null;
   members: TeamMember[];
 }
 
@@ -210,13 +211,17 @@ export function removeTeamMember(teamId: string, userId: string): Promise<Result
 }
 
 export interface SubscriptionStatus {
-  tier: "free" | "pro";
+  tier: "free" | "pro" | "team";
   status: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  /** "pro" (real subscription) | "restricted" (no subscription — most
-   * routes 403; Pro is payable from day one, no trial). */
+  /** "pro" (real subscription, or access via a Team owner's seats) |
+   * "restricted" (no subscription and no team access — most routes 403;
+   * Pro/Team are payable from day one, no trial). */
   accountStatus: "pro" | "restricted";
+  /** Only populated for a Team subscription's owner — a member riding the
+   * owner's seats has no purchased/used figure of their own. */
+  seats: { purchased: number; used: number } | null;
 }
 
 export function getSubscription(): Promise<Result<SubscriptionStatus>> {
@@ -226,12 +231,15 @@ export function getSubscription(): Promise<Result<SubscriptionStatus>> {
 /** Returns a Stripe Checkout URL to redirect the browser to — Checkout is a
  * Stripe-hosted page, not Stripe Elements (see CLAUDE.md), so there's
  * nothing to render here beyond the redirect itself. */
-export function startProCheckout(couponCode?: string): Promise<Result<{ url: string }>> {
+function startCheckout(tier: "pro" | "team", couponCode?: string): Promise<Result<{ url: string }>> {
   return request("/billing/checkout", {
     method: "POST",
-    body: couponCode ? JSON.stringify({ couponCode }) : undefined,
+    body: JSON.stringify({ tier, ...(couponCode ? { couponCode } : {}) }),
   });
 }
+
+export const startProCheckout = (couponCode?: string) => startCheckout("pro", couponCode);
+export const startTeamCheckout = () => startCheckout("team");
 
 export interface ActiveCoupon {
   code: string;

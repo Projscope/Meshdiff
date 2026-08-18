@@ -102,9 +102,11 @@ export default function AdminUsersPage() {
                     <span className={`px-4 py-3 text-sm ${rowBorder}`}>
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                          user.tier === "pro"
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-neutral-800 text-neutral-400"
+                          user.tier === "team"
+                            ? "bg-violet-500/15 text-violet-400"
+                            : user.tier === "pro"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : "bg-neutral-800 text-neutral-400"
                         }`}
                       >
                         {user.tier}
