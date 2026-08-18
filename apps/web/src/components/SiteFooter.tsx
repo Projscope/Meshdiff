@@ -13,17 +13,17 @@ export default function SiteFooter() {
             </div>
             <span className="text-sm font-semibold text-white">Meshdiff</span>
           </div>
-          <p className="mt-2 max-w-[22ch] text-xs text-neutral-500">
+          <p className="mt-2 max-w-[22ch] text-xs text-neutral-400">
             See exactly what changed between two 3D models.
           </p>
-          <span className="mt-2 inline-block rounded border border-neutral-700 px-1.5 py-0.5 font-mono text-[10px] text-neutral-500">
+          <span className="mt-2 inline-block rounded border border-neutral-700 px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
             v{APP_VERSION}
           </span>
         </div>
 
         <div>
           <p className="text-xs font-semibold text-neutral-300">Product</p>
-          <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-500">
+          <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-400">
             <Link to="/features" className="hover:text-neutral-300">
               Features
             </Link>
@@ -43,7 +43,7 @@ export default function SiteFooter() {
 
         <div>
           <p className="text-xs font-semibold text-neutral-300">Resources</p>
-          <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-500">
+          <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-400">
             <a href="/#faq" className="hover:text-neutral-300">
               FAQ
             </a>
@@ -59,7 +59,7 @@ export default function SiteFooter() {
 
         <div>
           <p className="text-xs font-semibold text-neutral-300">Company</p>
-          <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-500">
+          <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-400">
             <a href="https://projscope.com" target="_blank" rel="noreferrer" className="hover:text-neutral-300">
               projscope
             </a>
@@ -70,7 +70,7 @@ export default function SiteFooter() {
         </div>
       </div>
 
-      <div className="mx-auto mt-8 max-w-6xl border-t border-neutral-900 pt-4 text-xs text-neutral-600">
+      <div className="mx-auto mt-8 max-w-6xl border-t border-neutral-900 pt-4 text-xs text-neutral-400">
         © {new Date().getFullYear()} Meshdiff, a project by projscope.
       </div>
     </footer>

@@ -1,0 +1,17 @@
+# Meshdiff
+
+> Meshdiff is a web-based review and versioning platform for 3D models. It computes a structured, geometry-based diff between two STL, 3MF, or OBJ files (volume change, bounding-box delta, hole and wall-thickness changes, overhang risk) and renders it as a side-by-side 3D viewer with color-coded added/removed regions, an SDF deviation heatmap, and an auto-generated plain-language summary. It is not a CAD editor; it sits above CAD/slicer output as a comparison, review, and traceability layer for hardware teams.
+
+## Product
+
+- [Homepage](https://meshdiff.com/): overview, pricing tiers, and product walkthrough.
+- [Features](https://meshdiff.com/features): full feature breakdown of the diff engine and review workflow.
+- [Free Diff Tool](https://meshdiff.com/live): no-signup, drag-and-drop STL/3MF/OBJ comparison in the browser.
+- [Roadmap](https://meshdiff.com/roadmap): shipped changelog and planned features.
+- [Embeddable Revision Badge](https://meshdiff.com/embed): a badge creators can embed on Printables/MakerWorld/Thingiverse listings showing a model's revision history.
+
+## Comparison guides
+
+- [Compare STL Files](https://meshdiff.com/compare-stl-files): how to diff two STL versions and what changes to look for.
+- [STL Diff Tool](https://meshdiff.com/stl-diff-tool): using Meshdiff specifically as an STL diff tool.
+- [Compare 3MF Files](https://meshdiff.com/compare-3mf-files): comparing 3MF files, including multi-object and color/material metadata.

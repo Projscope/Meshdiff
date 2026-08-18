@@ -110,6 +110,7 @@ export default function ProjectsListPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {projects && projects.length > 0 && (
             <select
+              aria-label="Sort projects"
               value={sort}
               onChange={(e) => handleSortChange(e.target.value as "name" | "date-newest" | "date-oldest")}
               className="rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-300 hover:border-neutral-500"
