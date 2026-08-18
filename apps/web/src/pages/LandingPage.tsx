@@ -488,7 +488,7 @@ export default function LandingPage() {
                   <span className="text-xs text-neutral-400">{item.detail}</span>
                 </div>
               ))}
-              <p className="mt-1 text-xs text-neutral-600">
+              <p className="mt-1 text-xs text-neutral-400">
                 Links expire automatically. Free on the Community plan.
               </p>
             </div>
@@ -695,7 +695,7 @@ export default function LandingPage() {
             <button
               type="button"
               onClick={scrollToPricing}
-              className="rounded bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+              className="rounded bg-emerald-700 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-800 transition-colors"
             >
               View pricing
             </button>

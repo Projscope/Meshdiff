@@ -252,7 +252,7 @@ export default function RoadmapPage() {
             </a>
             <button
               onClick={handleScrollToPricing}
-              className="rounded bg-emerald-600 px-6 py-3 text-sm font-medium text-white hover:bg-emerald-700 transition-colors cursor-pointer"
+              className="rounded bg-emerald-700 px-6 py-3 text-sm font-medium text-white hover:bg-emerald-800 transition-colors cursor-pointer"
             >
               View Pricing
             </button>
