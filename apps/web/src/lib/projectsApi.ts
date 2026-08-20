@@ -79,6 +79,9 @@ export interface StableVersion {
 
 export interface CommentSummary {
   id: string;
+  authorUserId: string | null;
+  authorEmail: string | null;
+  parentCommentId: string | null;
   body: string;
   position: [number, number, number];
   normal: [number, number, number] | null;
@@ -229,6 +232,17 @@ export function addTeamMember(
 
 export function removeTeamMember(teamId: string, userId: string): Promise<Result<true>> {
   return request(`/teams/${teamId}/members/${userId}`, { method: "DELETE" });
+}
+
+export function updateTeamMemberRole(
+  teamId: string,
+  userId: string,
+  role: "admin" | "approver" | "member",
+): Promise<Result<{ userId: string; role: string }>> {
+  return request(`/teams/${teamId}/members/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
 }
 
 export interface SubscriptionStatus {
@@ -382,11 +396,16 @@ export function createComment(
   body: string,
   position: [number, number, number],
   normal?: [number, number, number],
+  parentCommentId?: string,
 ): Promise<Result<CommentSummary>> {
   return request(`/projects/${projectId}/versions/${versionId}/comments`, {
     method: "POST",
-    body: JSON.stringify({ body, position, normal }),
+    body: JSON.stringify({ body, position, normal, parentCommentId }),
   });
+}
+
+export function deleteComment(projectId: string, versionId: string, commentId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}/versions/${versionId}/comments/${commentId}`, { method: "DELETE" });
 }
 
 /** Fetches the zip with the auth header attached (a plain <a href> can't send one) and triggers a browser download. */

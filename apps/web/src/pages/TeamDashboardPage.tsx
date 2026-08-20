@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../lib/AuthProvider";
 import {
@@ -7,6 +7,7 @@ import {
   getTeamAuditLog,
   addTeamMember,
   removeTeamMember,
+  updateTeamMemberRole,
   approveVersion,
   rejectVersion,
   openBillingPortal,
@@ -57,8 +58,15 @@ export default function TeamDashboardPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ userId: string; email: string | null } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [changingRoleUserId, setChangingRoleUserId] = useState<string | null>(null);
+  const [roleChangeError, setRoleChangeError] = useState<string | null>(null);
   const [pendingReject, setPendingReject] = useState<{ projectId: string; id: string; versionNumber: number } | null>(null);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [activityDateFrom, setActivityDateFrom] = useState("");
+  const [activityDateTo, setActivityDateTo] = useState("");
+  const [activityMember, setActivityMember] = useState("all");
+  const [activityPage, setActivityPage] = useState(1);
+  const ACTIVITY_PAGE_SIZE = 10;
 
   function refresh() {
     if (!teamId) return;
@@ -85,7 +93,15 @@ export default function TeamDashboardPage() {
 
   async function handleInvite(event: React.FormEvent) {
     event.preventDefault();
-    if (!teamId) return;
+    if (!teamId || !team) return;
+
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    const alreadyMember = team.members.some((member) => member.email?.toLowerCase() === normalizedEmail);
+    if (alreadyMember) {
+      setInviteError("That person is already on the team");
+      return;
+    }
+
     setIsInviting(true);
     setInviteError(null);
     const result = await addTeamMember(teamId, inviteEmail, inviteRole);
@@ -106,6 +122,19 @@ export default function TeamDashboardPage() {
     setPendingRemove(null);
     if (!result.success) {
       setError(result.error);
+      return;
+    }
+    refresh();
+  }
+
+  async function handleRoleChange(userId: string, role: "admin" | "approver" | "member") {
+    if (!teamId) return;
+    setChangingRoleUserId(userId);
+    setRoleChangeError(null);
+    const result = await updateTeamMemberRole(teamId, userId, role);
+    setChangingRoleUserId(null);
+    if (!result.success) {
+      setRoleChangeError(result.error);
       return;
     }
     refresh();
@@ -140,6 +169,44 @@ export default function TeamDashboardPage() {
     } else {
       setError(result.error);
     }
+  }
+
+  const activityActors = useMemo(() => {
+    const set = new Set<string>();
+    for (const entry of activity ?? []) {
+      if (entry.actorEmail) set.add(entry.actorEmail);
+    }
+    return [...set].sort();
+  }, [activity]);
+
+  const filteredActivity = useMemo(() => {
+    if (!activity) return null;
+    return activity.filter((entry) => {
+      if (activityMember !== "all" && entry.actorEmail !== activityMember) return false;
+      const entryDate = entry.createdAt.slice(0, 10);
+      if (activityDateFrom && entryDate < activityDateFrom) return false;
+      if (activityDateTo && entryDate > activityDateTo) return false;
+      return true;
+    });
+  }, [activity, activityMember, activityDateFrom, activityDateTo]);
+
+  const activityTotalPages = filteredActivity
+    ? Math.max(1, Math.ceil(filteredActivity.length / ACTIVITY_PAGE_SIZE))
+    : 1;
+  const activityPageClamped = Math.min(activityPage, activityTotalPages);
+  const pagedActivity = filteredActivity
+    ? filteredActivity.slice(
+        (activityPageClamped - 1) * ACTIVITY_PAGE_SIZE,
+        activityPageClamped * ACTIVITY_PAGE_SIZE,
+      )
+    : null;
+  const activityFiltersActive = activityMember !== "all" || activityDateFrom !== "" || activityDateTo !== "";
+
+  function clearActivityFilters() {
+    setActivityMember("all");
+    setActivityDateFrom("");
+    setActivityDateTo("");
+    setActivityPage(1);
   }
 
   if (error && !team) {
@@ -191,16 +258,37 @@ export default function TeamDashboardPage() {
 
       <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Members</p>
+        {roleChangeError && (
+          <div className="mt-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+            {roleChangeError}
+          </div>
+        )}
         <ul className="mt-3 flex flex-col gap-2">
           {team.members.map((member) => {
             const isSelf = member.userId === user?.id;
+            const canEditRole = canManageMembers && !isSelf && !member.isOwner;
             return (
               <li key={member.userId} className="flex items-center justify-between gap-2 text-sm">
                 <span className="min-w-0 truncate text-neutral-300">{member.email ?? member.userId}</span>
                 <span className="flex shrink-0 items-center gap-2">
-                  <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase text-neutral-400">
-                    {member.role}
-                  </span>
+                  {canEditRole ? (
+                    <select
+                      value={member.role}
+                      disabled={changingRoleUserId === member.userId}
+                      onChange={(event) =>
+                        void handleRoleChange(member.userId, event.target.value as "admin" | "approver" | "member")
+                      }
+                      className="rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase text-neutral-300 disabled:opacity-50"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="approver">Approver</option>
+                      <option value="member">Member</option>
+                    </select>
+                  ) : (
+                    <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase text-neutral-400">
+                      {member.isOwner ? "Owner" : member.role}
+                    </span>
+                  )}
                   {canManageMembers && !isSelf && !member.isOwner && (
                     <button
                       type="button"
@@ -226,7 +314,10 @@ export default function TeamDashboardPage() {
                 required
                 placeholder="them@company.com"
                 value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
+                onChange={(event) => {
+                  setInviteEmail(event.target.value);
+                  if (event.target.value === "") setInviteError(null);
+                }}
                 className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
               />
             </div>
@@ -295,22 +386,147 @@ export default function TeamDashboardPage() {
         )}
       </div>
 
-      <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Activity</p>
+      <div className="mt-6">
+        <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Activity</p>
+          {activity !== null && activity.length > 0 && (
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-widest text-neutral-500">From</span>
+                <input
+                  type="date"
+                  value={activityDateFrom}
+                  onChange={(event) => {
+                    setActivityDateFrom(event.target.value);
+                    setActivityPage(1);
+                  }}
+                  className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-widest text-neutral-500">To</span>
+                <input
+                  type="date"
+                  value={activityDateTo}
+                  onChange={(event) => {
+                    setActivityDateTo(event.target.value);
+                    setActivityPage(1);
+                  }}
+                  className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-widest text-neutral-500">Member</span>
+                <select
+                  value={activityMember}
+                  onChange={(event) => {
+                    setActivityMember(event.target.value);
+                    setActivityPage(1);
+                  }}
+                  className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+                >
+                  <option value="all">All members</option>
+                  {activityActors.map((email) => (
+                    <option key={email} value={email}>
+                      {email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {activityFiltersActive && (
+                <button
+                  type="button"
+                  onClick={clearActivityFilters}
+                  className="rounded border border-neutral-700 px-2.5 py-1 text-xs text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {activity === null ? (
-          <p className="mt-3 text-sm text-neutral-500">Loading…</p>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
+            Loading…
+          </div>
         ) : activity.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-500">No activity yet.</p>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
+            No activity yet.
+          </div>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
-            {activity.map((entry) => (
-              <li key={entry.id} className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
-                <span className="font-medium text-neutral-300">{entry.actorEmail ?? "Someone"}</span>
-                <span className="text-neutral-400">{entry.summary}</span>
-                <span className="ml-auto shrink-0 text-xs text-neutral-600">{timeSince(entry.createdAt)}</span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <div className="overflow-hidden rounded-lg border border-neutral-800">
+              <div className="grid grid-cols-[110px_1fr_200px_110px] gap-4 border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                <span className="text-center">Date</span>
+                <span className="text-center">Action</span>
+                <span className="text-center">Member</span>
+                <span className="text-center">Type</span>
+              </div>
+
+              {pagedActivity !== null && pagedActivity.length === 0 ? (
+                <div className="px-4 py-10 text-center text-sm text-neutral-500">
+                  No activity matches these filters.
+                </div>
+              ) : (
+                pagedActivity?.map((entry) => {
+                  const actor = entry.actorEmail
+                    ? team.members.find((member) => member.email === entry.actorEmail)
+                    : undefined;
+                  return (
+                    <div
+                      key={entry.id}
+                      className="grid grid-cols-[110px_1fr_200px_110px] items-center gap-4 border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-sm last:border-b-0"
+                    >
+                      <span className="whitespace-nowrap text-xs text-neutral-500" title={formatDate(entry.createdAt)}>
+                        {timeSince(entry.createdAt)}
+                      </span>
+                      <span className="min-w-0 truncate text-neutral-300" title={entry.summary}>
+                        {entry.summary}
+                      </span>
+                      <span className="whitespace-nowrap text-right text-xs text-neutral-400">
+                        {entry.actorEmail ?? "Someone"}
+                      </span>
+                      <span className="justify-self-end rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase text-neutral-400">
+                        {actor?.isOwner ? "Owner" : (actor?.role ?? "—")}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {filteredActivity !== null && filteredActivity.length > 0 && (
+              <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
+                <span>
+                  Showing {(activityPageClamped - 1) * ACTIVITY_PAGE_SIZE + 1}–
+                  {Math.min(activityPageClamped * ACTIVITY_PAGE_SIZE, filteredActivity.length)} of{" "}
+                  {filteredActivity.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={activityPageClamped <= 1}
+                    onClick={() => setActivityPage(activityPageClamped - 1)}
+                    className="rounded border border-neutral-700 px-2.5 py-1 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-neutral-700"
+                  >
+                    Previous
+                  </button>
+                  <span>
+                    Page {activityPageClamped} of {activityTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={activityPageClamped >= activityTotalPages}
+                    onClick={() => setActivityPage(activityPageClamped + 1)}
+                    className="rounded border border-neutral-700 px-2.5 py-1 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-neutral-700"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

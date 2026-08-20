@@ -15,6 +15,10 @@ interface AddMemberBody {
   role?: "admin" | "approver" | "member";
 }
 
+interface UpdateMemberRoleBody {
+  role?: "admin" | "approver" | "member";
+}
+
 export default async function teamsRoute(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", requireSupabase);
 
@@ -384,12 +388,40 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
           }
         }
 
-        // Seat limit, checked before the (paid) email-lookup RPC so an
-        // over-capacity invite fails fast. Seats come from the owner's own
-        // subscription — quantity 0 if they're not an active Team
-        // subscriber (shouldn't normally happen since POST /teams itself
-        // requires tier==='team', but a lapsed/downgraded subscription
-        // after team creation should still block new invites).
+        // Resolved and membership-checked before the seat-limit check below
+        // so re-inviting someone already on the team gives a clear "already
+        // on the team" error instead of a misleading seat-limit error when
+        // the team happens to be at capacity.
+        const { data: userId, error: lookupError } = await supabase.rpc("get_user_id_by_email", {
+          p_email: email.trim().toLowerCase(),
+        });
+        if (lookupError) {
+          app.log.error(lookupError, "Failed to look up user by email");
+          reply.code(502);
+          return { success: false, error: "Failed to add member, please try again" };
+        }
+        if (!userId) {
+          reply.code(404);
+          return { success: false, error: "No Meshdiff account found for that email" };
+        }
+
+        const { data: existingMembership } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .eq("team_id", teamId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (existingMembership) {
+          reply.code(409);
+          return { success: false, error: "That person is already on the team" };
+        }
+
+        // Seat limit, checked after confirming this is a genuinely new
+        // member. Seats come from the owner's own subscription — quantity 0
+        // if they're not an active Team subscriber (shouldn't normally
+        // happen since POST /teams itself requires tier==='team', but a
+        // lapsed/downgraded subscription after team creation should still
+        // block new invites).
         const { data: ownerSub } = await supabase
           .from("subscriptions")
           .select("tier, status, quantity")
@@ -419,19 +451,6 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
           };
         }
 
-        const { data: userId, error: lookupError } = await supabase.rpc("get_user_id_by_email", {
-          p_email: email.trim().toLowerCase(),
-        });
-        if (lookupError) {
-          app.log.error(lookupError, "Failed to look up user by email");
-          reply.code(502);
-          return { success: false, error: "Failed to add member, please try again" };
-        }
-        if (!userId) {
-          reply.code(404);
-          return { success: false, error: "No Meshdiff account found for that email" };
-        }
-
         const { error: insertError } = await supabase
           .from("team_members")
           .insert({ team_id: teamId, user_id: userId, role });
@@ -457,6 +476,91 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
         app.log.error(err, "Add team member threw");
         reply.code(502);
         return { success: false, error: "Failed to add member, please try again" };
+      }
+    },
+  );
+
+  app.patch<{ Params: { teamId: string; userId: string }; Body: UpdateMemberRoleBody }>(
+    "/teams/:teamId/members/:userId",
+    { preHandler: [requireAuth, requireActiveAccess] },
+    async (request, reply) => {
+      const { teamId, userId: targetUserId } = request.params;
+      const { role } = request.body ?? {};
+
+      if (role !== "admin" && role !== "approver" && role !== "member") {
+        reply.code(400);
+        return { success: false, error: "role must be 'admin', 'approver', or 'member'" };
+      }
+
+      // Same rationale as DELETE below — changing your own role (including
+      // the owner, who isn't a team_members row at all) isn't supported
+      // through this endpoint, to avoid a lone admin locking themselves out.
+      if (targetUserId === request.userId) {
+        reply.code(400);
+        return { success: false, error: "You can't change your own role" };
+      }
+
+      const supabase = request.supabase!;
+
+      try {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("owner_user_id")
+          .eq("id", teamId)
+          .maybeSingle();
+        if (!team) {
+          reply.code(404);
+          return { success: false, error: "Team not found" };
+        }
+        if (targetUserId === team.owner_user_id) {
+          reply.code(400);
+          return { success: false, error: "The team owner's role can't be changed" };
+        }
+        if (team.owner_user_id !== request.userId) {
+          const { data: requesterMembership } = await supabase
+            .from("team_members")
+            .select("role")
+            .eq("team_id", teamId)
+            .eq("user_id", request.userId)
+            .maybeSingle();
+          if (requesterMembership?.role !== "admin") {
+            reply.code(403);
+            return { success: false, error: "Only the team owner or an admin can change member roles" };
+          }
+        }
+
+        const { data: emailRows } = await supabase.rpc("get_user_emails_by_ids", { p_ids: [targetUserId] });
+        const targetEmail = (emailRows as { id: string; email: string }[] | null)?.[0]?.email ?? null;
+
+        const { data: updated, error } = await supabase
+          .from("team_members")
+          .update({ role })
+          .eq("team_id", teamId)
+          .eq("user_id", targetUserId)
+          .select("user_id")
+          .maybeSingle();
+        if (error) {
+          app.log.error(error, "Failed to update team member role");
+          reply.code(502);
+          return { success: false, error: "Failed to update role, please try again" };
+        }
+        if (!updated) {
+          reply.code(404);
+          return { success: false, error: "Member not found" };
+        }
+
+        await logTeamAudit(supabase, app.log, {
+          teamId,
+          actorUserId: request.userId!,
+          action: "member_role_changed",
+          summary: `Changed ${targetEmail ?? targetUserId}'s role to ${role}`,
+        });
+
+        return { success: true, data: { userId: targetUserId, role } };
+      } catch (err) {
+        app.log.error(err, "Update team member role threw");
+        reply.code(502);
+        return { success: false, error: "Failed to update role, please try again" };
       }
     },
   );

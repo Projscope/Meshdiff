@@ -2,17 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { Bounds, OrbitControls } from "@react-three/drei";
+import { Bounds, Line, OrbitControls } from "@react-three/drei";
 import {
   getVersion,
   getDiff,
   getProject,
   listComments,
   createComment,
+  deleteComment,
   type VersionDetail,
   type CommentSummary,
   type ProjectDetail,
 } from "../lib/projectsApi";
+import { useAuth } from "../lib/AuthProvider";
+import ConfirmDialog from "../components/ConfirmDialog";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { extensionOf, loadMeshGeometry } from "../engine/loadMesh";
 import { extractThreeMFProperties, loadMeshForDisplay, type ThreeMFProperties } from "../engine/load3mfDisplayExtras";
@@ -20,6 +23,8 @@ import PrintabilityBadge from "../components/PrintabilityBadge";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import CommentsPanel from "../components/CommentsPanel";
+import CommentPopover from "../components/CommentPopover";
+import PendingCommentPopover from "../components/PendingCommentPopover";
 import CommentPin from "../components/CommentPin";
 import AxisLegend from "../components/AxisLegend";
 import ModelScene from "../components/ModelScene";
@@ -44,8 +49,90 @@ import { findCircularFeatureLoops, findNearestLoop, fitCircleLeastSquares, type 
 // group's inverse rotation, used to convert back to its local space first.
 const GROUP_ROTATION_INVERSE = new THREE.Matrix4().makeRotationX(Math.PI / 2);
 
+// The comment mesh itself carries no extra transform of its own (no
+// position/rotation/scale props on the <mesh> below) — it sits directly
+// inside the rotated group, so its raw geometry-space vertices are already
+// in that group's local space with no conversion needed, unlike the
+// world-space event.point values elsewhere in this file.
+function computeUniqueVertices(geometry: THREE.BufferGeometry): THREE.Vector3[] {
+  const position = geometry.getAttribute("position");
+  const seen = new Map<string, THREE.Vector3>();
+  const EPS = 1e-4;
+  for (let i = 0; i < position.count; i++) {
+    const vertex = new THREE.Vector3().fromBufferAttribute(position, i);
+    const key = `${Math.round(vertex.x / EPS)},${Math.round(vertex.y / EPS)},${Math.round(vertex.z / EPS)}`;
+    if (!seen.has(key)) seen.set(key, vertex);
+  }
+  return [...seen.values()];
+}
+
+// Same local-space reasoning as computeUniqueVertices — dedupes each
+// triangle edge against the shared edge its neighboring triangle also
+// contributes, keyed on its (rounded) endpoint pair regardless of winding.
+// Trims an edge segment down to just the portion that falls inside the
+// snap-radius circle, so a long edge that merely passes near the hover
+// point doesn't get drawn end-to-end across the whole model — only the
+// bit actually inside the "close area" indicator. Returns null when the
+// segment doesn't intersect the circle within its own [a, b] bounds.
+function clipSegmentToCircle(
+  a: THREE.Vector3,
+  b: THREE.Vector3,
+  center: THREE.Vector3,
+  radius: number,
+): [THREE.Vector3, THREE.Vector3] | null {
+  const direction = new THREE.Vector3().subVectors(b, a);
+  const toStart = new THREE.Vector3().subVectors(a, center);
+  const A = direction.dot(direction);
+  if (A === 0) return null;
+  const B = 2 * toStart.dot(direction);
+  const C = toStart.dot(toStart) - radius * radius;
+  const discriminant = B * B - 4 * A * C;
+  if (discriminant < 0) return null;
+  const sqrtDiscriminant = Math.sqrt(discriminant);
+  const t1 = Math.max(0, (-B - sqrtDiscriminant) / (2 * A));
+  const t2 = Math.min(1, (-B + sqrtDiscriminant) / (2 * A));
+  if (t1 >= t2) return null;
+  return [a.clone().addScaledVector(direction, t1), a.clone().addScaledVector(direction, t2)];
+}
+
+function computeUniqueEdges(geometry: THREE.BufferGeometry): Array<[THREE.Vector3, THREE.Vector3]> {
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  const EPS = 1e-4;
+  const keyOf = (v: THREE.Vector3) => `${Math.round(v.x / EPS)},${Math.round(v.y / EPS)},${Math.round(v.z / EPS)}`;
+  const seenEdges = new Set<string>();
+  const edges: Array<[THREE.Vector3, THREE.Vector3]> = [];
+
+  function addEdge(a: THREE.Vector3, b: THREE.Vector3) {
+    const keyA = keyOf(a);
+    const keyB = keyOf(b);
+    if (keyA === keyB) return;
+    const edgeKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
+    if (seenEdges.has(edgeKey)) return;
+    seenEdges.add(edgeKey);
+    edges.push([a, b]);
+  }
+
+  const vertexAt = (i: number) => new THREE.Vector3().fromBufferAttribute(position, i);
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  for (let t = 0; t < triangleCount; t++) {
+    const [ia, ib, ic] = index
+      ? [index.getX(t * 3), index.getX(t * 3 + 1), index.getX(t * 3 + 2)]
+      : [t * 3, t * 3 + 1, t * 3 + 2];
+    const a = vertexAt(ia);
+    const b = vertexAt(ib);
+    const c = vertexAt(ic);
+    addEdge(a, b);
+    addEdge(b, c);
+    addEdge(c, a);
+  }
+
+  return edges;
+}
+
 export default function VersionDetailPage() {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
+  const { user } = useAuth();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [version, setVersion] = useState<VersionDetail | null>(null);
   const [diffStats, setDiffStats] = useState<VoxelDiffStats | null>(null);
@@ -65,9 +152,19 @@ export default function VersionDetailPage() {
   const [isMeshLoading, setIsMeshLoading] = useState(true);
 
   const [comments, setComments] = useState<CommentSummary[]>([]);
+  const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+  const [pendingDeleteComment, setPendingDeleteComment] = useState<CommentSummary | null>(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
   const [isPlacingComment, setIsPlacingComment] = useState(false);
   const [pendingPosition, setPendingPosition] = useState<[number, number, number] | null>(null);
   const [pendingNormal, setPendingNormal] = useState<[number, number, number] | undefined>();
+  const [isDraggingPin, setIsDraggingPin] = useState(false);
+  const [commentSnapPreview, setCommentSnapPreview] = useState<[number, number, number] | null>(null);
+  const [nearbyVertices, setNearbyVertices] = useState<[number, number, number][]>([]);
+  const [nearbyEdges, setNearbyEdges] = useState<Array<[[number, number, number], [number, number, number]]>>([]);
+  const uniqueVerticesRef = useRef<THREE.Vector3[]>([]);
+  const uniqueEdgesRef = useRef<Array<[THREE.Vector3, THREE.Vector3]>>([]);
 
   const [measureMode, setMeasureMode] = useState<"distance" | "radius">("distance");
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -140,6 +237,8 @@ export default function VersionDetailPage() {
         }
 
         setGeometry(displayGeometry);
+        uniqueVerticesRef.current = computeUniqueVertices(displayGeometry);
+        uniqueEdgesRef.current = computeUniqueEdges(displayGeometry);
         setBoundaryLoops(findCircularFeatureLoops(displayGeometry));
         displayGeometry.computeBoundingBox();
         const box = displayGeometry.boundingBox;
@@ -310,7 +409,11 @@ export default function VersionDetailPage() {
 
     if (!isPlacingComment) return;
     event.stopPropagation();
-    const point = event.point;
+    // Freeform surface placement, only "sticking" to a vertex/edge when the
+    // cursor is actually close to one (see snappedOrSurfacePoint) — unlike
+    // the measure tool below, which always forces a vertex/edge snap.
+    const point = snappedOrSurfacePoint(event);
+    if (!point) return;
     setPendingPosition([point.x, point.y, point.z]);
     if (event.face?.normal && event.object) {
       const worldNormal = event.face.normal.clone().transformDirection(event.object.matrixWorld);
@@ -319,7 +422,126 @@ export default function VersionDetailPage() {
       setPendingNormal(undefined);
     }
     setIsPlacingComment(false);
+    setCommentSnapPreview(null);
+    setNearbyVertices([]);
+    setNearbyEdges([]);
   }
+
+  // Highlight radius for nearby-vertex/edge coloring while placing/dragging
+  // a comment — scaled off the model's own size so it reads sensibly
+  // whether the model is a 10mm bracket or a 200mm enclosure.
+  function commentSnapRadius(): number {
+    const maxDimension = Math.max(...boundingBox);
+    return maxDimension > 0 ? Math.max(maxDimension * 0.04, 0.5) : 1;
+  }
+
+  // Deliberately much tighter than commentSnapRadius() above — that one's
+  // a broad "here's what's nearby" preview area, not a snap distance. Using
+  // it as the magnet threshold would mean almost every point on a face of a
+  // simple/low-poly model snaps, since its own vertices are already within
+  // 4% of the model's size — exactly the "sticks immediately" behavior this
+  // is fixing.
+  function commentSnapThreshold(): number {
+    const maxDimension = Math.max(...boundingBox);
+    return maxDimension > 0 ? Math.max(maxDimension * 0.01, 0.15) : 0.3;
+  }
+
+  // The actual surface point under the cursor, magnetized to the nearest
+  // vertex/edge only when the cursor is genuinely close to one. Otherwise
+  // this is freeform placement anywhere on the surface, unlike the measure
+  // tool's nearestMeasurePoint below, which always forces a snap.
+  function snappedOrSurfacePoint(event: ThreeEvent<MouseEvent>): THREE.Vector3 | null {
+    if (!event.face) return null;
+    const surfacePoint = event.point.clone().applyMatrix4(GROUP_ROTATION_INVERSE);
+    const snapped = nearestMeasurePoint(event);
+    if (snapped && snapped.distanceTo(surfacePoint) <= commentSnapThreshold()) {
+      return snapped;
+    }
+    return surfacePoint;
+  }
+
+  function updateNearbyVertices(center: THREE.Vector3) {
+    const radius = commentSnapRadius();
+    const nearby = uniqueVerticesRef.current
+      .filter((vertex) => vertex.distanceTo(center) <= radius)
+      .map((vertex): [number, number, number] => [vertex.x, vertex.y, vertex.z]);
+    // Capped so a very dense mesh in this hover area can't spawn hundreds
+    // of individual highlight meshes per pointer move.
+    setNearbyVertices(nearby.length > 60 ? nearby.slice(0, 60) : nearby);
+  }
+
+  function updateNearbyEdges(center: THREE.Vector3) {
+    const radius = commentSnapRadius();
+    const nearby: Array<[[number, number, number], [number, number, number]]> = [];
+    for (const [a, b] of uniqueEdgesRef.current) {
+      const clipped = clipSegmentToCircle(a, b, center, radius);
+      if (!clipped) continue;
+      const [p1, p2] = clipped;
+      nearby.push([
+        [p1.x, p1.y, p1.z],
+        [p2.x, p2.y, p2.z],
+      ]);
+      // Capped so a very dense mesh in this hover area can't spawn
+      // hundreds of highlight lines per pointer move.
+      if (nearby.length >= 60) break;
+    }
+    setNearbyEdges(nearby);
+  }
+
+  function handlePointerMove(event: ThreeEvent<MouseEvent>) {
+    // Repositions the not-yet-submitted pin as the user drags it — freeform
+    // across the surface, same as handleMeshClick, only sticking to a
+    // vertex/edge when actually close to one.
+    if (isDraggingPin) {
+      event.stopPropagation();
+      const point = snappedOrSurfacePoint(event);
+      if (!point) return;
+      setPendingPosition([point.x, point.y, point.z]);
+      updateNearbyVertices(point);
+      updateNearbyEdges(point);
+      if (event.face?.normal && event.object) {
+        const worldNormal = event.face.normal.clone().transformDirection(event.object.matrixWorld);
+        setPendingNormal([worldNormal.x, worldNormal.y, worldNormal.z]);
+      } else {
+        setPendingNormal(undefined);
+      }
+      return;
+    }
+
+    // Before the first click, previews where the pin will land as the
+    // cursor moves over the mesh — same snap target handleMeshClick uses.
+    if (isPlacingComment) {
+      const point = snappedOrSurfacePoint(event);
+      setCommentSnapPreview(point ? [point.x, point.y, point.z] : null);
+      if (point) {
+        updateNearbyVertices(point);
+        updateNearbyEdges(point);
+      } else {
+        setNearbyVertices([]);
+        setNearbyEdges([]);
+      }
+      return;
+    }
+
+    handleMeasureHover(event);
+  }
+
+  useEffect(() => {
+    if (!isPlacingComment) {
+      setCommentSnapPreview(null);
+      if (!isDraggingPin) {
+        setNearbyVertices([]);
+        setNearbyEdges([]);
+      }
+    }
+  }, [isPlacingComment, isDraggingPin]);
+
+  useEffect(() => {
+    if (!isDraggingPin) return;
+    const stopDragging = () => setIsDraggingPin(false);
+    window.addEventListener("mouseup", stopDragging);
+    return () => window.removeEventListener("mouseup", stopDragging);
+  }, [isDraggingPin]);
 
   function startMeasuring(mode: "distance" | "radius") {
     setMeasureMode(mode);
@@ -354,6 +576,50 @@ export default function VersionDetailPage() {
       setPendingPosition(null);
       setPendingNormal(undefined);
     }
+  }
+
+  // Replies reuse the parent's own position/normal — they're not separately
+  // pinned on the model, just rendered inside the parent's popover.
+  async function handleSubmitReply(parent: CommentSummary, body: string) {
+    if (!projectId || !versionId) return;
+    const result = await createComment(
+      projectId,
+      versionId,
+      body,
+      parent.position,
+      parent.normal ?? undefined,
+      parent.id,
+    );
+    if (result.success) {
+      setComments((prev) => [...prev, result.data]);
+    }
+  }
+
+  // Owner/admin can moderate any comment on the project; everyone else can
+  // only remove their own — mirrors the same check the API enforces.
+  function canDeleteComment(comment: CommentSummary): boolean {
+    const canModerateAny = project?.myRole === "owner" || project?.myRole === "admin";
+    return canModerateAny || comment.authorUserId === user?.id;
+  }
+
+  async function handleConfirmDeleteComment() {
+    if (!projectId || !versionId || !pendingDeleteComment) return;
+    setIsDeletingComment(true);
+    const result = await deleteComment(projectId, versionId, pendingDeleteComment.id);
+    setIsDeletingComment(false);
+    if (result.success) {
+      // Deleting a parent cascades to its replies at the DB level (see
+      // migration 0020's `on delete cascade`) — mirror that here too, or
+      // the replies would linger in the popover until the next refetch.
+      setComments((prev) =>
+        prev.filter((c) => c.id !== pendingDeleteComment.id && c.parentCommentId !== pendingDeleteComment.id),
+      );
+      if (hoveredCommentId === pendingDeleteComment.id) setHoveredCommentId(null);
+      if (selectedCommentId === pendingDeleteComment.id) setSelectedCommentId(null);
+    } else {
+      setError(result.error);
+    }
+    setPendingDeleteComment(null);
   }
 
   return (
@@ -401,11 +667,14 @@ export default function VersionDetailPage() {
                 <mesh
                   geometry={geometry}
                   onClick={handleMeshClick}
-                  onPointerMove={handleMeasureHover}
+                  onPointerMove={handlePointerMove}
                   onPointerOut={() => {
                     setMeasureHover(null);
                     setRadiusPreviewFit(null);
                     setRadiusPreviewLoopPoints(null);
+                    setCommentSnapPreview(null);
+                    setNearbyVertices([]);
+                    setNearbyEdges([]);
                   }}
                 >
                   {/* key forces a fresh material instance when hasVertexColors
@@ -422,10 +691,84 @@ export default function VersionDetailPage() {
             )}
             {project?.teamId && (
               <>
-                {comments.map((comment) => (
-                  <CommentPin key={comment.id} position={comment.position} label={comment.body} />
-                ))}
-                {pendingPosition && <CommentPin position={pendingPosition} pending />}
+                {comments
+                  .filter((comment) => !comment.parentCommentId)
+                  .map((comment) => (
+                    <CommentPin
+                      key={comment.id}
+                      position={comment.position}
+                      label={comment.body}
+                      highlighted={hoveredCommentId === comment.id || selectedCommentId === comment.id}
+                      onHoverChange={(hovering) => setHoveredCommentId(hovering ? comment.id : null)}
+                      onSelect={() => setSelectedCommentId(comment.id)}
+                    />
+                  ))}
+                {comments
+                  .filter(
+                    (comment) =>
+                      !comment.parentCommentId && (hoveredCommentId === comment.id || selectedCommentId === comment.id),
+                  )
+                  .map((comment) => (
+                    <CommentPopover
+                      key={comment.id}
+                      comment={comment}
+                      replies={comments.filter((c) => c.parentCommentId === comment.id)}
+                      canDelete={canDeleteComment}
+                      onDelete={setPendingDeleteComment}
+                      onReply={(body) => handleSubmitReply(comment, body)}
+                      onClose={() => {
+                        setSelectedCommentId(null);
+                        setHoveredCommentId(null);
+                      }}
+                    />
+                  ))}
+                {pendingPosition && (
+                  <>
+                    <CommentPin position={pendingPosition} pending onDragStart={() => setIsDraggingPin(true)} />
+                    <PendingCommentPopover
+                      position={pendingPosition}
+                      onSubmit={handleSubmitComment}
+                      onCancel={() => {
+                        setPendingPosition(null);
+                        setPendingNormal(undefined);
+                      }}
+                    />
+                  </>
+                )}
+                {!pendingPosition && commentSnapPreview && (
+                  <>
+                    {/* Sized to commentSnapRadius() so this visually IS the
+                        "close area" the nearby vertex/edge highlights below
+                        are limited to, not just a fixed-size cosmetic marker. */}
+                    <mesh position={commentSnapPreview}>
+                      <sphereGeometry args={[commentSnapRadius(), 16, 16]} />
+                      <meshBasicMaterial color="#a5b4fc" transparent opacity={0.3} depthTest={false} />
+                    </mesh>
+                    <mesh position={commentSnapPreview}>
+                      <sphereGeometry args={[0.4, 12, 12]} />
+                      <meshBasicMaterial color="#818cf8" depthTest={false} />
+                    </mesh>
+                  </>
+                )}
+                {(isPlacingComment || isDraggingPin) &&
+                  nearbyVertices.map((vertex, index) => (
+                    <mesh key={`${vertex.join(",")}-${index}`} position={vertex}>
+                      <sphereGeometry args={[0.35, 8, 8]} />
+                      <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthTest={false} />
+                    </mesh>
+                  ))}
+                {(isPlacingComment || isDraggingPin) &&
+                  nearbyEdges.map(([a, b], index) => (
+                    <Line
+                      key={`${a.join(",")}-${b.join(",")}-${index}`}
+                      points={[a, b]}
+                      color="#facc15"
+                      lineWidth={2.5}
+                      transparent
+                      opacity={0.85}
+                      depthTest={false}
+                    />
+                  ))}
               </>
             )}
             {measureMode === "distance" ? (
@@ -440,7 +783,7 @@ export default function VersionDetailPage() {
               />
             )}
           </ModelScene>
-          <OrbitControls makeDefault mouseButtons={mouseButtons} />
+          <OrbitControls makeDefault enabled={!isDraggingPin} mouseButtons={mouseButtons} />
         </Canvas>
         <AxisLegend />
 
@@ -580,17 +923,43 @@ export default function VersionDetailPage() {
                   isPlacingComment={isPlacingComment}
                   onTogglePlacing={() => setIsPlacingComment((prev) => !prev)}
                   pendingPosition={pendingPosition}
-                  onSubmitComment={handleSubmitComment}
                   onCancelPending={() => {
                     setPendingPosition(null);
                     setPendingNormal(undefined);
                   }}
+                  highlightedCommentId={hoveredCommentId}
+                  onHoverComment={setHoveredCommentId}
+                  onSelectComment={(commentId) => {
+                    // Only top-level comments have their own pin/popover —
+                    // selecting a reply opens its parent's thread instead.
+                    const target = comments.find((c) => c.id === commentId);
+                    setSelectedCommentId(target?.parentCommentId ?? commentId);
+                  }}
+                  canDeleteComment={canDeleteComment}
+                  onRequestDelete={setPendingDeleteComment}
                 />
               </div>
             )}
           </>
         )}
       </div>
+
+      {pendingDeleteComment && (
+        <ConfirmDialog
+          title="Delete comment?"
+          message={(() => {
+            const replyCount = comments.filter((c) => c.parentCommentId === pendingDeleteComment.id).length;
+            return replyCount > 0
+              ? `This will also delete ${replyCount} ${replyCount === 1 ? "reply" : "replies"}. This can't be undone.`
+              : "This can't be undone.";
+          })()}
+          confirmLabel="Delete"
+          isDestructive
+          isConfirming={isDeletingComment}
+          onConfirm={() => void handleConfirmDeleteComment()}
+          onCancel={() => setPendingDeleteComment(null)}
+        />
+      )}
     </div>
   );
 }

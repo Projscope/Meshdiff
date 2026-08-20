@@ -1,7 +1,13 @@
 import type { FastifyBaseLogger } from "fastify";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type TeamAuditAction = "team_created" | "member_invited" | "member_removed" | "version_approved" | "version_rejected";
+export type TeamAuditAction =
+  | "team_created"
+  | "member_invited"
+  | "member_removed"
+  | "member_role_changed"
+  | "version_approved"
+  | "version_rejected";
 
 /**
  * Best-effort — logs the failure but never throws. The action this
