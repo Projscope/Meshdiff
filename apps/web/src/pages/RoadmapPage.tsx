@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export default function RoadmapPage() {
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.1.2");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.2.0");
 
   const handleScrollToPricing = () => {
     window.location.href = "/#pricing";
@@ -10,29 +10,54 @@ export default function RoadmapPage() {
   const roadmapItems = {
     planned: [
       {
-        icon: "🎯",
-        title: "Bidirectional comment pin highlighting",
-        description: "Click a pin in the list to highlight it in the 3D viewport, and vice versa for easier navigation.",
-      },
-      {
         icon: "🔐",
         title: "Forgot password & OAuth",
         description: "Self-serve password reset and login with Google OAuth for simpler account recovery and authentication.",
-      },
-      {
-        icon: "👥",
-        title: "Team billing",
-        description: "Manage subscriptions for entire teams with per-seat pricing and admin controls.",
       },
       {
         icon: "📊",
         title: "Magnitude diff visualization",
         description: "Show precise amount of change (scale/rotation/shift) rather than binary added/removed regions.",
       },
+      {
+        icon: "👁️",
+        title: "Colorblind-friendly status indicators",
+        description: "Extend the colorblind-safe diff palette to approval badges, printability status, and other red/green indicators across the app.",
+      },
     ],
   };
 
   const changelog = [
+    {
+      version: "v1.2.0",
+      date: "2026-08-20",
+      title: "Team billing, light/dark theme, and a redesigned home page",
+      items: {
+        new: [
+          "Team tier is live: per-seat billing, a team dashboard with a cross-project pending-approvals queue, and an audit log of every invite, approval, and rejection",
+          "Light/dark theme toggle",
+          "Manual alignment (None/Floor/Center) and colorblind-safe/high-contrast diff color palettes, plus an Overlay diff mode",
+          "Hole inventory detection and automatic mesh repair on upload",
+          "Distance and radius measuring tools on every viewer, including the Compare screen",
+          "Threaded comment replies, drag-to-reposition, and delete",
+          "Project History timeline showing added/removed stats and printability status for every version",
+        ],
+        improved: [
+          "New visual identity across the whole app",
+          "Home page rebuilt around a live, interactive diff demo",
+          "Shading mode (smooth/flat/transparent) shared across every viewer",
+          "Comment popovers show reply counts and stay a fixed readable size",
+          "Compare toolbar decluttered — duplicate zoom/reset controls removed",
+          "Faster, smaller landing page (compressed images, preloaded hero, more accessibility fixes)",
+        ],
+        fixed: [
+          "Team subscribers were locked out of features they'd already paid for",
+          "Two open-redirect security advisories in the routing library",
+          "A security-header rollout that broke thumbnails, fonts, and some background processing in production",
+          "Several text-contrast issues that fell short of accessibility guidelines",
+        ],
+      },
+    },
     {
       version: "v1.1.2",
       date: "2026-08-18",

@@ -37,7 +37,14 @@
 #   Workers (CLAUDE.md "3D Performance Rules") — 'self' covers Vite's
 #   built worker bundles, blob: is a defensive fallback.
 # - style-src 'unsafe-inline': a few components use inline style={{}} for
-#   dynamic values (e.g. camera/canvas-driven positioning).
+#   dynamic values (e.g. camera/canvas-driven positioning). Also needs
+#   https://fonts.googleapis.com — index.html loads the Space Grotesk/IBM
+#   Plex Sans stylesheet from Google Fonts (the brand re-theme's display/
+#   body typefaces); 'unsafe-inline' only covers inline <style> and style
+#   attributes, not a stylesheet fetched from a third-party origin.
+# - font-src needs https://fonts.gstatic.com — the actual .woff2 files
+#   Google Fonts' stylesheet references are served from that host, not
+#   fonts.googleapis.com itself.
 # frame-ancestors 'none' + X-Frame-Options: DENY together cover clickjacking
 # protection across older and newer browsers.
 # - Permissions-Policy omits interest-cohort — it was a FLoC-era feature
@@ -50,4 +57,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
