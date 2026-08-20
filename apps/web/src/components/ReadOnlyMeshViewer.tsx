@@ -10,6 +10,8 @@ import MeasureToolbar from "./MeasureToolbar";
 import MeasureSceneOverlay from "./MeasureSceneOverlay";
 import { useMeasureTool } from "../lib/useMeasureTool";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
+import { useShadingMode } from "../lib/shadingMode";
+import EdgeOverlay from "./EdgeOverlay";
 
 interface ReadOnlyMeshViewerProps {
   /** Shown top-left. Pass the loaded version's label (e.g. "v1"); falls back to `fallbackLabel` when `geometry` is null. */
@@ -38,6 +40,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
   const [controlScheme] = useControlScheme();
   const mouseButtons = useOrbitMouseButtons(controlScheme);
   const measure = useMeasureTool();
+  const [shadingMode] = useShadingMode();
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
@@ -92,8 +95,20 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
                 onPointerMove={measure.onPointerMove}
                 onPointerOut={measure.onPointerOut}
               >
-                <meshStandardMaterial color={color} />
+                {/* key forces a fresh material instance when shadingMode
+                    flips — mutating flatShading on an already-compiled
+                    material doesn't recompile its shader. */}
+                <meshStandardMaterial
+                  key={shadingMode}
+                  color={color}
+                  flatShading={shadingMode === "flat"}
+                  transparent={shadingMode === "transparent"}
+                  opacity={shadingMode === "transparent" ? 0.4 : 1}
+                  depthWrite={shadingMode !== "transparent"}
+                  side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
+                />
               </mesh>
+              {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}
             </Bounds>
           )}
           <MeasureSceneOverlay measure={measure} />

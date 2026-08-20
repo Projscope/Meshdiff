@@ -13,6 +13,10 @@ import CameraSync from "./CameraSync";
 import MeasureToolbar from "./MeasureToolbar";
 import MeasureSceneOverlay from "./MeasureSceneOverlay";
 import { useMeasureTool } from "../lib/useMeasureTool";
+import { meshRepairWarning } from "../lib/meshRepairMessage";
+import type { MeshRepairReport } from "@meshdiff/shared/engine/repairMesh";
+import { useShadingMode } from "../lib/shadingMode";
+import EdgeOverlay from "./EdgeOverlay";
 
 interface ViewerProps {
   label: string;
@@ -48,6 +52,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const [displayGeometry, setDisplayGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [meshWarning, setMeshWarning] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [zoomSpeed, setZoomSpeed] = useState(1);
@@ -60,6 +65,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const measure = useMeasureTool();
+  const [shadingMode] = useShadingMode();
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -69,6 +75,8 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       setDisplayGeometry(result.data);
       setHasVertexColors(false);
       setError(null);
+      const repair = result.data.userData.meshRepair as MeshRepairReport | undefined;
+      setMeshWarning(repair ? meshRepairWarning(repair) : null);
       measure.clearMeasurement();
       // The diff engine gets the stripped position-only geometry regardless
       // of color — only the mesh actually rendered in this viewer swaps to
@@ -103,6 +111,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       measure.setGeometry(display, boundingBoxSize);
     } else {
       setError(result.error);
+      setMeshWarning(null);
     }
   }
 
@@ -230,6 +239,14 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           </div>
         </div>
       )}
+      {meshWarning && geometry && (
+        <div
+          className="absolute left-3 right-3 top-9 z-10 truncate rounded bg-amber-950/70 px-2 py-1 text-[10px] text-amber-300"
+          title={meshWarning}
+        >
+          ⚠ {meshWarning}
+        </div>
+      )}
       {!geometry && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
           <span>{error ?? "Drop STL / OBJ / 3MF here"}</span>
@@ -279,15 +296,22 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 onPointerOut={measure.onPointerOut}
               >
                 {/* key forces a fresh material instance when hasVertexColors
-                    flips — mutating vertexColors on an already-compiled
-                    material in place doesn't recompile its shader, so the
-                    color attribute would silently be ignored otherwise. */}
+                    or shadingMode flips — mutating vertexColors/flatShading
+                    on an already-compiled material in place doesn't
+                    recompile its shader, so the change would silently be
+                    ignored otherwise. */}
                 <meshStandardMaterial
-                  key={hasVertexColors ? "vertex-colors" : "flat"}
+                  key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
                   color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                   vertexColors={hasVertexColors}
+                  flatShading={shadingMode === "flat"}
+                  transparent={shadingMode === "transparent"}
+                  opacity={shadingMode === "transparent" ? 0.4 : 1}
+                  depthWrite={shadingMode !== "transparent"}
+                  side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
                 />
               </mesh>
+              {shadingMode === "transparent" && <EdgeOverlay geometry={displayGeometry} />}
             </Bounds>
           )}
           <MeasureSceneOverlay measure={measure} />

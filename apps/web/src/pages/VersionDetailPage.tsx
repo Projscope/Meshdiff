@@ -31,6 +31,9 @@ import ModelScene from "../components/ModelScene";
 import BoundsResetBridge from "../components/BoundsResetBridge";
 import ZoomToFitBridge from "../components/ZoomToFitBridge";
 import ControlSchemeSelect from "../components/ControlSchemeSelect";
+import ShadingModeToggle from "../components/ShadingModeToggle";
+import { useShadingMode } from "../lib/shadingMode";
+import EdgeOverlay from "../components/EdgeOverlay";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import LoadingCube from "../components/LoadingCube";
 import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
@@ -142,6 +145,7 @@ export default function VersionDetailPage() {
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const [controlScheme] = useControlScheme();
   const mouseButtons = useOrbitMouseButtons(controlScheme);
+  const [shadingMode] = useShadingMode();
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [threeMFProperties, setThreeMFProperties] = useState<ThreeMFProperties | null>(null);
   const [boundingBox, setBoundingBox] = useState<[number, number, number]>([0, 0, 0]);
@@ -729,6 +733,8 @@ export default function VersionDetailPage() {
               ⟲
             </button>
             <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+            <ShadingModeToggle />
+            <div className="mx-0.5 h-5 w-px bg-neutral-800" />
             <ControlSchemeSelect showLegend={false} />
           </div>
         )}
@@ -755,15 +761,21 @@ export default function VersionDetailPage() {
                   }}
                 >
                   {/* key forces a fresh material instance when hasVertexColors
-                      flips — mutating vertexColors on an already-compiled
-                      material in place doesn't recompile its shader, so the
-                      color attribute would silently be ignored otherwise. */}
+                      or shadingMode flips — mutating vertexColors/flatShading
+                      on an already-compiled material doesn't recompile its
+                      shader. */}
                   <meshStandardMaterial
-                    key={hasVertexColors ? "vertex-colors" : "flat"}
+                    key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
                     color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                     vertexColors={hasVertexColors}
+                    flatShading={shadingMode === "flat"}
+                    transparent={shadingMode === "transparent"}
+                    opacity={shadingMode === "transparent" ? 0.4 : 1}
+                    depthWrite={shadingMode !== "transparent"}
+                    side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
                   />
                 </mesh>
+                {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}
               </Bounds>
             )}
             {project?.teamId && (
