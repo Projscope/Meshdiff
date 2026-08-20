@@ -4,16 +4,16 @@ import * as THREE from "three";
 import { Check } from "@phosphor-icons/react";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
-import DiffView, { type DiffViewHandle, type DiffMode } from "../components/DiffView";
+import DiffView, { type DiffViewHandle, type DiffMode, type DiffAlignment } from "../components/DiffView";
 import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
-import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { useAuth } from "../lib/AuthProvider";
 import { getSubscription } from "../lib/projectsApi";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
+import { useDiffColors } from "../lib/diffPalette";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 
 import compareDiffImage from '../assets/compare.svg';
@@ -70,6 +70,7 @@ export default function LiveDiffToolPage({
   autoOpenCompare = false,
 }: LiveDiffToolPageProps = {}) {
   useDocumentMeta(metaTitle, metaDescription);
+  const diffColors = useDiffColors();
   const [activeTool, setActiveTool] = useState<LiveTool | null>(autoOpenCompare ? "compare" : null);
   const [hoveredTool, setHoveredTool] = useState<LiveTool | null>(null);
   const [isToolModalOpen, setIsToolModalOpen] = useState(autoOpenCompare);
@@ -81,6 +82,7 @@ export default function LiveDiffToolPage({
   const [fileB, setFileB] = useState<File | null>(null);
   const [mode, setMode] = useState<DiffMode>("voxel");
   const [toleranceMm, setToleranceMm] = useState(0.15);
+  const [alignment, setAlignment] = useState<DiffAlignment>("none");
   const [stats, setStats] = useState<DiffStats | null>(null);
   const viewerARef = useRef<ViewerHandle>(null);
   const viewerBRef = useRef<ViewerHandle>(null);
@@ -95,7 +97,8 @@ export default function LiveDiffToolPage({
   const [isRestoringShare, setIsRestoringShare] = useState(false);
   const [isSharedView, setIsSharedView] = useState(false);
   const [syncedCameraState, setSyncedCameraState] = useState<{ position: [number, number, number]; target: [number, number, number] } | null>(null);
-  const [isSyncEnabled, setIsSyncEnabled] = useState(true);
+  // Camera-lock toggle was removed from the toolbar — views always sync now.
+  const isSyncEnabled = true;
   const [selectedDemo, setSelectedDemo] = useState<"simple" | "bracket" | "gear">("simple");
   const [sameFileWarning, setSameFileWarning] = useState<string | null>(null);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
@@ -228,7 +231,12 @@ export default function LiveDiffToolPage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode,
+          // The server only accepts 'voxel'/'surface' (see share.ts's
+          // validation, backed by migration 0011_shares.sql's check
+          // constraint) — Overlay is a live-viewing mode, not yet a
+          // shareable one, so it falls back to Voxels rather than the
+          // request failing outright.
+          mode: mode === "overlay" ? "voxel" : mode,
           toleranceMm,
           expiresInDays,
           fileA: { name: fileA.name, size: fileA.size },
@@ -343,31 +351,31 @@ export default function LiveDiffToolPage({
     // sat immediately at that box's bottom edge with no visual gap,
     // reading as if it were floating over/cutting into this page's own
     // content instead of following it in normal document flow.
-    <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-100 px-4 py-8 items-center">
+    <div className="flex min-h-screen flex-col bg-ink-950 text-ink-100 px-4 py-8 items-center">
       <div className="w-full max-w-3xl mx-auto pt-4 pb-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{h1}</h1>
-        <p className="mt-2 text-sm text-neutral-400 sm:text-base">{ctaText}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-50 sm:text-3xl">{h1}</h1>
+        <p className="mt-2 text-sm text-ink-400 sm:text-base">{ctaText}</p>
       </div>
 
       <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto py-6 gap-8">
         
         {/* Community Commitment & Subscription Banner */}
-        <section className="w-full rounded-2xl border border-neutral-800 bg-neutral-900/50 p-6 text-center backdrop-blur-sm sm:p-8">
+        <section className="w-full rounded-2xl border border-ink-800 bg-ink-900/50 p-6 text-center backdrop-blur-sm sm:p-8">
           <div className="mx-auto flex max-w-2xl flex-col items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-500/30 bg-accent-500/10 px-3 py-1 text-[11px] font-semibold text-accent-400">
               🤝 Built for the Community
             </span>
-            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+            <h2 className="text-xl font-bold tracking-tight text-ink-50 sm:text-2xl">
               Free, browser-native tools for 3D & CAD creators
             </h2>
-            <p className="text-xs leading-relaxed text-neutral-300 sm:text-sm">
+            <p className="text-xs leading-relaxed text-ink-300 sm:text-sm">
               We strongly believe in supporting the community. Open, high-performance web applications make engineering and 3D printing workflows accessible to everyone. We are committed to building and contributing these tools for free, and we’ll keep actively expanding them.
             </p>
 
             {/* Newsletter Subscription */}
             <div className="mt-2 w-full max-w-md">
               {subscribeSuccess ? (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs font-medium text-emerald-300">
+                <div className="rounded-lg border border-accent-500/40 bg-accent-500/10 p-3 text-xs font-medium text-accent-300">
                   ✓ Thanks for subscribing! We&apos;ll keep you posted on new tools and updates.
                 </div>
               ) : (
@@ -378,12 +386,12 @@ export default function LiveDiffToolPage({
                     value={subscribeEmail}
                     onChange={(e) => setSubscribeEmail(e.target.value)}
                     placeholder="Enter your email for feature updates..."
-                    className="flex-1 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-xs text-white placeholder-neutral-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="flex-1 rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-xs text-ink-50 placeholder-ink-500 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
                   />
                   <button
                     type="submit"
                     disabled={isSubscribing}
-                    className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-neutral-950 transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                    className="rounded-lg bg-accent-500 px-4 py-2 text-xs font-semibold text-chrome-950 transition-colors hover:bg-accent-400 disabled:opacity-50"
                   >
                     {isSubscribing ? "Subscribing..." : "Subscribe"}
                   </button>
@@ -409,18 +417,18 @@ export default function LiveDiffToolPage({
                 onMouseEnter={() => setHoveredTool(tool.id)}
                 onMouseLeave={() => setHoveredTool(null)}
                 aria-pressed={isActive}
-                className={`group relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
+                className={`group relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500/50 ${
                   isActive
-                    ? "border-emerald-500 bg-neutral-900 shadow-lg shadow-emerald-950/30 ring-1 ring-emerald-500/50"
-                    : "border-neutral-800 bg-neutral-900/60 hover:-translate-y-1 hover:border-neutral-700 hover:bg-neutral-900"
+                    ? "border-accent-500 bg-ink-900 shadow-lg shadow-accent-950/30 ring-1 ring-accent-500/50"
+                    : "border-ink-800 bg-ink-900/60 hover:-translate-y-1 hover:border-ink-700 hover:bg-ink-900"
                 }`}
               >
                 {/* Active Indicator / Checkmark */}
                 <div
                   className={`absolute right-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border transition-colors ${
                     isActive
-                      ? "border-emerald-500 bg-emerald-500 text-neutral-950"
-                      : "border-neutral-700 bg-neutral-900/80 text-transparent group-hover:border-neutral-500"
+                      ? "border-accent-500 bg-accent-500 text-chrome-950"
+                      : "border-ink-700 bg-ink-900/80 text-transparent group-hover:border-ink-500"
                   }`}
                 >
                   <svg
@@ -435,7 +443,7 @@ export default function LiveDiffToolPage({
                 </div>
 
                 {/* Image Preview Container */}
-                <div className="relative aspect-[16/9] w-full overflow-hidden border-b border-neutral-800/80 bg-neutral-950">
+                <div className="relative aspect-[16/9] w-full overflow-hidden border-b border-ink-800/80 bg-ink-950">
                   <img
                     src={tool.image}
                     alt={tool.label}
@@ -443,7 +451,7 @@ export default function LiveDiffToolPage({
                       isActive ? "scale-105 opacity-100" : "opacity-70 group-hover:scale-105 group-hover:opacity-90"
                     }`}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/90 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-transparent to-transparent" />
                 </div>
 
                 {/* Card Content */}
@@ -452,14 +460,14 @@ export default function LiveDiffToolPage({
                     <span className="text-lg leading-none">{tool.icon}</span>
                     <h3
                       className={`text-sm font-semibold transition-colors ${
-                        isActive ? "text-emerald-400" : "text-white group-hover:text-emerald-300"
+                        isActive ? "text-accent-400" : "text-ink-50 group-hover:text-accent-300"
                       }`}
                     >
                       {tool.label}
                     </h3>
                   </div>
 
-                  <p className="mt-2 text-xs leading-relaxed text-neutral-400">
+                  <p className="mt-2 text-xs leading-relaxed text-ink-400">
                     {tool.description}
                   </p>
                 </div>
@@ -469,21 +477,21 @@ export default function LiveDiffToolPage({
         </div>
 
         {/* How It Works Section directly underneath choices */}
-        <section className="w-full border-t border-neutral-800/80 px-6 pt-6">
-          <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-emerald-500">
+        <section className="w-full border-t border-ink-800/80 px-6 pt-6">
+          <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-accent-500">
             How it works
           </span>
-          <h3 className="mt-1 text-center text-lg font-semibold text-white transition-all">
+          <h3 className="mt-1 text-center text-lg font-semibold text-ink-50 transition-all">
             {howItWorksContent.title}
           </h3>
           <div className="mx-auto mt-6 grid max-w-4xl gap-4 sm:grid-cols-3">
             {howItWorksContent.steps.map((step) => (
-              <div key={step.num} className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-4 transition-all">
-                <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15 text-[9px] font-semibold text-emerald-400">
+              <div key={step.num} className="rounded-lg border border-ink-800 bg-ink-900/60 p-4 transition-all">
+                <div className="flex h-5 w-5 items-center justify-center rounded bg-accent-500/15 text-[9px] font-semibold text-accent-400">
                   {step.num}
                 </div>
-                <h4 className="mt-2 text-xs font-semibold text-white">{step.title}</h4>
-                <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">
+                <h4 className="mt-2 text-xs font-semibold text-ink-50">{step.title}</h4>
+                <p className="mt-1 text-[11px] leading-relaxed text-ink-400">
                   {step.desc}
                 </p>
               </div>
@@ -492,57 +500,57 @@ export default function LiveDiffToolPage({
         </section>
 
         {/* Pro Benefits CTA Section */}
-        <section className="border-t border-neutral-900 px-6 py-16">
+        <section className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto max-w-3xl">
-            <div className="rounded-lg border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0 p-8 md:p-12">
-              <span className="inline-block rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+            <div className="rounded-lg border border-accent-500/20 bg-gradient-to-br from-accent-500/5 to-accent-500/0 p-8 md:p-12">
+              <span className="inline-block rounded-full bg-accent-500/10 px-3 py-1 text-xs font-semibold text-accent-400">
                 PRO PLAN
               </span>
-              <h2 className="mt-4 text-2xl font-bold text-white md:text-3xl">
+              <h2 className="mt-4 text-2xl font-bold text-ink-50 md:text-3xl">
                 Everything you need for professional 3D model versioning
               </h2>
-              <p className="mt-3 text-neutral-400">
+              <p className="mt-3 text-ink-400">
                 Collaborate with your team, track changes, and make informed decisions with advanced diff tooling.
               </p>
 
               <div className="mt-8 grid gap-6 sm:grid-cols-2">
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
-                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                    <Check size={16} weight="bold" className="text-accent-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Unlimited Projects</h3>
-                    <p className="mt-1 text-sm text-neutral-400">Save and organize as many 3D model projects as you need</p>
+                    <h3 className="font-semibold text-ink-50">Unlimited Projects</h3>
+                    <p className="mt-1 text-sm text-ink-400">Save and organize as many 3D model projects as you need</p>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
-                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                    <Check size={16} weight="bold" className="text-accent-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Shareable Links</h3>
-                    <p className="mt-1 text-sm text-neutral-400">Create time-limited comparison links for stakeholders</p>
+                    <h3 className="font-semibold text-ink-50">Shareable Links</h3>
+                    <p className="mt-1 text-sm text-ink-400">Create time-limited comparison links for stakeholders</p>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
-                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                    <Check size={16} weight="bold" className="text-accent-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Export Reports</h3>
-                    <p className="mt-1 text-sm text-neutral-400">Download analysis reports and screenshots as PNG/PDF</p>
+                    <h3 className="font-semibold text-ink-50">Export Reports</h3>
+                    <p className="mt-1 text-sm text-ink-400">Download analysis reports and screenshots as PNG/PDF</p>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/10">
-                    <Check size={16} weight="bold" className="text-emerald-400" />
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                    <Check size={16} weight="bold" className="text-accent-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">No Watermark</h3>
-                    <p className="mt-1 text-sm text-neutral-400">Share professional-looking comparisons without branding</p>
+                    <h3 className="font-semibold text-ink-50">No Watermark</h3>
+                    <p className="mt-1 text-sm text-ink-400">Share professional-looking comparisons without branding</p>
                   </div>
                 </div>
               </div>
@@ -550,7 +558,7 @@ export default function LiveDiffToolPage({
               <div className="mt-8 flex justify-center">
                 <Link
                   to="/#pricing"
-                  className="rounded-lg bg-emerald-500 px-6 py-3 text-center font-medium text-neutral-950 transition hover:bg-emerald-400"
+                  className="rounded-lg bg-accent-500 px-6 py-3 text-center font-medium text-chrome-950 transition hover:bg-accent-400"
                 >
                   View Pricing
                 </Link>
@@ -562,10 +570,10 @@ export default function LiveDiffToolPage({
 
       {/* Tool Modal Overlay with 10px Margin on all sides */}
       {isToolModalOpen && activeTool && (
-        <div className="fixed inset-[10px] z-50 flex flex-col rounded-2xl border border-neutral-800 bg-neutral-950 shadow-2xl overflow-hidden backdrop-blur-md">
+        <div className="fixed inset-[10px] z-50 flex flex-col rounded-2xl border border-ink-800 bg-ink-950 shadow-2xl overflow-hidden backdrop-blur-md">
           {/* Modal Header & Tool Switcher */}
-          <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-4 py-3">
-            <div className="flex items-center gap-1.5 rounded-xl border border-neutral-800 bg-neutral-950 p-1">
+          <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900/90 px-4 py-3">
+            <div className="flex items-center gap-1.5 rounded-xl border border-ink-800 bg-ink-950 p-1">
               {TOOLS.map((tool) => {
                 const isSelected = activeTool === tool.id;
                 return (
@@ -575,8 +583,8 @@ export default function LiveDiffToolPage({
                     onClick={() => setActiveTool(tool.id)}
                     className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                       isSelected
-                        ? "bg-emerald-500 text-neutral-950 shadow-sm"
-                        : "text-neutral-400 hover:text-white"
+                        ? "bg-accent-500 text-chrome-950 shadow-sm"
+                        : "text-ink-400 hover:text-ink-50"
                     }`}
                   >
                     <span>{tool.icon}</span>
@@ -589,7 +597,7 @@ export default function LiveDiffToolPage({
             <button
               type="button"
               onClick={() => setIsToolModalOpen(false)}
-              className="rounded-lg border border-neutral-800 bg-neutral-900 p-2 text-neutral-400 hover:bg-neutral-800 hover:text-white transition-colors"
+              className="rounded-lg border border-ink-800 bg-ink-900 p-2 text-ink-400 hover:bg-ink-800 hover:text-ink-50 transition-colors"
               aria-label="Close modal"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -601,42 +609,42 @@ export default function LiveDiffToolPage({
           {/* Modal Tool Workspace Content */}
           <div className="flex flex-1 flex-col overflow-hidden">
             {isRestoringShare && (
-              <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-center text-xs text-neutral-400">
+              <div className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-center text-xs text-ink-400">
                 Loading shared diff…
               </div>
             )}
             {isSharedView && !isRestoringShare && !restoreError && (
-              <div className="border-b border-neutral-800 bg-neutral-900 px-4 py-1.5 text-center text-[11px] text-neutral-400">
+              <div className="border-b border-ink-800 bg-ink-900 px-4 py-1.5 text-center text-[11px] text-ink-400">
                 <b><i>Checking diffs is free. Want to have a workspaces, projects, versioning and approvals before shipping?{" "} </i></b>
-                <a href="/#early-access" className="font-medium text-emerald-400 hover:text-emerald-300">
+                <a href="/#early-access" className="font-medium text-accent-400 hover:text-accent-300">
                   Try Meshdiff Pro
                 </a>
               </div>
             )}
 
             {/* Action Toolbar */}
-            <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4 py-2 text-xs">
+            <div className="flex items-center justify-between border-b border-ink-800 bg-ink-950 px-4 py-2 text-xs">
               <div className="flex items-center gap-3">
                 {activeTool === "compare" ? (
                   <>
                     <button
                       type="button"
                       onClick={() => viewerARef.current?.openFileDialog()}
-                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+                      className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
                     >
                       + Version A
                     </button>
                     <button
                       type="button"
                       onClick={() => viewerBRef.current?.openFileDialog()}
-                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+                      className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
                     >
                       + Version B
                     </button>
                     <select
                       value={selectedDemo}
                       onChange={(e) => setSelectedDemo(e.target.value as "simple" | "bracket" | "gear")}
-                      className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+                      className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                     >
                       <option value="simple">Simple Bracket</option>
                       <option value="bracket">Complex Bracket</option>
@@ -648,70 +656,53 @@ export default function LiveDiffToolPage({
                         viewerARef.current?.loadDemo();
                         viewerBRef.current?.loadDemo();
                       }}
-                      className="rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-emerald-300 hover:border-emerald-400"
+                      className="rounded border border-accent-500/40 bg-accent-500/10 px-2 py-1 text-accent-300 hover:border-accent-400"
                     >
                       Load Demo
                     </button>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isSyncEnabled}
-                        onChange={(e) => setIsSyncEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-neutral-700 bg-neutral-950 accent-emerald-500"
-                      />
-                      <span className="text-xs text-neutral-300">Locked views</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // The diff pane has its own Zoom to Model button
-                        // (see DiffView.tsx) — this one only needs to cover
-                        // the two individual model viewers.
-                        viewerARef.current?.zoomToFit();
-                        viewerBRef.current?.zoomToFit();
-                      }}
-                      title="Zoom to fit both models in view"
-                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
-                    >
-                      Zoom to Models
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // The diff pane has its own Reset View button (see
-                        // DiffView.tsx) — this one only needs to cover the
-                        // two individual model viewers.
-                        viewerARef.current?.resetView();
-                        viewerBRef.current?.resetView();
-                      }}
-                      title="Reset both model views to how they loaded"
-                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
-                    >
-                      ⟲ Reset Views
-                    </button>
-                    <ControlSchemeSelect />
                   </>
                 ) : (
                   <button
                     type="button"
                     onClick={() => measureViewerRef.current?.openFileDialog()}
-                    className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
+                    className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
                   >
                     + Load Model
                   </button>
                 )}
-                <span className="text-neutral-500 hidden sm:inline">
-                  STL · 3MF · OBJ — parsed locally, in-browser
-                </span>
               </div>
+              {activeTool === "compare" && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!fileA || !fileB}
+                    onClick={() => {
+                      setShareUrl(null);
+                      setShareError(null);
+                      setIsShareModalOpen(true);
+                    }}
+                    className="rounded border border-ink-700 px-3 py-1.5 text-ink-200 hover:border-ink-500 disabled:cursor-not-allowed disabled:text-ink-600"
+                  >
+                    Share This Diff
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!stats}
+                    onClick={handleDownloadReport}
+                    className="rounded bg-accent-500 px-3 py-1.5 font-medium text-chrome-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-ink-800 disabled:text-ink-600"
+                  >
+                    Download Report
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Privacy Banner */}
-            <div className="border-b border-emerald-500/20 bg-emerald-500/5 px-4 py-1.5 text-center text-[11px]">
-              <span className="font-medium text-emerald-300">
+            <div className="border-b border-accent-500/20 bg-accent-500/5 px-4 py-1.5 text-center text-[11px]">
+              <span className="font-medium text-accent-300">
                 🔒 {activeTool === "compare" ? "Diffing" : "Viewing"} runs entirely client-side.
               </span>{" "}
-              <span className="text-emerald-300/60">
+              <span className="text-accent-300/60">
                 {activeTool === "compare"
                   ? "Nothing you drop here is uploaded unless you explicitly create a share link."
                   : "Nothing you drop here is ever uploaded."}
@@ -774,6 +765,8 @@ export default function LiveDiffToolPage({
                       onModeChange={setMode}
                       toleranceMm={toleranceMm}
                       onToleranceChange={setToleranceMm}
+                      alignment={alignment}
+                      onAlignmentChange={setAlignment}
                       syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
                       onCameraChange={handleCameraChange}
                       isSyncEnabled={isSyncEnabled}
@@ -783,36 +776,36 @@ export default function LiveDiffToolPage({
                   {stats ? (
                     <>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-                          <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Added voxels
                           </div>
-                          <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+                          <div className={`mt-0.5 text-lg font-semibold ${diffColors.addedTextClass}`}>
                             +{stats.addedCount.toLocaleString()}
                           </div>
                         </div>
-                        <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-                          <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Removed voxels
                           </div>
-                          <div className="mt-0.5 text-lg font-semibold text-red-400">
+                          <div className={`mt-0.5 text-lg font-semibold ${diffColors.removedTextClass}`}>
                             -{stats.removedCount.toLocaleString()}
                           </div>
                         </div>
-                        <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-                          <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Volume delta
                           </div>
-                          <div className="mt-0.5 text-lg font-semibold text-neutral-100">
+                          <div className="mt-0.5 text-lg font-semibold text-ink-100">
                             {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
                             {stats.approxVolumeDeltaPercent.toFixed(1)}%
                           </div>
                         </div>
-                        <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-                          <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                          <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Tolerance
                           </div>
-                          <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+                          <div className="mt-0.5 text-lg font-semibold text-ink-100">
                             {stats.toleranceMm.toFixed(2)} mm
                           </div>
                         </div>
@@ -820,45 +813,22 @@ export default function LiveDiffToolPage({
                       <button
                         type="button"
                         onClick={() => setShowDetailedStats(!showDetailedStats)}
-                        className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+                        className="rounded border border-ink-700 bg-ink-900 px-3 py-2 text-center text-xs text-ink-400 hover:border-ink-500 hover:text-ink-200"
                       >
                         {showDetailedStats ? "Hide" : "Show"} Detailed Stats
                       </button>
                     </>
                   ) : (
-                    <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
+                    <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2 text-center text-xs text-ink-500">
                       Load both versions to see diff stats
                     </div>
                   )}
 
                   {showDetailedStats && stats && (
-                    <div className="rounded border border-neutral-800 bg-neutral-900 p-3">
+                    <div className="rounded border border-ink-800 bg-ink-900 p-3">
                       <DetailedStatsPanel stats={stats} hasComparison boundingBoxB={boundingBoxB} />
                     </div>
                   )}
-
-                  <div className="flex items-center justify-end gap-2 text-xs">
-                    <button
-                      type="button"
-                      disabled={!fileA || !fileB}
-                      onClick={() => {
-                        setShareUrl(null);
-                        setShareError(null);
-                        setIsShareModalOpen(true);
-                      }}
-                      className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
-                    >
-                      Share This Diff
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!stats}
-                      onClick={handleDownloadReport}
-                      className="rounded bg-emerald-500 px-3 py-1.5 font-medium text-neutral-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-600"
-                    >
-                      Download Report
-                    </button>
-                  </div>
                 </>
               )}
             </section>

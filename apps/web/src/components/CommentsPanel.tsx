@@ -1,14 +1,20 @@
-import { useState } from "react";
 import type { CommentSummary } from "../lib/projectsApi";
 
 interface CommentsPanelProps {
   comments: CommentSummary[];
   isPlacingComment: boolean;
   onTogglePlacing: () => void;
-  /** Set once the user has clicked a point on the mesh, awaiting the comment text. */
+  /** Set once the user has clicked a point on the mesh — the actual text
+   * entry happens in PendingCommentPopover, right next to the pin. */
   pendingPosition: [number, number, number] | null;
-  onSubmitComment: (body: string) => Promise<void>;
   onCancelPending: () => void;
+  /** Comment whose pin is currently hovered/highlighted, for bidirectional highlight with the 3D pins. */
+  highlightedCommentId?: string | null;
+  onHoverComment?: (commentId: string | null) => void;
+  /** Clicking a row opens (and pins open) that comment's popover on the model, same as clicking its pin directly. */
+  onSelectComment?: (commentId: string) => void;
+  canDeleteComment?: (comment: CommentSummary) => boolean;
+  onRequestDelete?: (comment: CommentSummary) => void;
 }
 
 function formatDate(iso: string): string {
@@ -25,26 +31,18 @@ export default function CommentsPanel({
   isPlacingComment,
   onTogglePlacing,
   pendingPosition,
-  onSubmitComment,
   onCancelPending,
+  highlightedCommentId,
+  onHoverComment,
+  onSelectComment,
+  canDeleteComment,
+  onRequestDelete,
 }: CommentsPanelProps) {
-  const [text, setText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!text.trim()) return;
-    setIsSubmitting(true);
-    await onSubmitComment(text.trim());
-    setIsSubmitting(false);
-    setText("");
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          Comments <span className="text-neutral-600">({comments.length})</span>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+          Comments <span className="text-ink-600">({comments.length})</span>
         </h3>
         <button
           type="button"
@@ -52,7 +50,7 @@ export default function CommentsPanel({
           className={`rounded border px-2 py-0.5 text-[11px] ${
             isPlacingComment
               ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-              : "border-neutral-700 text-neutral-400 hover:border-neutral-500"
+              : "border-ink-700 text-ink-400 hover:border-ink-500"
           }`}
         >
           {isPlacingComment ? "Click the model…" : "+ Add Comment"}
@@ -60,50 +58,58 @@ export default function CommentsPanel({
       </div>
 
       {pendingPosition && (
-        <form onSubmit={handleSubmit} className="mt-2 rounded border border-indigo-800 bg-indigo-950/30 p-2">
-          <p className="text-[11px] text-neutral-500">
-            Pinned at ({pendingPosition[0].toFixed(1)}, {pendingPosition[1].toFixed(1)},{" "}
-            {pendingPosition[2].toFixed(1)})
-          </p>
-          <textarea
-            autoFocus
-            required
-            rows={2}
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            placeholder="Leave a comment at this point…"
-            className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-600"
-          />
-          <div className="mt-1.5 flex gap-1.5">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-            >
-              {isSubmitting ? "Posting…" : "Post"}
-            </button>
-            <button
-              type="button"
-              onClick={onCancelPending}
-              className="rounded border border-neutral-700 px-2 py-1 text-[11px] text-neutral-300 hover:border-neutral-500"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+        <div className="mt-2 flex items-center justify-between gap-2 rounded border border-indigo-800 bg-indigo-950/30 px-2 py-1.5">
+          <p className="text-[11px] text-ink-400">Type your comment in the box next to the pin.</p>
+          <button
+            type="button"
+            onClick={onCancelPending}
+            className="shrink-0 rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
+          >
+            Cancel
+          </button>
+        </div>
       )}
 
       <div className="mt-2 flex flex-col gap-1.5">
         {comments.length === 0 && !pendingPosition && (
-          <p className="text-xs text-neutral-600">No comments yet.</p>
+          <p className="text-xs text-ink-600">No comments yet.</p>
         )}
         {comments.map((comment) => (
-          <div key={comment.id} className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5">
-            <div className="flex items-center gap-1 text-[10px] text-neutral-500">
-              <span>📍</span>
-              <span>{formatDate(comment.createdAt)}</span>
+          <div
+            key={comment.id}
+            onMouseEnter={() => onHoverComment?.(comment.id)}
+            onMouseLeave={() => onHoverComment?.(null)}
+            onClick={() => onSelectComment?.(comment.id)}
+            className={`rounded border px-2 py-1.5 transition-colors ${onSelectComment ? "cursor-pointer" : ""} ${
+              highlightedCommentId === comment.id
+                ? "border-indigo-500 bg-indigo-950/40"
+                : "border-ink-800 bg-ink-900"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex min-w-0 items-center gap-1 text-[10px] text-ink-500">
+                <span>📍</span>
+                <span className="min-w-0 truncate">
+                  <span className="font-medium text-ink-400">{comment.authorEmail ?? "Someone"}</span>
+                  {" · "}
+                  {formatDate(comment.createdAt)}
+                </span>
+              </div>
+              {canDeleteComment?.(comment) && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRequestDelete?.(comment);
+                  }}
+                  title="Delete comment"
+                  className="rounded px-1 text-[11px] text-ink-600 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  🗑
+                </button>
+              )}
             </div>
-            <p className="mt-0.5 text-xs text-neutral-200">{comment.body}</p>
+            <p className="mt-0.5 text-xs text-ink-200">{comment.body}</p>
           </div>
         ))}
       </div>

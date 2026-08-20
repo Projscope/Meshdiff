@@ -32,13 +32,13 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS ?? "")
   .filter(Boolean);
 
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
-  pass: "bg-emerald-500",
+  pass: "bg-accent-500",
   warn: "bg-amber-500",
   fail: "bg-red-500",
 };
 
 function ProjectStatusDot({ status }: { status: "pass" | "warn" | "fail" | null }) {
-  return <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status ? STATUS_DOT[status] : "bg-neutral-600"}`} />;
+  return <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status ? STATUS_DOT[status] : "bg-ink-600"}`} />;
 }
 
 function formatRenewalDate(iso: string): string {
@@ -57,7 +57,11 @@ export function useRefreshProjectsSidebar(): () => void {
 // Lets nested pages (currently just ProjectsListPage, the one page that
 // still renders normally for a restricted account — see the route-level
 // lock below) react to subscription state without a second
-// GET /billing/subscription call of their own.
+// GET /billing/subscription call of their own. Despite the name, isPro
+// means "has full paid access" — true for Pro, for a Team subscription's
+// owner, and for a team member riding the owner's seats (mirrors the
+// backend's getAccountAccess().status==='pro', not a raw tier check —
+// see ProjectDetailPage.tsx/ProjectsListPage.tsx's upload/create gating).
 const AccountStatusContext = createContext<{ isRestricted: boolean; isPro: boolean }>({ isRestricted: false, isPro: false });
 export function useAccountStatus(): { isRestricted: boolean; isPro: boolean } {
   return useContext(AccountStatusContext);
@@ -78,8 +82,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [teams, setTeams] = useState<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // null = closed, "new" = create-team modal, otherwise a team id to manage.
-  const [teamModal, setTeamModal] = useState<"new" | string | null>(null);
+  // TeamModal is create-only now — managing an existing team is a full page
+  // at /teams/:teamId (see TeamDashboardPage.tsx) instead of this popup.
+  const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showUpgradeToPro, setShowUpgradeToPro] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("My Workspace");
@@ -98,14 +103,14 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
 
-  // Creating a team is a Team-plan feature. Until Stripe billing is wired up,
-  // use existing team membership as a stand-in signal for "already on Team" —
-  // a Pro user with no teams gets prompted to upgrade instead of a create form.
+  // Creating a team is a Team-plan feature, gated on the real subscription
+  // tier — a non-Team user (Free or Pro) gets prompted to upgrade instead
+  // of a create form.
   function handleCreateTeamClick() {
-    if (teams.length === 0) {
+    if (subscription?.tier !== "team") {
       setShowUpgrade(true);
     } else {
-      setTeamModal("new");
+      setShowCreateTeam(true);
     }
   }
 
@@ -174,7 +179,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     if (!checkout) return;
 
     if (checkout === "success") {
-      setNotice({ type: "success", message: "You're now on the Pro plan." });
+      // Which tier this checkout was for isn't known from the redirect URL
+      // alone (Stripe's success_url is the same for both — see
+      // billing.ts's /billing/checkout) — show a tier-neutral message until
+      // the subscription poll below resolves the real tier.
+      setNotice({ type: "success", message: "Activating your plan…" });
       // The Stripe webhook that records the subscription can take several
       // seconds. Retry aggressively for up to 10 seconds with exponential backoff.
       const retryGetSubscription = async () => {
@@ -182,8 +191,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         for (let i = 0; i < delays.length; i++) {
           await new Promise((resolve) => setTimeout(resolve, delays[i]));
           const result = await getSubscription();
-          if (result.success && result.data.tier === "pro") {
+          if (result.success && (result.data.tier === "pro" || result.data.tier === "team")) {
             setSubscription(result.data);
+            setNotice({
+              type: "success",
+              message: result.data.tier === "team" ? "You're now on the Team plan." : "You're now on the Pro plan.",
+            });
             return;
           }
         }
@@ -239,24 +252,32 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
 
-  // Team membership is still a proxy for "Team plan" (Team billing isn't
-  // built yet — see handleCreateTeamClick() above, same signal). Pro is now
-  // real: subscription.tier comes straight from the subscriptions table via
-  // GET /billing/subscription.
-  const isTeamMember = teams.length > 0;
+  // isTeamMember is a display-only signal, true for the paying owner AND
+  // any invited member riding their seats. It's OR'd with
+  // subscription.tier==='team' below because a fresh Team subscriber isn't
+  // a team_members row yet until they actually create their team (teams
+  // and subscriptions are separate — see billing.ts) — without the OR,
+  // someone who just paid for Team but hasn't created a team yet would
+  // wrongly show as "Free".
+  const isTeamMember = teams.length > 0 || subscription?.tier === "team";
   const isPro = subscription?.tier === "pro";
   // No trial — a non-Pro, non-team account is restricted from day one (see
   // requireActiveAccess.ts). Stays false until the subscription fetch
   // resolves, so the sidebar doesn't flash a locked state on first load.
   const isRestricted = subscription?.accountStatus === "restricted";
+  // Distinct from isTeamMember: a regular team member (not the owner) has
+  // no subscription/stripe_customers row of their own, so /billing/portal
+  // would 404 for them — only the actual subscriber (Pro or Team) gets the
+  // Manage/Cancel/Resume controls below.
+  const isBillingOwner = subscription?.tier === "pro" || subscription?.tier === "team";
   const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : "Free";
   const planTextClass = isTeamMember
     ? "text-violet-400"
     : isPro
-      ? "text-emerald-400"
+      ? "text-accent-400"
       : isRestricted
         ? "text-red-400"
-        : "text-neutral-300";
+        : "text-ink-300";
 
   // The sidebar's own nav is alphabetical (unlike the /projects grid page,
   // which is newest-first) — sort here at render time rather than in
@@ -272,23 +293,23 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
-    <AccountStatusContext.Provider value={{ isRestricted, isPro }}>
-      <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-100 md:flex-row">
+    <AccountStatusContext.Provider value={{ isRestricted, isPro: subscription?.accountStatus === "pro" }}>
+      <div className="flex min-h-screen flex-col bg-ink-950 text-ink-100 md:flex-row">
         {/* Mobile-only top bar — the sidebar below becomes a hidden overlay
             under the md breakpoint, so this is the only way to open it or
             see the logo on a phone-width screen. */}
-        <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3 md:hidden">
+        <div className="flex items-center justify-between border-b border-ink-800 px-4 py-3 md:hidden">
           <Link to="/" className="flex items-center gap-2">
-            <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-neutral-950">
+            <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-accent-500 text-chrome-950">
               <span className="text-sm font-bold leading-none">^</span>
             </div>
-            <h1 className="text-sm font-semibold text-white">Meshdiff</h1>
+            <h1 className="font-display text-sm font-semibold text-ink-50">Meshdiff</h1>
           </Link>
           <button
             type="button"
             onClick={() => setIsSidebarOpen((open) => !open)}
             aria-label="Toggle navigation menu"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink-800 text-ink-400 hover:bg-ink-800 hover:text-ink-50"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
               {isSidebarOpen ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
@@ -304,16 +325,16 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
         )}
 
         <aside
-          className={`${isSidebarOpen ? "flex" : "hidden"} fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-neutral-800 bg-neutral-950 md:static md:z-auto md:flex md:w-64 md:shrink-0`}
+          className={`${isSidebarOpen ? "flex" : "hidden"} fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-ink-800 bg-ink-950 md:static md:z-auto md:flex md:w-64 md:shrink-0`}
         >
-          <Link to="/" className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
-            <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-neutral-950">
+          <Link to="/" className="flex items-center gap-2 border-b border-ink-800 px-4 py-3">
+            <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-accent-500 text-chrome-950">
               <span className="text-sm font-bold leading-none">^</span>
             </div>
-            <h1 className="text-sm font-semibold text-white">Meshdiff</h1>
+            <h1 className="font-display text-sm font-semibold text-ink-50">Meshdiff</h1>
           </Link>
 
-          <div className="border-b border-neutral-800 px-4 py-3">
+          <div className="border-b border-ink-800 px-4 py-3">
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -329,11 +350,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className={`h-3 w-3 shrink-0 text-neutral-600 transition-transform ${isProjectsExpanded ? "rotate-90" : ""}`}
+                  className={`h-3 w-3 shrink-0 text-ink-600 transition-transform ${isProjectsExpanded ? "rotate-90" : ""}`}
                 >
                   <path d="m9 18 6-6-6-6" />
                 </svg>
-                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-widest text-neutral-600">
+                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-widest text-ink-600">
                   {workspaceName}
                 </span>
               </button>
@@ -341,7 +362,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setIsEditWorkspaceOpen(true)}
                 title="Rename workspace"
-                className="shrink-0 rounded p-0.5 text-neutral-600 hover:bg-neutral-800 hover:text-neutral-300"
+                className="shrink-0 rounded p-0.5 text-ink-600 hover:bg-ink-800 hover:text-ink-300"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -356,11 +377,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               // A tinted background groups this block visually under the
               // workspace header above it (parent/child), instead of a
               // connector line.
-              <div className="rounded-md bg-neutral-900/40 py-1">
+              <div className="rounded-md bg-ink-900/40 py-1">
                 <div className="flex items-center justify-between px-2">
                   <Link
                     to="/projects"
-                    className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600 hover:text-neutral-300"
+                    className="text-[10px] font-semibold uppercase tracking-widest text-ink-600 hover:text-ink-300"
                   >
                     Projects
                   </Link>
@@ -369,7 +390,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       type="button"
                       onClick={() => setIsModalOpen(true)}
                       title="New project"
-                      className="flex h-5 w-5 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-white"
+                      className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                     >
                       +
                     </button>
@@ -383,20 +404,20 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       value={projectSearch}
                       onChange={(e) => setProjectSearch(e.target.value)}
                       placeholder="Search projects…"
-                      className="w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-300 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none"
+                      className="w-full rounded border border-ink-800 bg-ink-900 px-2 py-1 text-xs text-ink-300 placeholder:text-ink-600 focus:border-ink-600 focus:outline-none"
                     />
                   </div>
                 )}
 
                 <div className="mt-2 flex flex-col gap-0.5">
                   {sortedProjects === null && (
-                    <p className="px-2 py-1.5 text-xs text-neutral-600">Loading…</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">Loading…</p>
                   )}
                   {sortedProjects?.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-neutral-600">No projects yet.</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">No projects yet.</p>
                   )}
                   {sortedProjects !== null && sortedProjects.length > 0 && visibleProjects?.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-neutral-600">No projects match "{projectSearch}".</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">No projects match "{projectSearch}".</p>
                   )}
                   {visibleProjects?.map((project) => {
                     const isActive = project.id === projectId;
@@ -405,12 +426,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                         key={project.id}
                         to={`/projects/${project.id}`}
                         className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm ${
-                          isActive ? "bg-neutral-800 text-white" : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                          isActive ? "bg-ink-800 text-ink-50" : "text-ink-400 hover:bg-ink-900 hover:text-ink-200"
                         }`}
                       >
                         <ProjectStatusDot status={project.latestPrintabilityStatus} />
                         <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                        <span className="shrink-0 text-[11px] text-neutral-600">{project.versionCount}</span>
+                        <span className="shrink-0 text-[11px] text-ink-600">{project.versionCount}</span>
                       </Link>
                     );
                   })}
@@ -418,50 +439,42 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               </div>
             )}
 
-            {/* Team is a separate, not-yet-purchasable tier from Pro (see
-                CLAUDE.md's pricing table) — a Pro user with no teams would
-                only ever see a "+" that dead-ends into an Upgrade-to-Team
-                prompt for a plan they can't actually buy yet, so hide the
-                whole section for them. Still shown for Free/restricted
-                users (their "+" correctly points at upgrading to Pro
-                first) and for anyone who already belongs to a team, so
-                existing team access is never hidden. */}
-            {(!isPro || teams.length > 0) && (
-              <>
+            {/* Team billing is real now — anyone (Free, Pro, or already on
+                a team) can click "+" to buy Team directly, so the section
+                is always shown; the button itself just gates on whether
+                they're already the Team subscriber (in which case "+"
+                opens the create-team form instead of a checkout prompt). */}
+            <>
                 <div className="mt-4 flex items-center justify-between px-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Teams</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">Teams</span>
                   <button
                     type="button"
                     onClick={handleCreateTeamClick}
-                    disabled={!isPro}
-                    title={!isPro ? "Upgrade to Pro to create teams" : "New team"}
-                    className={`flex h-5 w-5 items-center justify-center rounded ${
-                      isPro ? "text-neutral-500 hover:bg-neutral-800 hover:text-white" : "text-neutral-700 cursor-not-allowed"
-                    }`}
+                    title={subscription?.tier === "team" ? "New team" : "Upgrade to the Team plan to create a team"}
+                    className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                   >
                     +
                   </button>
                 </div>
                 <div className="mt-2 flex flex-col gap-0.5">
                   {teams.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-neutral-600">No teams yet.</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">No teams yet.</p>
                   )}
                   {teams.map((team) => (
                     <button
                       key={team.id}
                       type="button"
-                      onClick={() => setTeamModal(team.id)}
-                      className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                      onClick={() => navigate(`/teams/${team.id}`)}
+                      className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-ink-400 hover:bg-ink-900 hover:text-ink-200"
                     >
                       <span className="min-w-0 flex-1 truncate">{team.name}</span>
-                      <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[9px] uppercase text-neutral-500">
+                      <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[9px] uppercase text-ink-500">
                         {team.myRole}
                       </span>
                     </button>
                   ))}
                 </div>
               </>
-            )}
 
             {isAdmin && (
               <>
@@ -480,25 +493,25 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      className={`h-3 w-3 shrink-0 text-neutral-600 transition-transform ${isAdminExpanded ? "rotate-90" : ""}`}
+                      className={`h-3 w-3 shrink-0 text-ink-600 transition-transform ${isAdminExpanded ? "rotate-90" : ""}`}
                     >
                       <path d="m9 18 6-6-6-6" />
                     </svg>
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Admin</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">Admin</span>
                   </button>
                 </div>
                 {isAdminExpanded && (
-                <div className="mt-2 rounded-md bg-neutral-900/40 py-1">
+                <div className="mt-2 rounded-md bg-ink-900/40 py-1">
                   <div className="flex flex-col gap-0.5">
                     <Link
                       to="/admin"
-                      className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
                       Dashboard
                     </Link>
                     <Link
                       to="/admin/users"
-                      className="rounded px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
                       Users
                     </Link>
@@ -509,9 +522,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             )}
           </nav>
 
-          <div className="border-t border-neutral-800 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">Billing</p>
-            <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2">
+          <div className="border-t border-ink-800 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">Billing</p>
+            <div className="mt-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
                 {!isTeamMember && !isPro && (
@@ -519,30 +532,30 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     type="button"
                     onClick={() => setShowUpgradeToPro(true)}
                     className={`shrink-0 text-[11px] font-medium ${
-                      isRestricted ? "text-red-400 hover:text-red-300" : "text-emerald-400 hover:text-emerald-300"
+                      isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
                     }`}
                   >
                     Upgrade
                   </button>
                 )}
               </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
-                {isTeamMember
-                  ? "Belongs to a team — Team billing isn't wired up yet."
-                  : isPro
-                    ? subscription?.cancelAtPeriodEnd
-                      ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
-                      : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
+              <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+                {isBillingOwner
+                  ? subscription?.cancelAtPeriodEnd
+                    ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
+                    : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
+                  : isTeamMember
+                    ? "Access via your team's plan."
                     : isRestricted
                       ? "Subscribe to keep using Meshdiff — you can still sign in and delete projects."
                       : "Project workspaces, version history, and comment pins — $15/mo."}
               </p>
-              {isPro && (
+              {isBillingOwner && (
                 <div className="mt-2 flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => void handleManageBilling()}
-                    className="text-[11px] font-medium text-neutral-400 hover:text-neutral-200"
+                    className="text-[11px] font-medium text-ink-400 hover:text-ink-200"
                   >
                     Manage
                   </button>
@@ -551,7 +564,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       type="button"
                       onClick={() => void handleResume()}
                       disabled={isResuming}
-                      className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                      className="text-[11px] font-medium text-accent-400 hover:text-accent-300 disabled:opacity-50"
                     >
                       {isResuming ? "Resuming…" : "Resume"}
                     </button>
@@ -559,7 +572,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     <button
                       type="button"
                       onClick={() => setShowCancelConfirm(true)}
-                      className="text-[11px] font-medium text-neutral-500 hover:text-red-400"
+                      className="text-[11px] font-medium text-ink-500 hover:text-red-400"
                     >
                       Cancel
                     </button>
@@ -569,23 +582,23 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="relative border-t border-neutral-800 p-3">
+          <div className="relative border-t border-ink-800 p-3">
             <button
               type="button"
               onClick={() => setIsMenuOpen((open) => !open)}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-neutral-900"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-ink-900"
             >
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-700 text-[11px] font-semibold text-neutral-200">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">
                 {emailInitial}
               </div>
-              <span className="min-w-0 flex-1 truncate text-xs text-neutral-400">{user?.email ?? ""}</span>
+              <span className="min-w-0 flex-1 truncate text-xs text-ink-400">{user?.email ?? ""}</span>
             </button>
             {isMenuOpen && (
-              <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 shadow-xl">
+              <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-ink-800 bg-ink-900 shadow-xl">
                 <button
                   type="button"
                   onClick={() => void handleSignOut()}
-                  className="w-full px-3 py-2 text-left text-xs text-neutral-300 hover:bg-neutral-800"
+                  className="w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
                 >
                   Sign Out
                 </button>
@@ -602,10 +615,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           <div
             className={`fixed right-4 top-4 z-40 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg ${
               notice.type === "success"
-                ? "border-emerald-800 bg-emerald-950/90 text-emerald-300"
+                ? "border-accent-800 bg-accent-950/90 text-accent-300"
                 : notice.type === "error"
                   ? "border-red-800 bg-red-950/90 text-red-300"
-                  : "border-neutral-700 bg-neutral-900/95 text-neutral-300"
+                  : "border-ink-700 bg-ink-900/95 text-ink-300"
             }`}
           >
             <div className="flex items-start justify-between gap-3">
@@ -613,7 +626,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setNotice(null)}
-                className="shrink-0 text-neutral-500 hover:text-neutral-300"
+                className="shrink-0 text-ink-500 hover:text-ink-300"
               >
                 ×
               </button>
@@ -632,13 +645,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           />
         )}
 
-        {teamModal && (
+        {showCreateTeam && (
           <TeamModal
-            teamId={teamModal === "new" ? null : teamModal}
-            onClose={() => setTeamModal(null)}
+            onClose={() => setShowCreateTeam(false)}
             onCreated={(team) => {
               setTeams((prev) => [...prev, { ...team, myRole: "admin" }]);
-              setTeamModal(null);
+              setShowCreateTeam(false);
+              navigate(`/teams/${team.id}`);
             }}
           />
         )}

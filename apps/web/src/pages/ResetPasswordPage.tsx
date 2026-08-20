@@ -37,24 +37,24 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-neutral-800 bg-neutral-900 p-6">
-        <h1 className="text-lg font-semibold text-white">Set a new password</h1>
+    <div className="flex min-h-screen items-center justify-center bg-ink-950 px-4">
+      <div className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6">
+        <h1 className="text-lg font-semibold text-ink-50">Set a new password</h1>
 
         {isDone ? (
           <>
-            <p className="mt-2 text-sm text-emerald-400">Password updated — you're signed in.</p>
+            <p className="mt-2 text-sm text-accent-400">Password updated — you're signed in.</p>
             <button
               type="button"
               onClick={() => navigate("/projects")}
-              className="mt-4 w-full rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              className="mt-4 w-full rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-indigo-500"
             >
               Go to your projects
             </button>
           </>
         ) : (
           <>
-            <p className="mt-1 text-xs text-neutral-500">Choose a new password for your account.</p>
+            <p className="mt-1 text-xs text-ink-500">Choose a new password for your account.</p>
             <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2">
               <input
                 type="password"
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
                 placeholder="New password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+                className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
               />
               <input
                 type="password"
@@ -73,12 +73,12 @@ export default function ResetPasswordPage() {
                 placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                className="rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+                className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
               />
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="mt-1 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                className="mt-1 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
               >
                 {isSubmitting ? "Updating…" : "Update password"}
               </button>

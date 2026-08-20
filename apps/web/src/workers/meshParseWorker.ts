@@ -7,6 +7,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { DOMParser as LinkedomDOMParser } from "linkedom/worker";
 import { FastXmlDOMParser } from "@meshdiff/shared/engine/fastXmlDomParser";
 import { parseProductionThreeMF as parseProductionThreeMFImpl } from "@meshdiff/shared/engine/parseProductionThreeMF";
+import { repairMeshGeometry, type MeshRepairReport } from "@meshdiff/shared/engine/repairMesh";
 import type { Result } from "@meshdiff/shared/types/diff";
 
 // ThreeMFLoader calls `new DOMParser().parseFromString(...)` internally.
@@ -185,6 +186,7 @@ export interface ParsedMeshGeometry {
   positions: Float32Array;
   normals: Float32Array | null;
   index: Uint32Array | Uint16Array | null;
+  repair: MeshRepairReport;
 }
 
 export interface MeshParseWorkerResponse {
@@ -205,7 +207,10 @@ ctx.onmessage = (event: MessageEvent<MeshParseWorkerRequest>) => {
       return;
     }
 
-    const geometry = result.data;
+    // Weld/degenerate-strip/manifold-check runs once here, off-main-thread,
+    // right after parsing — see repairMesh.ts. Every downstream consumer
+    // (diffing, measuring, rendering) gets the cleaned geometry for free.
+    const { geometry, report } = repairMeshGeometry(result.data);
     const position = geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
     if (!position) {
       ctx.postMessage({ id, result: { success: false, error: "parsed geometry has no position attribute" } }, []);
@@ -222,6 +227,6 @@ ctx.onmessage = (event: MessageEvent<MeshParseWorkerRequest>) => {
     if (normals) transfer.push(normals.buffer);
     if (index) transfer.push(index.buffer);
 
-    ctx.postMessage({ id, result: { success: true, data: { positions, normals, index } } }, transfer);
+    ctx.postMessage({ id, result: { success: true, data: { positions, normals, index, repair: report } } }, transfer);
   });
 };

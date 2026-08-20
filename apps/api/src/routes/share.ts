@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { getSupabase } from "../lib/supabase.js";
 import { sanitizeFilename, extensionOf } from "../lib/filename.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { getUserTier } from "../lib/subscription.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
@@ -46,6 +46,8 @@ function validateFile(file: FileMeta | undefined, label: string): string | null 
 }
 
 export default async function shareRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   app.post<{ Body: CreateShareBody }>("/share", async (request, reply) => {
     const { mode, toleranceMm, expiresInDays, fileA, fileB } = request.body ?? {};
 
@@ -72,12 +74,7 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
       return { success: false, error: fileBError };
     }
 
-    const supabase = getSupabase();
-    if (!supabase) {
-      app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-      reply.code(500);
-      return { success: false, error: "Sharing is not configured" };
-    }
+    const supabase = request.supabase!;
 
     const id = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + expiresInDays! * 24 * 60 * 60 * 1000).toISOString();
@@ -146,12 +143,7 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
   });
 
   app.get<{ Params: { id: string } }>("/share/:id", async (request, reply) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-      reply.code(500);
-      return { success: false, error: "Sharing is not configured" };
-    }
+    const supabase = request.supabase!;
 
     try {
       const { data: row, error } = await supabase
@@ -226,12 +218,7 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
         return { success: false, error: "expiresInDays must be 1, 3, or 7" };
       }
 
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Sharing is not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const [versionAResult, versionBResult] = await Promise.all([

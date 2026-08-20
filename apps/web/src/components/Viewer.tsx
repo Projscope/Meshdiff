@@ -1,130 +1,22 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import type { DragEvent } from "react";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { Bounds, Grid, OrbitControls } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { Bounds } from "@react-three/drei";
 import * as THREE from "three";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { loadMeshForDisplay } from "../engine/load3mfDisplayExtras";
 import AxisLegend from "./AxisLegend";
-import AxisLabels from "./AxisLabels";
+import ModelScene from "./ModelScene";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
-import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
-
-interface CameraSyncProps {
-  syncedCameraState: { position: [number, number, number]; target: [number, number, number] } | undefined;
-  onCameraChange: ((state: { position: [number, number, number]; target: [number, number, number] }) => void) | undefined;
-  isSyncEnabled: boolean;
-  zoomSpeed?: number;
-  rotateSpeed?: number;
-  onControlsReady?: (controls: any) => void;
-}
-
-function CameraSync({ syncedCameraState, onCameraChange, isSyncEnabled, zoomSpeed = 1, rotateSpeed = 1, onControlsReady }: CameraSyncProps) {
-  const { camera } = useThree();
-  const controlsRef = useRef<any>(null);
-  const readyRef = useRef(false);
-  const [controlScheme] = useControlScheme();
-  const mouseButtons = useOrbitMouseButtons(controlScheme);
-  const frameCountRef = useRef(0);
-  const lastPosRef = useRef(new THREE.Vector3());
-  const lastTargetRef = useRef(new THREE.Vector3());
-  const lastLocalPosRef = useRef(new THREE.Vector3());
-  const userInteractingRef = useRef(false);
-  const interactionCooldownRef = useRef(0);
-  const idleFramesRef = useRef(0);
-
-  useFrame(() => {
-    const controls = controlsRef.current;
-    if (!controls?.target) return;
-
-    // Set speeds every frame (safer than useEffect in R3F)
-    controls.zoomSpeed = zoomSpeed;
-    controls.rotateSpeed = rotateSpeed;
-
-    // Call onControlsReady once
-    if (!readyRef.current) {
-      readyRef.current = true;
-      lastPosRef.current.copy(camera.position);
-      lastTargetRef.current.copy(controls.target);
-      lastLocalPosRef.current.copy(camera.position);
-      onControlsReady?.(controls);
-    }
-
-    // Only do sync logic if sync is enabled
-    if (!isSyncEnabled) return;
-
-    frameCountRef.current++;
-
-    // Skip sync for first 60 frames (model loading phase to avoid shake)
-    const isLoading = frameCountRef.current < 60;
-
-    // Detect if user is actively rotating (not zooming)
-    // Zoom = distance from camera to target changed significantly
-    // Rotation = camera moved but distance to target stayed roughly same
-    const curDist = camera.position.distanceTo(controls.target);
-    const lastDist = lastLocalPosRef.current.distanceTo(controls.target);
-    const distanceChange = Math.abs(curDist - lastDist);
-    const positionMovement = camera.position.distanceTo(lastLocalPosRef.current);
-
-    // If distance changed a lot, it's zoom - don't block sync
-    // If position moved but distance didn't change much, it's rotation - block sync
-    if (positionMovement > 0.5 && distanceChange < 0.15) {
-      userInteractingRef.current = true;
-      interactionCooldownRef.current = 15;
-      idleFramesRef.current = 0;
-    }
-    if (interactionCooldownRef.current > 0) {
-      interactionCooldownRef.current--;
-    } else {
-      userInteractingRef.current = false;
-    }
-
-    // Track idle frames (no user interaction)
-    if (!userInteractingRef.current && positionMovement < 0.01) {
-      idleFramesRef.current++;
-    } else {
-      idleFramesRef.current = 0;
-    }
-    lastLocalPosRef.current.copy(camera.position);
-
-    // Broadcast local changes every frame
-    const curPos = camera.position;
-    const curTarget = controls.target;
-
-    const posChanged = !curPos.equals(lastPosRef.current);
-    const targetChanged = !curTarget.equals(lastTargetRef.current);
-
-    if (posChanged || targetChanged) {
-      lastPosRef.current.copy(curPos);
-      lastTargetRef.current.copy(curTarget);
-
-      onCameraChange?.({
-        position: curPos.toArray() as [number, number, number],
-        target: curTarget.toArray() as [number, number, number],
-      });
-    }
-
-    // Apply synced state: skip during loading, during rotation, and until truly idle (5+ idle frames)
-    if (syncedCameraState && !isLoading && !userInteractingRef.current && idleFramesRef.current >= 5 && frameCountRef.current % 2 === 0) {
-      camera.position.set(...syncedCameraState.position);
-      controls.target.set(...syncedCameraState.target);
-      controls.update();
-    }
-  });
-
-  return (
-    <OrbitControls
-      ref={controlsRef}
-      makeDefault
-      enableZoom={true}
-      enablePan={true}
-      enableRotate={true}
-      autoRotate={false}
-      mouseButtons={mouseButtons}
-    />
-  );
-}
+import CameraSync from "./CameraSync";
+import MeasureToolbar from "./MeasureToolbar";
+import MeasureSceneOverlay from "./MeasureSceneOverlay";
+import { useMeasureTool } from "../lib/useMeasureTool";
+import { meshRepairWarning } from "../lib/meshRepairMessage";
+import type { MeshRepairReport } from "@meshdiff/shared/engine/repairMesh";
+import { useShadingMode } from "../lib/shadingMode";
+import EdgeOverlay from "./EdgeOverlay";
 
 interface ViewerProps {
   label: string;
@@ -160,6 +52,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const [displayGeometry, setDisplayGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [meshWarning, setMeshWarning] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [zoomSpeed, setZoomSpeed] = useState(1);
@@ -171,14 +64,20 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
+  const measure = useMeasureTool();
+  const [shadingMode] = useShadingMode();
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
     if (result.success) {
       setGeometry(result.data);
+      let display = result.data;
       setDisplayGeometry(result.data);
       setHasVertexColors(false);
       setError(null);
+      const repair = result.data.userData.meshRepair as MeshRepairReport | undefined;
+      setMeshWarning(repair ? meshRepairWarning(repair) : null);
+      measure.clearMeasurement();
       // The diff engine gets the stripped position-only geometry regardless
       // of color — only the mesh actually rendered in this viewer swaps to
       // the colored version, and only if the file is 3MF with real color.
@@ -190,6 +89,9 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       // every corner, with a floor so a tiny part doesn't look cropped.
       result.data.computeBoundingBox();
       const box = result.data.boundingBox;
+      const boundingBoxSize: [number, number, number] = box
+        ? box.getSize(new THREE.Vector3()).toArray()
+        : [0, 0, 0];
       if (box) {
         setGridFadeDistance(Math.max(box.getSize(new THREE.Vector3()).length() * 1.5, 50));
       }
@@ -197,12 +99,19 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       if (file.name.toLowerCase().endsWith(".3mf")) {
         const colored = await loadMeshForDisplay(file);
         if (colored.success && colored.data.hasColor) {
+          display = colored.data.geometry;
           setDisplayGeometry(colored.data.geometry);
           setHasVertexColors(true);
         }
       }
+
+      // Uses whichever geometry actually ends up rendered/raycast against
+      // (the color-swapped 3MF version when applicable), so vertex/edge
+      // snapping matches what's on screen.
+      measure.setGeometry(display, boundingBoxSize);
     } else {
       setError(result.error);
+      setMeshWarning(null);
     }
   }
 
@@ -239,8 +148,14 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden rounded-lg border bg-neutral-950 ${
-        isDragOver ? "border-blue-500" : "border-neutral-800"
+      className={`relative h-full w-full overflow-hidden rounded-lg border bg-ink-950 ${
+        isDragOver
+          ? "border-blue-500"
+          : measure.isMeasuring && measure.measureMode === "radius"
+            ? "border-sky-500"
+            : measure.isMeasuring
+              ? "border-amber-500"
+              : "border-ink-800"
       }`}
       onDragOver={(event) => {
         event.preventDefault();
@@ -261,19 +176,27 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         }}
       />
       <div className="absolute left-3 top-2 z-10 flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
           {label}
         </span>
         <button
           type="button"
           onClick={() => setShowControls(!showControls)}
-          className="rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+          title="Rotate/zoom speed"
+          className="rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
         >
           ⚙
         </button>
+        {geometry && (
+          <MeasureToolbar
+            measure={measure}
+            onZoomToFit={() => zoomToFitRef.current?.()}
+            onResetView={() => resetViewRef.current?.()}
+          />
+        )}
       </div>
       {showControls && geometry && (
-        <div className="absolute left-3 top-8 z-20 rounded border border-neutral-700 bg-neutral-900 p-2 text-xs text-neutral-300">
+        <div className="absolute left-3 top-8 z-20 rounded border border-ink-700 bg-ink-900 p-2 text-xs text-ink-300">
           <div className="flex flex-col gap-1.5 w-32">
             <label className="flex items-center justify-between gap-2">
               <span>Rotate:</span>
@@ -302,22 +225,30 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
-              className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Zoom to model
             </button>
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
-              className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Reset view
             </button>
           </div>
         </div>
       )}
+      {meshWarning && geometry && (
+        <div
+          className="absolute left-3 right-3 top-9 z-10 truncate rounded bg-amber-950/70 px-2 py-1 text-[10px] text-amber-300"
+          title={meshWarning}
+        >
+          ⚠ {meshWarning}
+        </div>
+      )}
       {!geometry && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-ink-500">
           <span>{error ?? "Drop STL / OBJ / 3MF here"}</span>
           <div className="pointer-events-auto flex items-center gap-2">
             <button
@@ -326,7 +257,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 event.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white"
+              className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
             >
               Browse files
             </button>
@@ -338,7 +269,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                   void handleLoadDemo();
                 }}
                 disabled={isLoadingDemo}
-                className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white disabled:opacity-50"
+                className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50 disabled:opacity-50"
               >
                 {isLoadingDemo ? "Loading…" : "or load demo"}
               </button>
@@ -353,35 +284,38 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           canvasElRef.current = gl.domElement;
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 20, 10]} intensity={0.8} />
-        <Grid infiniteGrid fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />
-        {/* The grid is drei's default Y-up floor; this app's model data is
-            Z-up (see diffVoxels.ts's gravity vector), so the displayed
-            content is rotated -90° around X to lay it flat on that floor.
-            Purely a presentation transform — doesn't touch the geometry
-            used for diffing/printability. */}
-        <group rotation={[-Math.PI / 2, 0, 0]}>
-          <axesHelper args={[30]} />
-          <AxisLabels />
+        <ModelScene gridFadeDistance={gridFadeDistance}>
           {displayGeometry && (
             <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
               <ZoomToFitBridge zoomRef={zoomToFitRef} />
-              <mesh geometry={displayGeometry}>
+              <mesh
+                geometry={displayGeometry}
+                onClick={(event) => measure.onClick(event)}
+                onPointerMove={measure.onPointerMove}
+                onPointerOut={measure.onPointerOut}
+              >
                 {/* key forces a fresh material instance when hasVertexColors
-                    flips — mutating vertexColors on an already-compiled
-                    material in place doesn't recompile its shader, so the
-                    color attribute would silently be ignored otherwise. */}
+                    or shadingMode flips — mutating vertexColors/flatShading
+                    on an already-compiled material in place doesn't
+                    recompile its shader, so the change would silently be
+                    ignored otherwise. */}
                 <meshStandardMaterial
-                  key={hasVertexColors ? "vertex-colors" : "flat"}
+                  key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
                   color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                   vertexColors={hasVertexColors}
+                  flatShading={shadingMode === "flat"}
+                  transparent={shadingMode === "transparent"}
+                  opacity={shadingMode === "transparent" ? 0.4 : 1}
+                  depthWrite={shadingMode !== "transparent"}
+                  side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
                 />
               </mesh>
+              {shadingMode === "transparent" && <EdgeOverlay geometry={displayGeometry} />}
             </Bounds>
           )}
-        </group>
+          <MeasureSceneOverlay measure={measure} />
+        </ModelScene>
         <CameraSync
           syncedCameraState={syncedCameraState}
           onCameraChange={onCameraChange}

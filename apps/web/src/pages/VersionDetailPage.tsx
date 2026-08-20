@@ -2,17 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { Bounds, Grid, OrbitControls } from "@react-three/drei";
+import { Bounds, Line, OrbitControls } from "@react-three/drei";
 import {
   getVersion,
   getDiff,
   getProject,
   listComments,
   createComment,
+  deleteComment,
   type VersionDetail,
   type CommentSummary,
   type ProjectDetail,
 } from "../lib/projectsApi";
+import { useAuth } from "../lib/AuthProvider";
+import ConfirmDialog from "../components/ConfirmDialog";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { extensionOf, loadMeshGeometry } from "../engine/loadMesh";
 import { extractThreeMFProperties, loadMeshForDisplay, type ThreeMFProperties } from "../engine/load3mfDisplayExtras";
@@ -20,12 +23,17 @@ import PrintabilityBadge from "../components/PrintabilityBadge";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import CommentsPanel from "../components/CommentsPanel";
+import CommentPopover from "../components/CommentPopover";
+import PendingCommentPopover from "../components/PendingCommentPopover";
 import CommentPin from "../components/CommentPin";
 import AxisLegend from "../components/AxisLegend";
-import AxisLabels from "../components/AxisLabels";
+import ModelScene from "../components/ModelScene";
 import BoundsResetBridge from "../components/BoundsResetBridge";
 import ZoomToFitBridge from "../components/ZoomToFitBridge";
 import ControlSchemeSelect from "../components/ControlSchemeSelect";
+import ShadingModeToggle from "../components/ShadingModeToggle";
+import { useShadingMode } from "../lib/shadingMode";
+import EdgeOverlay from "../components/EdgeOverlay";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import LoadingCube from "../components/LoadingCube";
 import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
@@ -44,8 +52,90 @@ import { findCircularFeatureLoops, findNearestLoop, fitCircleLeastSquares, type 
 // group's inverse rotation, used to convert back to its local space first.
 const GROUP_ROTATION_INVERSE = new THREE.Matrix4().makeRotationX(Math.PI / 2);
 
+// The comment mesh itself carries no extra transform of its own (no
+// position/rotation/scale props on the <mesh> below) — it sits directly
+// inside the rotated group, so its raw geometry-space vertices are already
+// in that group's local space with no conversion needed, unlike the
+// world-space event.point values elsewhere in this file.
+function computeUniqueVertices(geometry: THREE.BufferGeometry): THREE.Vector3[] {
+  const position = geometry.getAttribute("position");
+  const seen = new Map<string, THREE.Vector3>();
+  const EPS = 1e-4;
+  for (let i = 0; i < position.count; i++) {
+    const vertex = new THREE.Vector3().fromBufferAttribute(position, i);
+    const key = `${Math.round(vertex.x / EPS)},${Math.round(vertex.y / EPS)},${Math.round(vertex.z / EPS)}`;
+    if (!seen.has(key)) seen.set(key, vertex);
+  }
+  return [...seen.values()];
+}
+
+// Same local-space reasoning as computeUniqueVertices — dedupes each
+// triangle edge against the shared edge its neighboring triangle also
+// contributes, keyed on its (rounded) endpoint pair regardless of winding.
+// Trims an edge segment down to just the portion that falls inside the
+// snap-radius circle, so a long edge that merely passes near the hover
+// point doesn't get drawn end-to-end across the whole model — only the
+// bit actually inside the "close area" indicator. Returns null when the
+// segment doesn't intersect the circle within its own [a, b] bounds.
+function clipSegmentToCircle(
+  a: THREE.Vector3,
+  b: THREE.Vector3,
+  center: THREE.Vector3,
+  radius: number,
+): [THREE.Vector3, THREE.Vector3] | null {
+  const direction = new THREE.Vector3().subVectors(b, a);
+  const toStart = new THREE.Vector3().subVectors(a, center);
+  const A = direction.dot(direction);
+  if (A === 0) return null;
+  const B = 2 * toStart.dot(direction);
+  const C = toStart.dot(toStart) - radius * radius;
+  const discriminant = B * B - 4 * A * C;
+  if (discriminant < 0) return null;
+  const sqrtDiscriminant = Math.sqrt(discriminant);
+  const t1 = Math.max(0, (-B - sqrtDiscriminant) / (2 * A));
+  const t2 = Math.min(1, (-B + sqrtDiscriminant) / (2 * A));
+  if (t1 >= t2) return null;
+  return [a.clone().addScaledVector(direction, t1), a.clone().addScaledVector(direction, t2)];
+}
+
+function computeUniqueEdges(geometry: THREE.BufferGeometry): Array<[THREE.Vector3, THREE.Vector3]> {
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  const EPS = 1e-4;
+  const keyOf = (v: THREE.Vector3) => `${Math.round(v.x / EPS)},${Math.round(v.y / EPS)},${Math.round(v.z / EPS)}`;
+  const seenEdges = new Set<string>();
+  const edges: Array<[THREE.Vector3, THREE.Vector3]> = [];
+
+  function addEdge(a: THREE.Vector3, b: THREE.Vector3) {
+    const keyA = keyOf(a);
+    const keyB = keyOf(b);
+    if (keyA === keyB) return;
+    const edgeKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
+    if (seenEdges.has(edgeKey)) return;
+    seenEdges.add(edgeKey);
+    edges.push([a, b]);
+  }
+
+  const vertexAt = (i: number) => new THREE.Vector3().fromBufferAttribute(position, i);
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  for (let t = 0; t < triangleCount; t++) {
+    const [ia, ib, ic] = index
+      ? [index.getX(t * 3), index.getX(t * 3 + 1), index.getX(t * 3 + 2)]
+      : [t * 3, t * 3 + 1, t * 3 + 2];
+    const a = vertexAt(ia);
+    const b = vertexAt(ib);
+    const c = vertexAt(ic);
+    addEdge(a, b);
+    addEdge(b, c);
+    addEdge(c, a);
+  }
+
+  return edges;
+}
+
 export default function VersionDetailPage() {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
+  const { user } = useAuth();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [version, setVersion] = useState<VersionDetail | null>(null);
   const [diffStats, setDiffStats] = useState<VoxelDiffStats | null>(null);
@@ -55,6 +145,7 @@ export default function VersionDetailPage() {
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const [controlScheme] = useControlScheme();
   const mouseButtons = useOrbitMouseButtons(controlScheme);
+  const [shadingMode] = useShadingMode();
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [threeMFProperties, setThreeMFProperties] = useState<ThreeMFProperties | null>(null);
   const [boundingBox, setBoundingBox] = useState<[number, number, number]>([0, 0, 0]);
@@ -65,9 +156,19 @@ export default function VersionDetailPage() {
   const [isMeshLoading, setIsMeshLoading] = useState(true);
 
   const [comments, setComments] = useState<CommentSummary[]>([]);
+  const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+  const [pendingDeleteComment, setPendingDeleteComment] = useState<CommentSummary | null>(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
   const [isPlacingComment, setIsPlacingComment] = useState(false);
   const [pendingPosition, setPendingPosition] = useState<[number, number, number] | null>(null);
   const [pendingNormal, setPendingNormal] = useState<[number, number, number] | undefined>();
+  const [isDraggingPin, setIsDraggingPin] = useState(false);
+  const [commentSnapPreview, setCommentSnapPreview] = useState<[number, number, number] | null>(null);
+  const [nearbyVertices, setNearbyVertices] = useState<[number, number, number][]>([]);
+  const [nearbyEdges, setNearbyEdges] = useState<Array<[[number, number, number], [number, number, number]]>>([]);
+  const uniqueVerticesRef = useRef<THREE.Vector3[]>([]);
+  const uniqueEdgesRef = useRef<Array<[THREE.Vector3, THREE.Vector3]>>([]);
 
   const [measureMode, setMeasureMode] = useState<"distance" | "radius">("distance");
   const [isMeasuring, setIsMeasuring] = useState(false);
@@ -140,6 +241,8 @@ export default function VersionDetailPage() {
         }
 
         setGeometry(displayGeometry);
+        uniqueVerticesRef.current = computeUniqueVertices(displayGeometry);
+        uniqueEdgesRef.current = computeUniqueEdges(displayGeometry);
         setBoundaryLoops(findCircularFeatureLoops(displayGeometry));
         displayGeometry.computeBoundingBox();
         const box = displayGeometry.boundingBox;
@@ -243,21 +346,40 @@ export default function VersionDetailPage() {
   function handleMeasureHover(event: ThreeEvent<MouseEvent>) {
     if (!isMeasuring) return;
     event.stopPropagation();
-    const snapped = nearestMeasurePoint(event);
 
-    if (measureMode === "radius" && snapped) {
-      const loop = findNearestLoop(boundaryLoops, snapped, 1e-3);
-      if (loop) {
-        setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
-        setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
-        setMeasureHover(null);
-        return;
+    // Hole/boss auto-detect still searches off the true vertex/edge snap
+    // (not the freeform surface point) — it's asking "is there a circular
+    // feature near this specific edge", a different question from "where's
+    // the cursor," and forcing it through the magnet threshold would make
+    // holes much harder to detect near their center.
+    if (measureMode === "radius") {
+      const snappedForHoleSearch = nearestMeasurePoint(event);
+      if (snappedForHoleSearch) {
+        const loop = findNearestLoop(boundaryLoops, snappedForHoleSearch, 1e-3);
+        if (loop) {
+          setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
+          setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
+          setMeasureHover(null);
+          setNearbyVertices([]);
+          setNearbyEdges([]);
+          return;
+        }
       }
       setRadiusPreviewFit(null);
       setRadiusPreviewLoopPoints(null);
     }
 
-    setMeasureHover(snapped ? [snapped.x, snapped.y, snapped.z] : null);
+    // Same freeform-with-magnet placement as comments, plus the same
+    // nearby vertex/edge highlight so it's clear what's in snapping range.
+    const point = snappedOrSurfacePoint(event);
+    setMeasureHover(point ? [point.x, point.y, point.z] : null);
+    if (point) {
+      updateNearbyVertices(point);
+      updateNearbyEdges(point);
+    } else {
+      setNearbyVertices([]);
+      setNearbyEdges([]);
+    }
   }
 
   function handleMeshClick(event: ThreeEvent<MouseEvent>) {
@@ -276,7 +398,7 @@ export default function VersionDetailPage() {
         return;
       }
 
-      const snapped = nearestMeasurePoint(event);
+      const snapped = snappedOrSurfacePoint(event);
       if (!snapped) return;
       const point: [number, number, number] = [snapped.x, snapped.y, snapped.z];
       if (measureMode === "distance") {
@@ -286,6 +408,8 @@ export default function VersionDetailPage() {
           setMeasureB(point);
           setIsMeasuring(false);
           setMeasureHover(null);
+          setNearbyVertices([]);
+          setNearbyEdges([]);
         }
       } else {
         setRadiusPoints((prev) => {
@@ -301,6 +425,8 @@ export default function VersionDetailPage() {
             );
             setIsMeasuring(false);
             setMeasureHover(null);
+            setNearbyVertices([]);
+            setNearbyEdges([]);
           }
           return next;
         });
@@ -310,7 +436,11 @@ export default function VersionDetailPage() {
 
     if (!isPlacingComment) return;
     event.stopPropagation();
-    const point = event.point;
+    // Freeform surface placement, only "sticking" to a vertex/edge when the
+    // cursor is actually close to one (see snappedOrSurfacePoint) — unlike
+    // the measure tool below, which always forces a vertex/edge snap.
+    const point = snappedOrSurfacePoint(event);
+    if (!point) return;
     setPendingPosition([point.x, point.y, point.z]);
     if (event.face?.normal && event.object) {
       const worldNormal = event.face.normal.clone().transformDirection(event.object.matrixWorld);
@@ -319,6 +449,145 @@ export default function VersionDetailPage() {
       setPendingNormal(undefined);
     }
     setIsPlacingComment(false);
+    setCommentSnapPreview(null);
+    setNearbyVertices([]);
+    setNearbyEdges([]);
+  }
+
+  // Highlight radius for nearby-vertex/edge coloring while placing/dragging
+  // a comment or hovering in measure mode — scaled off the model's own size
+  // so it reads sensibly whether the model is a 10mm bracket or a 200mm
+  // enclosure.
+  function snapHighlightRadius(): number {
+    const maxDimension = Math.max(...boundingBox);
+    return maxDimension > 0 ? Math.max(maxDimension * 0.04, 0.5) : 1;
+  }
+
+  // Deliberately much tighter than snapHighlightRadius() above — that one's
+  // a broad "here's what's nearby" preview area, not a snap distance. Using
+  // it as the magnet threshold would mean almost every point on a face of a
+  // simple/low-poly model snaps, since its own vertices are already within
+  // 4% of the model's size — exactly the "sticks immediately" behavior this
+  // is fixing.
+  function snapMagnetThreshold(): number {
+    const maxDimension = Math.max(...boundingBox);
+    return maxDimension > 0 ? Math.max(maxDimension * 0.01, 0.15) : 0.3;
+  }
+
+  // The actual surface point under the cursor, magnetized to the nearest
+  // vertex/edge only when the cursor is genuinely close to one. Otherwise
+  // this is freeform placement anywhere on the surface — used for both
+  // comment placement and (unlike nearestMeasurePoint's forced snap) the
+  // measure tool's own point picking below.
+  function snappedOrSurfacePoint(event: ThreeEvent<MouseEvent>): THREE.Vector3 | null {
+    if (!event.face) return null;
+    const surfacePoint = event.point.clone().applyMatrix4(GROUP_ROTATION_INVERSE);
+    const snapped = nearestMeasurePoint(event);
+    if (snapped && snapped.distanceTo(surfacePoint) <= snapMagnetThreshold()) {
+      return snapped;
+    }
+    return surfacePoint;
+  }
+
+  function updateNearbyVertices(center: THREE.Vector3) {
+    const radius = snapHighlightRadius();
+    const nearby = uniqueVerticesRef.current
+      .filter((vertex) => vertex.distanceTo(center) <= radius)
+      .map((vertex): [number, number, number] => [vertex.x, vertex.y, vertex.z]);
+    // Capped so a very dense mesh in this hover area can't spawn hundreds
+    // of individual highlight meshes per pointer move.
+    setNearbyVertices(nearby.length > 60 ? nearby.slice(0, 60) : nearby);
+  }
+
+  function updateNearbyEdges(center: THREE.Vector3) {
+    const radius = snapHighlightRadius();
+    const nearby: Array<[[number, number, number], [number, number, number]]> = [];
+    for (const [a, b] of uniqueEdgesRef.current) {
+      const clipped = clipSegmentToCircle(a, b, center, radius);
+      if (!clipped) continue;
+      const [p1, p2] = clipped;
+      nearby.push([
+        [p1.x, p1.y, p1.z],
+        [p2.x, p2.y, p2.z],
+      ]);
+      // Capped so a very dense mesh in this hover area can't spawn
+      // hundreds of highlight lines per pointer move.
+      if (nearby.length >= 60) break;
+    }
+    setNearbyEdges(nearby);
+  }
+
+  function handlePointerMove(event: ThreeEvent<MouseEvent>) {
+    // Repositions the not-yet-submitted pin as the user drags it — freeform
+    // across the surface, same as handleMeshClick, only sticking to a
+    // vertex/edge when actually close to one.
+    if (isDraggingPin) {
+      event.stopPropagation();
+      const point = snappedOrSurfacePoint(event);
+      if (!point) return;
+      setPendingPosition([point.x, point.y, point.z]);
+      updateNearbyVertices(point);
+      updateNearbyEdges(point);
+      if (event.face?.normal && event.object) {
+        const worldNormal = event.face.normal.clone().transformDirection(event.object.matrixWorld);
+        setPendingNormal([worldNormal.x, worldNormal.y, worldNormal.z]);
+      } else {
+        setPendingNormal(undefined);
+      }
+      return;
+    }
+
+    // Before the first click, previews where the pin will land as the
+    // cursor moves over the mesh — same snap target handleMeshClick uses.
+    if (isPlacingComment) {
+      const point = snappedOrSurfacePoint(event);
+      setCommentSnapPreview(point ? [point.x, point.y, point.z] : null);
+      if (point) {
+        updateNearbyVertices(point);
+        updateNearbyEdges(point);
+      } else {
+        setNearbyVertices([]);
+        setNearbyEdges([]);
+      }
+      return;
+    }
+
+    handleMeasureHover(event);
+  }
+
+  useEffect(() => {
+    if (!isPlacingComment) {
+      setCommentSnapPreview(null);
+      if (!isDraggingPin) {
+        setNearbyVertices([]);
+        setNearbyEdges([]);
+      }
+    }
+  }, [isPlacingComment, isDraggingPin]);
+
+  useEffect(() => {
+    if (!isDraggingPin) return;
+    const stopDragging = () => setIsDraggingPin(false);
+    window.addEventListener("mouseup", stopDragging);
+    return () => window.removeEventListener("mouseup", stopDragging);
+  }, [isDraggingPin]);
+
+  // A tool reads as "active" whether it's still mid-measurement or already
+  // has a finished result sitting on screen — either way, clicking its
+  // toolbar button again should clear it rather than silently starting a
+  // second measurement over the first.
+  function isToolActive(mode: "distance" | "radius"): boolean {
+    if (measureMode !== mode) return false;
+    if (isMeasuring) return true;
+    return mode === "distance" ? !!(measureA || measureB) : radiusPoints.length > 0 || !!radiusCommittedFit;
+  }
+
+  function toggleMeasuring(mode: "distance" | "radius") {
+    if (isToolActive(mode)) {
+      clearMeasurement();
+    } else {
+      startMeasuring(mode);
+    }
   }
 
   function startMeasuring(mode: "distance" | "radius") {
@@ -332,6 +601,8 @@ export default function VersionDetailPage() {
     setRadiusCommittedFit(null);
     setRadiusCommittedLoopPoints(null);
     setMeasureHover(null);
+    setNearbyVertices([]);
+    setNearbyEdges([]);
   }
 
   function clearMeasurement() {
@@ -344,6 +615,8 @@ export default function VersionDetailPage() {
     setRadiusCommittedFit(null);
     setRadiusCommittedLoopPoints(null);
     setMeasureHover(null);
+    setNearbyVertices([]);
+    setNearbyEdges([]);
   }
 
   async function handleSubmitComment(body: string) {
@@ -356,61 +629,120 @@ export default function VersionDetailPage() {
     }
   }
 
+  // Replies reuse the parent's own position/normal — they're not separately
+  // pinned on the model, just rendered inside the parent's popover.
+  async function handleSubmitReply(parent: CommentSummary, body: string) {
+    if (!projectId || !versionId) return;
+    const result = await createComment(
+      projectId,
+      versionId,
+      body,
+      parent.position,
+      parent.normal ?? undefined,
+      parent.id,
+    );
+    if (result.success) {
+      setComments((prev) => [...prev, result.data]);
+    }
+  }
+
+  // Owner/admin can moderate any comment on the project; everyone else can
+  // only remove their own — mirrors the same check the API enforces.
+  function canDeleteComment(comment: CommentSummary): boolean {
+    const canModerateAny = project?.myRole === "owner" || project?.myRole === "admin";
+    return canModerateAny || comment.authorUserId === user?.id;
+  }
+
+  async function handleConfirmDeleteComment() {
+    if (!projectId || !versionId || !pendingDeleteComment) return;
+    setIsDeletingComment(true);
+    const result = await deleteComment(projectId, versionId, pendingDeleteComment.id);
+    setIsDeletingComment(false);
+    if (result.success) {
+      // Deleting a parent cascades to its replies at the DB level (see
+      // migration 0020's `on delete cascade`) — mirror that here too, or
+      // the replies would linger in the popover until the next refetch.
+      setComments((prev) =>
+        prev.filter((c) => c.id !== pendingDeleteComment.id && c.parentCommentId !== pendingDeleteComment.id),
+      );
+      if (hoveredCommentId === pendingDeleteComment.id) setHoveredCommentId(null);
+      if (selectedCommentId === pendingDeleteComment.id) setSelectedCommentId(null);
+    } else {
+      setError(result.error);
+    }
+    setPendingDeleteComment(null);
+  }
+
   return (
     <div className="flex h-[calc(100vh-2rem)] w-full gap-4 px-4 py-4">
       <div
-        className={`relative flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${isPlacingComment
+        className={`relative flex-1 overflow-hidden rounded-lg border bg-ink-950 ${isPlacingComment
           ? "border-indigo-500"
           : isMeasuring && measureMode === "radius"
             ? "border-sky-500"
             : isMeasuring
               ? "border-amber-500"
-              : "border-neutral-800"
+              : "border-ink-800"
           }`}
       >
         {geometry && (
-          <div className="absolute left-3 top-2 z-10 flex gap-1.5">
+          <div className="absolute left-3 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-950/70 p-1">
+            <button
+              type="button"
+              onClick={() => toggleMeasuring("distance")}
+              title={
+                isToolActive("distance")
+                  ? "Click to clear this distance measurement"
+                  : "Measure distance between two points"
+              }
+              className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
+                isToolActive("distance")
+                  ? "bg-amber-500/20 text-amber-400"
+                  : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              }`}
+            >
+              📏
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleMeasuring("radius")}
+              title={isToolActive("radius") ? "Click to clear this radius measurement" : "Measure a hole/boss radius"}
+              className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
+                isToolActive("radius")
+                  ? "bg-sky-500/20 text-sky-400"
+                  : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              }`}
+            >
+              ⌀
+            </button>
+            <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
               title="Zoom to fit the model in view"
-              className="rounded border border-neutral-700 bg-neutral-950/70 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
-              Zoom to Model
+              ⛶
             </button>
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
               title="Reset camera to the loaded view"
-              className="rounded border border-neutral-700 bg-neutral-950/70 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
-              ⟲ Reset View
+              ⟲
             </button>
-            <ControlSchemeSelect />
+            <div className="mx-0.5 h-5 w-px bg-ink-800" />
+            <ShadingModeToggle />
+            <div className="mx-0.5 h-5 w-px bg-ink-800" />
+            <ControlSchemeSelect showLegend={false} />
           </div>
         )}
         <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[10, 20, 10]} intensity={0.8} />
-          <Grid
-            infiniteGrid
-            position={gridPosition}
-            fadeDistance={gridFadeDistance}
-            cellColor="#333"
-            sectionColor="#555"
-          />
-          {/* The grid is drei's default Y-up floor; this app's model data is
-              Z-up (see diffVoxels.ts's gravity vector), so the displayed
-              content — including comment pins, whose stored positions come
-              from raycasting against the (now rotated) mesh — is rotated
-              -90° around X to lay it flat on that floor. Purely a
-              presentation transform, doesn't touch the geometry used for
-              diffing/printability. */}
-          <group rotation={[-Math.PI / 2, 0, 0]}>
-            <group position={axisOrigin}>
-              <axesHelper args={[30]} />
-              <AxisLabels />
-            </group>
+          {/* Comment pins' stored positions come from raycasting against the
+              (rotated) mesh — see ModelScene.tsx for the Z-up-to-Y-up
+              transform they, and everything else here, inherit. */}
+          <ModelScene gridPosition={gridPosition} gridFadeDistance={gridFadeDistance} axisOrigin={axisOrigin}>
             {geometry && (
               <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
                 <BoundsResetBridge resetRef={resetViewRef} />
@@ -418,33 +750,120 @@ export default function VersionDetailPage() {
                 <mesh
                   geometry={geometry}
                   onClick={handleMeshClick}
-                  onPointerMove={handleMeasureHover}
+                  onPointerMove={handlePointerMove}
                   onPointerOut={() => {
                     setMeasureHover(null);
                     setRadiusPreviewFit(null);
                     setRadiusPreviewLoopPoints(null);
+                    setCommentSnapPreview(null);
+                    setNearbyVertices([]);
+                    setNearbyEdges([]);
                   }}
                 >
                   {/* key forces a fresh material instance when hasVertexColors
-                      flips — mutating vertexColors on an already-compiled
-                      material in place doesn't recompile its shader, so the
-                      color attribute would silently be ignored otherwise. */}
+                      or shadingMode flips — mutating vertexColors/flatShading
+                      on an already-compiled material doesn't recompile its
+                      shader. */}
                   <meshStandardMaterial
-                    key={hasVertexColors ? "vertex-colors" : "flat"}
+                    key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
                     color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                     vertexColors={hasVertexColors}
+                    flatShading={shadingMode === "flat"}
+                    transparent={shadingMode === "transparent"}
+                    opacity={shadingMode === "transparent" ? 0.4 : 1}
+                    depthWrite={shadingMode !== "transparent"}
+                    side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
                   />
                 </mesh>
+                {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}
               </Bounds>
             )}
             {project?.teamId && (
               <>
-                {comments.map((comment) => (
-                  <CommentPin key={comment.id} position={comment.position} label={comment.body} />
-                ))}
-                {pendingPosition && <CommentPin position={pendingPosition} pending />}
+                {comments
+                  .filter((comment) => !comment.parentCommentId)
+                  .map((comment) => (
+                    <CommentPin
+                      key={comment.id}
+                      position={comment.position}
+                      label={comment.body}
+                      highlighted={hoveredCommentId === comment.id || selectedCommentId === comment.id}
+                      onHoverChange={(hovering) => setHoveredCommentId(hovering ? comment.id : null)}
+                      onSelect={() => setSelectedCommentId(comment.id)}
+                      messageCount={1 + comments.filter((c) => c.parentCommentId === comment.id).length}
+                    />
+                  ))}
+                {comments
+                  .filter(
+                    (comment) =>
+                      !comment.parentCommentId && (hoveredCommentId === comment.id || selectedCommentId === comment.id),
+                  )
+                  .map((comment) => (
+                    <CommentPopover
+                      key={comment.id}
+                      comment={comment}
+                      replies={comments.filter((c) => c.parentCommentId === comment.id)}
+                      canDelete={canDeleteComment}
+                      onDelete={setPendingDeleteComment}
+                      onReply={(body) => handleSubmitReply(comment, body)}
+                      onClose={() => {
+                        setSelectedCommentId(null);
+                        setHoveredCommentId(null);
+                      }}
+                    />
+                  ))}
+                {pendingPosition && (
+                  <>
+                    <CommentPin position={pendingPosition} pending onDragStart={() => setIsDraggingPin(true)} />
+                    <PendingCommentPopover
+                      position={pendingPosition}
+                      onSubmit={handleSubmitComment}
+                      onCancel={() => {
+                        setPendingPosition(null);
+                        setPendingNormal(undefined);
+                      }}
+                    />
+                  </>
+                )}
+                {!pendingPosition && commentSnapPreview && (
+                  <>
+                    {/* Sized to snapHighlightRadius() so this visually IS the
+                        "close area" the nearby vertex/edge highlights below
+                        are limited to, not just a fixed-size cosmetic marker. */}
+                    <mesh position={commentSnapPreview}>
+                      <sphereGeometry args={[snapHighlightRadius(), 16, 16]} />
+                      <meshBasicMaterial color="#a5b4fc" transparent opacity={0.3} depthTest={false} />
+                    </mesh>
+                    <mesh position={commentSnapPreview}>
+                      <sphereGeometry args={[0.4, 12, 12]} />
+                      <meshBasicMaterial color="#818cf8" depthTest={false} />
+                    </mesh>
+                  </>
+                )}
               </>
             )}
+            {/* Nearby vertex/edge "close area" highlight — shared by comment
+                placement/dragging and measure-tool hovering, so it isn't
+                gated behind project?.teamId like the comment UI above. */}
+            {(isPlacingComment || isDraggingPin || isMeasuring) &&
+              nearbyVertices.map((vertex, index) => (
+                <mesh key={`${vertex.join(",")}-${index}`} position={vertex}>
+                  <sphereGeometry args={[0.35, 8, 8]} />
+                  <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthTest={false} />
+                </mesh>
+              ))}
+            {(isPlacingComment || isDraggingPin || isMeasuring) &&
+              nearbyEdges.map(([a, b], index) => (
+                <Line
+                  key={`${a.join(",")}-${b.join(",")}-${index}`}
+                  points={[a, b]}
+                  color="#facc15"
+                  lineWidth={2.5}
+                  transparent
+                  opacity={0.85}
+                  depthTest={false}
+                />
+              ))}
             {measureMode === "distance" ? (
               <MeasurementOverlay pointA={measureA} pointB={measureB} hoverPoint={measureHover} />
             ) : (
@@ -456,21 +875,21 @@ export default function VersionDetailPage() {
                 isPreview={!radiusCommittedFit && radiusPreviewFit !== null}
               />
             )}
-          </group>
-          <OrbitControls makeDefault mouseButtons={mouseButtons} />
+          </ModelScene>
+          <OrbitControls makeDefault enabled={!isDraggingPin} mouseButtons={mouseButtons} />
         </Canvas>
         <AxisLegend />
 
         {isMeshLoading && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-950/80">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink-950/80">
             <LoadingCube />
-            <p className="text-xs text-neutral-400">Loading model…</p>
+            <p className="text-xs text-ink-400">Loading model…</p>
           </div>
         )}
       </div>
 
       <div className="w-80 shrink-0 overflow-y-auto pr-3">
-        <Link to={`/projects/${projectId}`} className="text-xs text-neutral-500 hover:text-neutral-300">
+        <Link to={`/projects/${projectId}`} className="text-xs text-ink-500 hover:text-ink-300">
           ← {version ? "Back to project" : "Back"}
         </Link>
 
@@ -483,77 +902,15 @@ export default function VersionDetailPage() {
         {version && (
           <>
             <div className="mt-2 flex items-center gap-2">
-              <span className="rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-xs font-semibold text-neutral-300">
+              <span className="rounded border border-ink-700 bg-ink-800 px-2 py-0.5 text-xs font-semibold text-ink-300">
                 v{version.versionNumber}
               </span>
-              <h1 className="truncate text-sm font-semibold text-white">{version.fileName}</h1>
+              <h1 className="truncate text-sm font-semibold text-ink-50">{version.fileName}</h1>
             </div>
 
             <div className="mt-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                  Measure tools
-                </h3>
-                {(measureA || measureB || radiusPoints.length > 0 || radiusCommittedFit) && (
-                  <button
-                    type="button"
-                    onClick={clearMeasurement}
-                    className="text-[11px] text-neutral-500 hover:text-neutral-300"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => startMeasuring("distance")}
-                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${isMeasuring && measureMode === "distance"
-                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                    }`}
-                >
-                  {isMeasuring && measureMode === "distance" ? "Click two points…" : "Distance"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startMeasuring("radius")}
-                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${isMeasuring && measureMode === "radius"
-                    ? "border-sky-500 bg-sky-500/10 text-sky-400"
-                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                    }`}
-                >
-                  {isMeasuring && measureMode === "radius"
-                    ? radiusPreviewFit
-                      ? "Click to confirm…"
-                      : `Click point ${radiusPoints.length + 1} of 3…`
-                    : "Radius"}
-                </button>
-              </div>
-              <p className="mt-1.5 text-xs text-neutral-500">
-                {measureMode === "distance"
-                  ? measureA && measureB
-                    ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected points.`
-                    : isMeasuring
-                      ? measureA
-                        ? "First point set — click a second point (vertex or edge)."
-                        : "Click a vertex or edge on the model to start."
-                      : "Click two points (vertices or edges) on the model to measure the distance between them."
-                  : radiusCommittedFit
-                    ? `R ${radiusCommittedFit.radius.toFixed(2)} mm, ⌀ ${(radiusCommittedFit.radius * 2).toFixed(2)} mm.`
-                    : radiusPreviewFit
-                      ? `Detected hole — R ${radiusPreviewFit.radius.toFixed(2)} mm, ⌀ ${(radiusPreviewFit.radius * 2).toFixed(2)} mm. Click to confirm.`
-                      : isMeasuring
-                        ? radiusPoints.length > 0
-                          ? `Click ${3 - radiusPoints.length} more point${3 - radiusPoints.length === 1 ? "" : "s"} on the rim, or hover a hole to auto-detect it.`
-                          : "Hover a hole or boss to auto-detect its edge, or click 3 points on it manually."
-                        : "Click a hole/boss to measure its radius (auto-detected), or click 3 points manually."}
-              </p>
-            </div>
-
-            <div className="mt-4">
               <CollapsibleSection title="Summary">
-                <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs leading-relaxed text-neutral-300">
+                <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-xs leading-relaxed text-ink-300">
                   {version.changeSummary ?? "No summary available."}
                 </div>
               </CollapsibleSection>
@@ -597,17 +954,43 @@ export default function VersionDetailPage() {
                   isPlacingComment={isPlacingComment}
                   onTogglePlacing={() => setIsPlacingComment((prev) => !prev)}
                   pendingPosition={pendingPosition}
-                  onSubmitComment={handleSubmitComment}
                   onCancelPending={() => {
                     setPendingPosition(null);
                     setPendingNormal(undefined);
                   }}
+                  highlightedCommentId={hoveredCommentId}
+                  onHoverComment={setHoveredCommentId}
+                  onSelectComment={(commentId) => {
+                    // Only top-level comments have their own pin/popover —
+                    // selecting a reply opens its parent's thread instead.
+                    const target = comments.find((c) => c.id === commentId);
+                    setSelectedCommentId(target?.parentCommentId ?? commentId);
+                  }}
+                  canDeleteComment={canDeleteComment}
+                  onRequestDelete={setPendingDeleteComment}
                 />
               </div>
             )}
           </>
         )}
       </div>
+
+      {pendingDeleteComment && (
+        <ConfirmDialog
+          title="Delete comment?"
+          message={(() => {
+            const replyCount = comments.filter((c) => c.parentCommentId === pendingDeleteComment.id).length;
+            return replyCount > 0
+              ? `This will also delete ${replyCount} ${replyCount === 1 ? "reply" : "replies"}. This can't be undone.`
+              : "This can't be undone.";
+          })()}
+          confirmLabel="Delete"
+          isDestructive
+          isConfirming={isDeletingComment}
+          onConfirm={() => void handleConfirmDeleteComment()}
+          onCancel={() => setPendingDeleteComment(null)}
+        />
+      )}
     </div>
   );
 }

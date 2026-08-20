@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { ulid } from "ulid";
 import archiver from "archiver";
-import { getSupabase } from "../lib/supabase.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { extensionOf } from "../lib/filename.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
 import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels.js";
@@ -10,6 +10,7 @@ import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES } from "../lib/fileSizeLimit.js";
+import { logTeamAudit } from "../lib/teamAuditLog.js";
 
 // Diffing now runs client-side (see finalize() below and
 // ProjectDetailPage.tsx/projectsApi.ts) — the server never parses or
@@ -32,7 +33,7 @@ interface FinalizeVersionBody {
   stats?: VoxelDiffStats;
 }
 
-interface VersionRow {
+export interface VersionRow {
   id: string;
   project_id: string;
   version_number: number;
@@ -46,9 +47,10 @@ interface VersionRow {
   approval_status: string;
   rejection_reason: string | null;
   created_at: string;
+  uploaded_by_user_id: string | null;
 }
 
-function toVersionSummary(row: VersionRow) {
+export function toVersionSummary(row: VersionRow, uploaderEmail: string | null = null) {
   return {
     id: row.id,
     versionNumber: row.version_number,
@@ -61,10 +63,13 @@ function toVersionSummary(row: VersionRow) {
     approvalStatus: row.approval_status,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
+    uploaderEmail,
   };
 }
 
 export default async function versionsRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   app.post<{ Params: { projectId: string }; Body: CreateVersionBody }>(
     "/projects/:projectId/versions",
     { preHandler: requireAuth },
@@ -86,12 +91,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         return { success: false, error: "File must be under 50MB" };
       }
 
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -153,12 +153,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { stats } = request.body ?? {};
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
       // The client computes the diff itself now — parsing/voxelizing/BVH
       // work happens in the uploader's own browser (off-main-thread, same
       // engine the free Live Diff tool already uses), not on this shared
@@ -295,12 +290,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -336,6 +326,18 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Version not found" };
         }
 
+        // Audit log is team-scoped — no-op for personal/Pro projects
+        // (the majority of traffic), which have no team_id to log against.
+        if (access.teamId) {
+          const { data: project } = await supabase.from("projects").select("name").eq("id", projectId).maybeSingle();
+          await logTeamAudit(supabase, app.log, {
+            teamId: access.teamId,
+            actorUserId: request.userId!,
+            action: "version_approved",
+            summary: `Approved v${(row as VersionRow).version_number} of ${project?.name ?? "Unknown project"}`,
+          });
+        }
+
         return { success: true, data: toVersionSummary(row as VersionRow) };
       } catch (err) {
         app.log.error(err, "Version approve threw");
@@ -351,12 +353,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const { projectId, versionId } = request.params;
       const { reason } = request.body ?? {};
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -392,6 +389,17 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Version not found" };
         }
 
+        if (access.teamId) {
+          const { data: project } = await supabase.from("projects").select("name").eq("id", projectId).maybeSingle();
+          const trimmedReason = typeof reason === "string" && reason.trim() ? reason.trim() : null;
+          await logTeamAudit(supabase, app.log, {
+            teamId: access.teamId,
+            actorUserId: request.userId!,
+            action: "version_rejected",
+            summary: `Rejected v${(row as VersionRow).version_number} of ${project?.name ?? "Unknown project"}${trimmedReason ? `: ${trimmedReason}` : ""}`,
+          });
+        }
+
         return { success: true, data: toVersionSummary(row as VersionRow) };
       } catch (err) {
         app.log.error(err, "Version reject threw");
@@ -405,12 +413,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     "/projects/:projectId/versions",
     { preHandler: requireAuth },
     async (request, reply) => {
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, request.params.projectId, request.userId!);
@@ -431,7 +434,26 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Failed to load versions" };
         }
 
-        return { success: true, data: (rows as VersionRow[]).map(toVersionSummary) };
+        const versionRows = rows as VersionRow[];
+        const uploaderIds = [...new Set(versionRows.map((row) => row.uploaded_by_user_id).filter((id): id is string => !!id))];
+        let emailByUserId = new Map<string, string>();
+        if (uploaderIds.length > 0) {
+          const { data: emailRows, error: emailError } = await supabase.rpc("get_user_emails_by_ids", {
+            p_ids: uploaderIds,
+          });
+          if (emailError) {
+            app.log.warn(emailError, "Failed to resolve uploader emails");
+          } else {
+            emailByUserId = new Map((emailRows ?? []).map((r: { id: string; email: string }) => [r.id, r.email]));
+          }
+        }
+
+        return {
+          success: true,
+          data: versionRows.map((row) =>
+            toVersionSummary(row, row.uploaded_by_user_id ? (emailByUserId.get(row.uploaded_by_user_id) ?? null) : null),
+          ),
+        };
       } catch (err) {
         app.log.error(err, "Version list threw");
         reply.code(502);
@@ -445,12 +467,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -518,12 +535,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -598,12 +610,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       const access = await getProjectAccess(supabase, projectId, request.userId!);
       if (!access.role) {
@@ -668,12 +675,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId } = request.params;
-      const supabase = getSupabase();
-      if (!supabase) {
-        app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-        reply.code(500);
-        return { success: false, error: "Projects are not configured" };
-      }
+      const supabase = request.supabase!;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);

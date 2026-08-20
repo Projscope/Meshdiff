@@ -1,15 +1,20 @@
 import type { FastifyReply } from "fastify";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectAccess } from "./ownership.js";
-import { getUserTier } from "./subscription.js";
+import { getAccountAccess } from "./subscription.js";
 
 /**
  * Free users get full read/write on their own auto-seeded Sample Project
  * (see seedSampleProject.ts) — compare, delete, share, report, measure —
  * so they can see what Pro looks like before upgrading, but nothing else.
- * Pro users are unrestricted. Call after getProjectAccess() has already
- * confirmed access.role is non-null (404 case handled by the caller); this
- * only decides the 403-vs-allow question.
+ * Pro/Team users are unrestricted — this uses getAccountAccess() (not a
+ * raw tier === "pro" check) specifically so a Team owner (own tier
+ * "team") and a team member with no subscription of their own (riding the
+ * owner's seats, own tier "free" but viaTeamMembership) both count as
+ * unrestricted, same as requireActiveAccess.ts does for its own gate.
+ * Call after getProjectAccess() has already confirmed access.role is
+ * non-null (404 case handled by the caller); this only decides the
+ * 403-vs-allow question.
  *
  * NOT for uploading new versions — see requireProUploadAccess below. The
  * Sample Project ships with its two versions pre-seeded (see
@@ -23,8 +28,8 @@ export async function requireProjectTierAccess(
 ): Promise<boolean> {
   if (access.isSample) return true;
 
-  const { tier } = await getUserTier(supabase, userId);
-  if (tier === "pro") return true;
+  const { status } = await getAccountAccess(supabase, userId);
+  if (status === "pro") return true;
 
   reply.code(403).send({
     success: false,
@@ -35,18 +40,18 @@ export async function requireProjectTierAccess(
 }
 
 /**
- * Uploading a new version is Pro-only everywhere, including the Sample
- * Project — unlike requireProjectTierAccess, isSample grants no exemption
- * here. Same call contract: after getProjectAccess() confirms access.role
- * is non-null.
+ * Uploading a new version is Pro/Team-only everywhere, including the
+ * Sample Project — unlike requireProjectTierAccess, isSample grants no
+ * exemption here. Same call contract: after getProjectAccess() confirms
+ * access.role is non-null.
  */
 export async function requireProUploadAccess(
   supabase: SupabaseClient,
   userId: string,
   reply: FastifyReply,
 ): Promise<boolean> {
-  const { tier } = await getUserTier(supabase, userId);
-  if (tier === "pro") return true;
+  const { status } = await getAccountAccess(supabase, userId);
+  if (status === "pro") return true;
 
   reply.code(403).send({
     success: false,

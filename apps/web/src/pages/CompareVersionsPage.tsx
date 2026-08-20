@@ -3,14 +3,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import * as THREE from "three";
 import { getVersion, listVersions, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
 import { loadMeshGeometry } from "../engine/loadMesh";
-import DiffView, { type DiffMode, type DiffViewHandle } from "../components/DiffView";
+import DiffView, { type DiffMode, type DiffViewHandle, type DiffAlignment } from "../components/DiffView";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import ReadOnlyMeshViewer, { type ReadOnlyMeshViewerHandle } from "../components/ReadOnlyMeshViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import LoadingModal from "../components/LoadingModal";
-import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
+import { useDiffColors } from "../lib/diffPalette";
 
 export default function CompareVersionsPage() {
   const { projectId, versionAId, versionBId } = useParams<{
@@ -19,12 +19,14 @@ export default function CompareVersionsPage() {
     versionBId: string;
   }>();
   const navigate = useNavigate();
+  const diffColors = useDiffColors();
   const [versionA, setVersionA] = useState<VersionDetail | null>(null);
   const [versionB, setVersionB] = useState<VersionDetail | null>(null);
   const [geometryA, setGeometryA] = useState<THREE.BufferGeometry | null>(null);
   const [geometryB, setGeometryB] = useState<THREE.BufferGeometry | null>(null);
   const [mode, setMode] = useState<DiffMode>("voxel");
   const [toleranceMm, setToleranceMm] = useState(0.15);
+  const [alignment, setAlignment] = useState<DiffAlignment>("none");
   const [stats, setStats] = useState<(VoxelDiffStats & { toleranceMm: number }) | null>(null);
   const [boundingBoxB, setBoundingBoxB] = useState<[number, number, number]>([0, 0, 0]);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +135,11 @@ export default function CompareVersionsPage() {
       projectId,
       versionAId,
       versionBId,
-      mode,
+      // Shared links only persist voxel/surface today (see migration
+      // 0011_shares.sql's check constraint) — Overlay is a live-viewing
+      // mode, not (yet) a shareable one, so it falls back to Voxels rather
+      // than failing the share.
+      mode === "overlay" ? "voxel" : mode,
       stats.toleranceMm,
       expiresInDays,
     );
@@ -181,34 +187,36 @@ export default function CompareVersionsPage() {
             onModeChange={setMode}
             toleranceMm={toleranceMm}
             onToleranceChange={setToleranceMm}
+            alignment={alignment}
+            onAlignmentChange={setAlignment}
             onStatsChange={setStats}
           />
         </div>
 
         {stats && (
           <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Added voxels</div>
-              <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Added voxels</div>
+              <div className={`mt-0.5 text-lg font-semibold ${diffColors.addedTextClass}`}>
                 +{stats.addedCount.toLocaleString()}
               </div>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Removed voxels</div>
-              <div className="mt-0.5 text-lg font-semibold text-red-400">
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Removed voxels</div>
+              <div className={`mt-0.5 text-lg font-semibold ${diffColors.removedTextClass}`}>
                 -{stats.removedCount.toLocaleString()}
               </div>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Volume delta</div>
-              <div className="mt-0.5 text-lg font-semibold text-neutral-100">
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Volume delta</div>
+              <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
                 {stats.approxVolumeDeltaPercent.toFixed(1)}%
               </div>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Tolerance</div>
-              <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Tolerance</div>
+              <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.toleranceMm.toFixed(2)} mm
               </div>
             </div>
@@ -216,80 +224,50 @@ export default function CompareVersionsPage() {
         )}
       </div>
 
-      <div className="w-80 shrink-0 overflow-y-auto">
-        <div className="flex items-center justify-between gap-2">
-          <Link
-            to={`/projects/${projectId}`}
-            className="text-xs text-neutral-500 hover:text-neutral-300"
+      {/* w-96 (not w-80) so the widest rows (e.g. "Bounding Box") never
+          bump into the scrollbar; overflow-x-hidden also guards against the
+          CSS quirk where overflow-y: auto alone makes overflow-x compute to
+          auto too, popping a horizontal scrollbar over a single stray pixel. */}
+      <div className="w-96 shrink-0 overflow-y-auto overflow-x-hidden">
+        <Link
+          to={`/projects/${projectId}`}
+          className="text-xs text-ink-500 hover:text-ink-300"
+        >
+          ← Back to project
+        </Link>
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleShareClick}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
           >
-            ← Back to project
-          </Link>
-          <div className="flex items-center gap-2">
+            🔗 Share
+          </button>
+          {stats && (
             <button
               type="button"
-              onClick={() => {
-                // Fits all three viewers together, keeping each one's
-                // current rotation — the point is bringing the model back
-                // into frame after panning/zooming away, not undoing a
-                // deliberate rotation (that's what Reset View is for).
-                viewerARef.current?.zoomToFit();
-                viewerBRef.current?.zoomToFit();
-                diffViewRef.current?.zoomToFit();
-              }}
-              title="Zoom to fit all views"
-              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
+              onClick={() =>
+                downloadDiffReportPdf(stats, isProOrTeam, {
+                  viewA: viewerARef.current?.captureScreenshot(),
+                  viewB: viewerBRef.current?.captureScreenshot(),
+                  combined: diffViewRef.current?.captureScreenshot(),
+                })
+              }
+              className="flex-1 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
             >
-              Zoom to Model
+              Download Report
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                // Resets all three viewers together — the point is
-                // undoing however much the user has panned/rotated/zoomed
-                // across the whole comparison, not just one pane.
-                viewerARef.current?.resetView();
-                viewerBRef.current?.resetView();
-                diffViewRef.current?.resetView();
-              }}
-              title="Reset all views to how they loaded"
-              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
-            >
-              ⟲ Reset View
-            </button>
-            <ControlSchemeSelect />
-            <button
-              type="button"
-              onClick={handleShareClick}
-              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
-            >
-              🔗 Share
-            </button>
-            {stats && (
-              <button
-                type="button"
-                onClick={() =>
-                  downloadDiffReportPdf(stats, isProOrTeam, {
-                    viewA: viewerARef.current?.captureScreenshot(),
-                    viewB: viewerBRef.current?.captureScreenshot(),
-                    combined: diffViewRef.current?.captureScreenshot(),
-                  })
-                }
-                className="rounded bg-emerald-500 px-2.5 py-1 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
-              >
-                Download Report
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {allVersions.length > 1 && (
-          <div className="mt-3 flex flex-col gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-xs">
-            <span className="font-semibold uppercase tracking-widest text-neutral-500">Compare</span>
+          <div className="mt-3 flex flex-col gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs">
+            <span className="font-semibold uppercase tracking-widest text-ink-500">Compare</span>
             <div className="flex items-center gap-2">
               <select
                 value={versionAId ?? ""}
                 onChange={(event) => handleChangeA(event.target.value)}
-                className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-neutral-200"
+                className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
               >
                 {allVersions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -297,11 +275,11 @@ export default function CompareVersionsPage() {
                   </option>
                 ))}
               </select>
-              <span className="shrink-0 text-neutral-600">→</span>
+              <span className="shrink-0 text-ink-600">→</span>
               <select
                 value={versionBId ?? ""}
                 onChange={(event) => handleChangeB(event.target.value)}
-                className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-neutral-200"
+                className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
               >
                 {allVersions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -321,10 +299,10 @@ export default function CompareVersionsPage() {
 
         {versionA && versionB && (
           <>
-            <h1 className="mt-2 text-sm font-semibold text-white">
+            <h1 className="mt-2 text-sm font-semibold text-ink-50">
               v{versionA.versionNumber} → v{versionB.versionNumber}
             </h1>
-            <p className="mt-0.5 truncate text-xs text-neutral-500">
+            <p className="mt-0.5 truncate text-xs text-ink-500">
               {versionA.fileName} vs {versionB.fileName}
             </p>
 

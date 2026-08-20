@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { MeshBVH } from "three-mesh-bvh";
-import type { Result } from "../types/diff.js";
+import type { HoleChange, Result } from "../types/diff.js";
 import { voxelizeGeometryIntoGrid } from "./voxelize.js";
+import { detectCylindricalHoles, type DetectedHole } from "./holeDetection.js";
 
 export const VOXEL_EMPTY = 0;
 export const VOXEL_UNCHANGED = 1;
@@ -45,6 +46,14 @@ export interface VoxelDiffStats {
   // Printability assessment
   printabilityStatus: "pass" | "warn" | "fail";
   printabilityIssues: string[];
+  // Hole inventory (cylindrical bore detection — axis-aligned only, see holeDetection.ts)
+  holeCountA: number;
+  holeCountB: number;
+  holesAdded: number;
+  holesRemoved: number;
+  holesDiameterChanged: number;
+  minHoleDiameterMm: number;
+  holeChanges: HoleChange[];
   // Source file formats, when known (set via options.fileFormatA/B — not derivable from geometry alone)
   fileFormatA?: string;
   fileFormatB?: string;
@@ -59,6 +68,12 @@ const DEFAULT_TARGET_VOXELS_PER_AXIS = 32;
 const MAX_VOXELS_PER_AXIS = 96;
 const MIN_RESOLUTION_MM = 0.05;
 const FDM_MIN_WALL_THICKNESS_MM = 0.8;
+// CLAUDE.md "3D Printing Constraints (FDM Focus)": holes smaller than this
+// tend to fill in with filament during printing.
+const FDM_MIN_HOLE_DIAMETER_MM = 2;
+// A matched hole's diameter has to move by more than this to count as an
+// actual change rather than mesh-faceting/circle-fit noise.
+const HOLE_DIAMETER_CHANGE_THRESHOLD_MM = 0.1;
 // A file-size cap (see apps/api/src/lib/fileSizeLimit.ts) only bounds bytes
 // on disk — it doesn't bound triangle count, and triangle count is what
 // actually drives memory here: MeshBVH builds a full tree per mesh, and
@@ -319,6 +334,8 @@ function assessPrintability(stats: {
   hasWallThicknessWarning: boolean;
   maxOverhangAngle: number;
   overhangAreaPercent: number;
+  holeCountB: number;
+  minHoleDiameterMm: number;
 }): { status: "pass" | "warn" | "fail"; issues: string[] } {
   const issues: string[] = [];
 
@@ -331,6 +348,9 @@ function assessPrintability(stats: {
   if (stats.overhangAreaPercent > 20) {
     issues.push(`Large unsupported area (${stats.overhangAreaPercent}%)`);
   }
+  if (stats.holeCountB > 0 && stats.minHoleDiameterMm < FDM_MIN_HOLE_DIAMETER_MM) {
+    issues.push(`Small hole diameter (${stats.minHoleDiameterMm.toFixed(2)}mm) may fill in during printing`);
+  }
 
   let status: "pass" | "warn" | "fail" = "pass";
   if (issues.length > 0) {
@@ -338,6 +358,75 @@ function assessPrintability(stats: {
   }
 
   return { status, issues };
+}
+
+/**
+ * Greedily matches mesh B's detected holes to mesh A's nearest unmatched
+ * hole (by center distance) within `maxDistanceMm`, and reports the
+ * resulting added/removed/diameter-changed set. Not a general assignment
+ * solve — real parts rarely have ambiguous near-duplicate holes close
+ * enough together for greedy nearest-neighbor to mismatch.
+ */
+function matchHoles(holesA: DetectedHole[], holesB: DetectedHole[], maxDistanceMm: number): HoleChange[] {
+  const changes: HoleChange[] = [];
+  const usedA = new Set<number>();
+  const usedB = new Set<number>();
+
+  for (let bi = 0; bi < holesB.length; bi++) {
+    const holeB = holesB[bi];
+    let bestAi = -1;
+    let bestDistance = Infinity;
+    for (let ai = 0; ai < holesA.length; ai++) {
+      if (usedA.has(ai)) continue;
+      const holeA = holesA[ai];
+      const distance = Math.hypot(
+        holeA.centerMm[0] - holeB.centerMm[0],
+        holeA.centerMm[1] - holeB.centerMm[1],
+        holeA.centerMm[2] - holeB.centerMm[2],
+      );
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestAi = ai;
+      }
+    }
+    if (bestAi === -1 || bestDistance > maxDistanceMm) continue;
+
+    usedA.add(bestAi);
+    usedB.add(bi);
+    const holeA = holesA[bestAi];
+    if (Math.abs(holeA.diameterMm - holeB.diameterMm) > HOLE_DIAMETER_CHANGE_THRESHOLD_MM) {
+      changes.push({
+        id: `hole-changed-${bi}`,
+        kind: "diameter-changed",
+        diameterBeforeMm: Math.round(holeA.diameterMm * 100) / 100,
+        diameterAfterMm: Math.round(holeB.diameterMm * 100) / 100,
+        locationMm: holeB.centerMm,
+      });
+    }
+  }
+
+  holesA.forEach((holeA, ai) => {
+    if (usedA.has(ai)) return;
+    changes.push({
+      id: `hole-removed-${ai}`,
+      kind: "removed",
+      diameterBeforeMm: Math.round(holeA.diameterMm * 100) / 100,
+      diameterAfterMm: null,
+      locationMm: holeA.centerMm,
+    });
+  });
+  holesB.forEach((holeB, bi) => {
+    if (usedB.has(bi)) return;
+    changes.push({
+      id: `hole-added-${bi}`,
+      kind: "added",
+      diameterBeforeMm: null,
+      diameterAfterMm: Math.round(holeB.diameterMm * 100) / 100,
+      locationMm: holeB.centerMm,
+    });
+  });
+
+  return changes;
 }
 
 /**
@@ -433,6 +522,13 @@ export interface VoxelDiffBase {
   overhangAreaPercent: number;
   printabilityStatus: "pass" | "warn" | "fail";
   printabilityIssues: string[];
+  holeCountA: number;
+  holeCountB: number;
+  holesAdded: number;
+  holesRemoved: number;
+  holesDiameterChanged: number;
+  minHoleDiameterMm: number;
+  holeChanges: HoleChange[];
   fileFormatA?: string;
   fileFormatB?: string;
 }
@@ -544,11 +640,23 @@ export function computeVoxelDiffBase(
   const overhangArea = Math.max(overhangA.overhangArea, overhangB.overhangArea);
   const overhangAreaPercent = Math.max(overhangA.overhangPercent, overhangB.overhangPercent);
 
+  // Detect holes and match B's against A's
+  const holesA = detectCylindricalHoles(geometryA);
+  const holesB = detectCylindricalHoles(geometryB);
+  const holeMatchRadiusMm = Math.max(resolutionMm * 4, 1);
+  const holeChanges = matchHoles(holesA, holesB, holeMatchRadiusMm);
+  const holesAdded = holeChanges.filter((c) => c.kind === "added").length;
+  const holesRemoved = holeChanges.filter((c) => c.kind === "removed").length;
+  const holesDiameterChanged = holeChanges.filter((c) => c.kind === "diameter-changed").length;
+  const minHoleDiameterMm = holesB.length > 0 ? Math.min(...holesB.map((h) => h.diameterMm)) : 0;
+
   // Assess printability
   const printability = assessPrintability({
     hasWallThicknessWarning: thinWallWarning,
     maxOverhangAngle,
     overhangAreaPercent,
+    holeCountB: holesB.length,
+    minHoleDiameterMm,
   });
 
   return {
@@ -577,6 +685,13 @@ export function computeVoxelDiffBase(
       overhangAreaPercent,
       printabilityStatus: printability.status,
       printabilityIssues: printability.issues,
+      holeCountA: holesA.length,
+      holeCountB: holesB.length,
+      holesAdded,
+      holesRemoved,
+      holesDiameterChanged,
+      minHoleDiameterMm,
+      holeChanges,
       fileFormatA: options?.fileFormatA,
       fileFormatB: options?.fileFormatB,
     },
@@ -659,6 +774,13 @@ export function classifyVoxelDiff(base: VoxelDiffBase, toleranceMm: number = 0):
       overhangAreaPercent: base.overhangAreaPercent,
       printabilityStatus: base.printabilityStatus,
       printabilityIssues: base.printabilityIssues,
+      holeCountA: base.holeCountA,
+      holeCountB: base.holeCountB,
+      holesAdded: base.holesAdded,
+      holesRemoved: base.holesRemoved,
+      holesDiameterChanged: base.holesDiameterChanged,
+      minHoleDiameterMm: base.minHoleDiameterMm,
+      holeChanges: base.holeChanges,
       fileFormatA: base.fileFormatA,
       fileFormatB: base.fileFormatB,
     },

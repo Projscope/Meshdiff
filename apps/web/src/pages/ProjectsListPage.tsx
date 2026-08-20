@@ -8,7 +8,7 @@ import { useAccountStatus } from "../components/ProjectsLayout";
 const PAGE_SIZE = 10;
 
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
-  pass: "bg-emerald-500",
+  pass: "bg-accent-500",
   warn: "bg-amber-500",
   fail: "bg-red-500",
 };
@@ -30,7 +30,7 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
   const showImage = project.thumbnailUrl && !failed;
 
   return (
-    <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-t-lg bg-neutral-950">
+    <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-t-lg bg-ink-950">
       {showImage ? (
         <img
           src={project.thumbnailUrl!}
@@ -39,9 +39,9 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
           onError={() => setFailed(true)}
         />
       ) : (
-        <div className="flex flex-col items-center gap-2 text-neutral-700">
+        <div className="flex flex-col items-center gap-2 text-ink-700">
           <FolderIcon />
-          <span className="text-[11px] text-neutral-600">No model yet</span>
+          <span className="text-[11px] text-ink-600">No model yet</span>
         </div>
       )}
       {project.latestPrintabilityStatus && (
@@ -104,8 +104,8 @@ export default function ProjectsListPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Projects</h1>
-          <p className="mt-1 text-sm text-neutral-400">Track and review 3D model versions</p>
+          <h1 className="text-2xl font-bold text-ink-50">Projects</h1>
+          <p className="mt-1 text-sm text-ink-400">Track and review 3D model versions</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {projects && projects.length > 0 && (
@@ -113,7 +113,7 @@ export default function ProjectsListPage() {
               aria-label="Sort projects"
               value={sort}
               onChange={(e) => handleSortChange(e.target.value as "name" | "date-newest" | "date-oldest")}
-              className="rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-300 hover:border-neutral-500"
+              className="rounded border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-300 hover:border-ink-500"
             >
               <option value="date-newest">Newest first</option>
               <option value="date-oldest">Oldest first</option>
@@ -126,8 +126,8 @@ export default function ProjectsListPage() {
             disabled={!isPro}
             className={`rounded px-4 py-2 text-sm font-medium ${
               isPro
-                ? "bg-emerald-500 text-neutral-950 hover:bg-emerald-400"
-                : "bg-neutral-700 text-neutral-500 cursor-not-allowed"
+                ? "bg-accent-500 text-chrome-950 hover:bg-accent-400"
+                : "bg-ink-700 text-ink-500 cursor-not-allowed"
             }`}
             title={!isPro ? "Upgrade to Pro to create projects" : ""}
           >
@@ -143,11 +143,11 @@ export default function ProjectsListPage() {
       )}
 
       {projects === null && !error && (
-        <div className="mt-6 text-sm text-neutral-500">Loading…</div>
+        <div className="mt-6 text-sm text-ink-500">Loading…</div>
       )}
 
       {projects && projects.length === 0 && (
-        <div className="mt-10 rounded-lg border border-dashed border-neutral-800 py-16 text-center text-sm text-neutral-500">
+        <div className="mt-10 rounded-lg border border-dashed border-ink-800 py-16 text-center text-sm text-ink-500">
           No projects yet. Create one to start tracking versions.
         </div>
       )}
@@ -155,18 +155,18 @@ export default function ProjectsListPage() {
       {projects && projects.length > 0 && (
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <div key={project.id} className="group relative overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 hover:border-neutral-600">
+            <div key={project.id} className="group relative overflow-hidden rounded-lg border border-ink-800 bg-ink-900 hover:border-ink-600">
               <Link to={`/projects/${project.id}`}>
                 <ProjectThumbnail project={project} />
                 <div className="p-4">
-                  <h3 className="truncate pr-6 font-semibold text-white">{project.name}</h3>
+                  <h3 className="truncate pr-6 font-semibold text-ink-50">{project.name}</h3>
                   {project.latestFileName && (
-                    <p className="mt-0.5 truncate text-xs text-neutral-500">{project.latestFileName}</p>
+                    <p className="mt-0.5 truncate text-xs text-ink-500">{project.latestFileName}</p>
                   )}
                   {project.description && (
-                    <p className="mt-2 line-clamp-2 text-xs text-neutral-400">{project.description}</p>
+                    <p className="mt-2 line-clamp-2 text-xs text-ink-400">{project.description}</p>
                   )}
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-neutral-600">
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-ink-600">
                     <span>{project.versionCount} version{project.versionCount === 1 ? "" : "s"}</span>
                     <span>{formatDate(project.updatedAt)}</span>
                   </div>
@@ -176,7 +176,7 @@ export default function ProjectsListPage() {
                 type="button"
                 onClick={() => setPendingDelete(project)}
                 title="Delete project"
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-neutral-950/70 text-neutral-400 opacity-0 transition hover:bg-red-500/20 hover:text-red-400 group-hover:opacity-100"
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink-950/70 text-ink-400 opacity-0 transition hover:bg-red-500/20 hover:text-red-400 group-hover:opacity-100"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                   <path d="M3 6h18" />
@@ -195,18 +195,18 @@ export default function ProjectsListPage() {
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             ← Prev
           </button>
-          <span className="text-neutral-500">
+          <span className="text-ink-500">
             Page {page} of {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next →
           </button>

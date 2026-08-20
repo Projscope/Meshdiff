@@ -2,8 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens for the `ink` Tailwind color scale (see tailwind.config.js).
+   Dark is the site's native/default theme; :root carries those values
+   directly so nothing needs data-theme="dark" set explicitly. The light
+   theme is the same 11-stop scale end-to-end reversed (950<->50, 900<->100,
+   ...) — every component that uses ink-950 for a page background and
+   ink-50/white-adjacent tones for foreground text gets a coherent light
+   theme "for free", no dark:/light: class variants needed anywhere. Values
+   are "R G B" triples so Tailwind's rgb(var(--x) / <alpha-value>) can still
+   apply opacity modifiers (bg-ink-950/80, etc). */
+:root {
+  --ink-50: 245 247 251;
+  --ink-100: 232 236 243;
+  --ink-200: 209 216 228;
+  --ink-300: 170 181 200;
+  --ink-400: 124 135 158;
+  --ink-500: 90 100 120;
+  --ink-600: 68 77 95;
+  --ink-700: 51 59 74;
+  --ink-800: 38 44 56;
+  --ink-900: 27 31 39;
+  --ink-950: 21 24 30;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --ink-50: 21 24 30;
+  --ink-100: 27 31 39;
+  --ink-200: 38 44 56;
+  --ink-300: 51 59 74;
+  --ink-400: 68 77 95;
+  --ink-500: 90 100 120;
+  --ink-600: 124 135 158;
+  --ink-700: 170 181 200;
+  --ink-800: 209 216 228;
+  --ink-900: 232 236 243;
+  --ink-950: 245 247 251;
+  color-scheme: light;
+}
+
 body {
-  font-family: "Roboto", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica,
+  background-color: rgb(var(--ink-950));
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica,
     Arial, sans-serif;
 }
 
@@ -75,4 +115,24 @@ body {
     animation: none;
     transform: rotateX(-25deg) rotateY(35deg);
   }
+}
+
+/* Thin, dark-themed scrollbar for compact scroll areas (e.g. the comment
+   popover's reply list) instead of the chunky default OS scrollbar. */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(82 82 82) transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(82 82 82);
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(115 115 115);
 }

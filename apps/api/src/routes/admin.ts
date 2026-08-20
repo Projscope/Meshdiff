@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 
@@ -17,24 +17,21 @@ interface AdminStatsQuery {
 
 interface SubscriptionRow {
   user_id: string;
-  tier: "pro";
+  tier: "pro" | "team";
   status: string;
   current_period_end: string;
 }
 
 export default async function adminRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   // Lightweight stats-only endpoint for the Dashboard page — no paginated
   // user list, just the stat cards plus the signups trend chart.
   app.get<{ Querystring: AdminStatsQuery }>(
     "/admin/stats",
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
-      const supabase = getSupabase();
-      if (!supabase) {
-        reply.code(500);
-        return { success: false, error: "Admin is not configured" };
-      }
-
+      const supabase = request.supabase!;
       const granularity: SignupGranularity = request.query.granularity === "month" ? "month" : "week";
 
       try {
@@ -69,12 +66,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
     "/admin/users",
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
-      const supabase = getSupabase();
-      if (!supabase) {
-        reply.code(500);
-        return { success: false, error: "Admin is not configured" };
-      }
-
+      const supabase = request.supabase!;
       const page = Math.max(1, parseInt(request.query.page ?? "1", 10) || 1);
 
       try {
@@ -121,14 +113,14 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
 
         const users = pageResult.data.users.map((u) => {
           const sub = subsByUser.get(u.id);
-          const isPro = !!sub && sub.tier === "pro" && !INACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
+          const isActive = !!sub && !INACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
           return {
             id: u.id,
             email: u.email ?? null,
             signupDate: u.created_at,
-            tier: isPro ? "pro" : "free",
+            tier: isActive ? sub!.tier : "free",
             status: sub?.status ?? null,
-            currentPeriodEnd: isPro ? sub!.current_period_end : null,
+            currentPeriodEnd: isActive ? sub!.current_period_end : null,
           };
         });
 

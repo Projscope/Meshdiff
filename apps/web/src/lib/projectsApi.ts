@@ -34,6 +34,7 @@ export interface VersionSummary {
   approvalStatus: "pending" | "approved" | "rejected";
   rejectionReason: string | null;
   createdAt: string;
+  uploaderEmail: string | null;
 }
 
 export interface VersionDetail extends VersionSummary {
@@ -65,6 +66,7 @@ export interface TeamDetail {
   name: string;
   myRole: "admin" | "approver" | "member";
   isOwner: boolean;
+  seats: { purchased: number; used: number } | null;
   members: TeamMember[];
 }
 
@@ -78,6 +80,9 @@ export interface StableVersion {
 
 export interface CommentSummary {
   id: string;
+  authorUserId: string | null;
+  authorEmail: string | null;
+  parentCommentId: string | null;
   body: string;
   position: [number, number, number];
   normal: [number, number, number] | null;
@@ -194,6 +199,27 @@ export function getTeam(teamId: string): Promise<Result<TeamDetail>> {
   return request(`/teams/${teamId}`);
 }
 
+export interface TeamPendingVersion extends VersionSummary {
+  projectId: string;
+  projectName: string;
+}
+
+export function getTeamPendingVersions(teamId: string): Promise<Result<TeamPendingVersion[]>> {
+  return request(`/teams/${teamId}/pending-versions`);
+}
+
+export interface TeamAuditLogEntry {
+  id: string;
+  actorEmail: string | null;
+  action: "team_created" | "member_invited" | "member_removed" | "version_approved" | "version_rejected";
+  summary: string;
+  createdAt: string;
+}
+
+export function getTeamAuditLog(teamId: string): Promise<Result<TeamAuditLogEntry[]>> {
+  return request(`/teams/${teamId}/audit-log`);
+}
+
 export function addTeamMember(
   teamId: string,
   email: string,
@@ -209,14 +235,29 @@ export function removeTeamMember(teamId: string, userId: string): Promise<Result
   return request(`/teams/${teamId}/members/${userId}`, { method: "DELETE" });
 }
 
+export function updateTeamMemberRole(
+  teamId: string,
+  userId: string,
+  role: "admin" | "approver" | "member",
+): Promise<Result<{ userId: string; role: string }>> {
+  return request(`/teams/${teamId}/members/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+}
+
 export interface SubscriptionStatus {
-  tier: "free" | "pro";
+  tier: "free" | "pro" | "team";
   status: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  /** "pro" (real subscription) | "restricted" (no subscription — most
-   * routes 403; Pro is payable from day one, no trial). */
+  /** "pro" (real subscription, or access via a Team owner's seats) |
+   * "restricted" (no subscription and no team access — most routes 403;
+   * Pro/Team are payable from day one, no trial). */
   accountStatus: "pro" | "restricted";
+  /** Only populated for a Team subscription's owner — a member riding the
+   * owner's seats has no purchased/used figure of their own. */
+  seats: { purchased: number; used: number } | null;
 }
 
 export function getSubscription(): Promise<Result<SubscriptionStatus>> {
@@ -226,12 +267,15 @@ export function getSubscription(): Promise<Result<SubscriptionStatus>> {
 /** Returns a Stripe Checkout URL to redirect the browser to — Checkout is a
  * Stripe-hosted page, not Stripe Elements (see CLAUDE.md), so there's
  * nothing to render here beyond the redirect itself. */
-export function startProCheckout(couponCode?: string): Promise<Result<{ url: string }>> {
+function startCheckout(tier: "pro" | "team", couponCode?: string): Promise<Result<{ url: string }>> {
   return request("/billing/checkout", {
     method: "POST",
-    body: couponCode ? JSON.stringify({ couponCode }) : undefined,
+    body: JSON.stringify({ tier, ...(couponCode ? { couponCode } : {}) }),
   });
 }
+
+export const startProCheckout = (couponCode?: string) => startCheckout("pro", couponCode);
+export const startTeamCheckout = () => startCheckout("team");
 
 export interface ActiveCoupon {
   code: string;
@@ -353,11 +397,16 @@ export function createComment(
   body: string,
   position: [number, number, number],
   normal?: [number, number, number],
+  parentCommentId?: string,
 ): Promise<Result<CommentSummary>> {
   return request(`/projects/${projectId}/versions/${versionId}/comments`, {
     method: "POST",
-    body: JSON.stringify({ body, position, normal }),
+    body: JSON.stringify({ body, position, normal, parentCommentId }),
   });
+}
+
+export function deleteComment(projectId: string, versionId: string, commentId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}/versions/${versionId}/comments/${commentId}`, { method: "DELETE" });
 }
 
 /** Fetches the zip with the auth header attached (a plain <a href> can't send one) and triggers a browser download. */

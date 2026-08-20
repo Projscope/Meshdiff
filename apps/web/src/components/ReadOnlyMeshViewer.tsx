@@ -1,12 +1,17 @@
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { Bounds, Grid, OrbitControls } from "@react-three/drei";
+import { Bounds, OrbitControls } from "@react-three/drei";
 import AxisLegend from "./AxisLegend";
-import AxisLabels from "./AxisLabels";
+import ModelScene from "./ModelScene";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
+import MeasureToolbar from "./MeasureToolbar";
+import MeasureSceneOverlay from "./MeasureSceneOverlay";
+import { useMeasureTool } from "../lib/useMeasureTool";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
+import { useShadingMode } from "../lib/shadingMode";
+import EdgeOverlay from "./EdgeOverlay";
 
 interface ReadOnlyMeshViewerProps {
   /** Shown top-left. Pass the loaded version's label (e.g. "v1"); falls back to `fallbackLabel` when `geometry` is null. */
@@ -34,6 +39,8 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const [controlScheme] = useControlScheme();
   const mouseButtons = useOrbitMouseButtons(controlScheme);
+  const measure = useMeasureTool();
+  const [shadingMode] = useShadingMode();
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
@@ -41,13 +48,29 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
     zoomToFit: () => zoomToFitRef.current?.(),
   }));
 
+  useEffect(() => {
+    if (!geometry) return;
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    const size: [number, number, number] = box ? box.getSize(new THREE.Vector3()).toArray() : [0, 0, 0];
+    measure.setGeometry(geometry, size);
+    measure.clearMeasurement();
+    // measure is a fresh object identity every render (plain hook, not
+    // memoized) — including it would re-run this on every render instead
+    // of only when the geometry itself actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geometry]);
+
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
-      <span className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        {geometry ? label : fallbackLabel}
-      </span>
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-ink-800 bg-ink-950">
+      <div className="absolute left-3 top-2 z-10 flex items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
+          {geometry ? label : fallbackLabel}
+        </span>
+        {geometry && <MeasureToolbar measure={measure} onZoomToFit={() => zoomToFitRef.current?.()} onResetView={() => resetViewRef.current?.()} />}
+      </div>
       {!geometry && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-neutral-600">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-ink-600">
           No model loaded
         </div>
       )}
@@ -58,17 +81,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
           canvasElRef.current = gl.domElement;
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 20, 10]} intensity={0.8} />
-        <Grid infiniteGrid cellColor="#333" sectionColor="#555" />
-        {/* The grid is drei's default Y-up floor; this app's model data is
-            Z-up (see diffVoxels.ts's gravity vector), so the displayed
-            content is rotated -90° around X to lay it flat on that floor.
-            Purely a presentation transform — doesn't touch the geometry
-            used for diffing/printability. */}
-        <group rotation={[-Math.PI / 2, 0, 0]}>
-          <axesHelper args={[30]} />
-          <AxisLabels />
+        <ModelScene>
           {geometry && (
             // Keyed by geometry so a newly-loaded model remounts Bounds
             // (and BoundsResetBridge's captured "loaded" pose) instead of
@@ -76,12 +89,30 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
             <Bounds key={geometry.uuid} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
               <ZoomToFitBridge zoomRef={zoomToFitRef} />
-              <mesh geometry={geometry}>
-                <meshStandardMaterial color={color} />
+              <mesh
+                geometry={geometry}
+                onClick={(event) => measure.onClick(event)}
+                onPointerMove={measure.onPointerMove}
+                onPointerOut={measure.onPointerOut}
+              >
+                {/* key forces a fresh material instance when shadingMode
+                    flips — mutating flatShading on an already-compiled
+                    material doesn't recompile its shader. */}
+                <meshStandardMaterial
+                  key={shadingMode}
+                  color={color}
+                  flatShading={shadingMode === "flat"}
+                  transparent={shadingMode === "transparent"}
+                  opacity={shadingMode === "transparent" ? 0.4 : 1}
+                  depthWrite={shadingMode !== "transparent"}
+                  side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
+                />
               </mesh>
+              {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}
             </Bounds>
           )}
-        </group>
+          <MeasureSceneOverlay measure={measure} />
+        </ModelScene>
         <OrbitControls makeDefault enableZoom enablePan enableRotate mouseButtons={mouseButtons} />
       </Canvas>
       <AxisLegend />

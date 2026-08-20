@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import * as THREE from "three";
-import { buildGhostOverlayColors, REMOVED_COLOR } from "../engine/surfaceDeviation";
+import { buildGhostOverlayColors } from "../engine/surfaceDeviation";
 import { computeSurfaceDeviationOffThread } from "../lib/surfaceDeviationWorkerClient";
+import { useDiffColors } from "../lib/diffPalette";
 
 interface SurfaceHeatmapProps {
   /** The surface shown to the user, heat-colored by its deviation from base. */
@@ -34,10 +35,15 @@ interface SurfaceHeatmapProps {
 export default function SurfaceHeatmap({ geometry, baseGeometry, toleranceMm }: SurfaceHeatmapProps) {
   const [colored, setColored] = useState<{ geometry: THREE.BufferGeometry; maxAbsDeviationMm: number } | null>(null);
   const [ghost, setGhost] = useState<THREE.BufferGeometry | null>(null);
+  const diffColors = useDiffColors();
 
   useEffect(() => {
     let cancelled = false;
-    computeSurfaceDeviationOffThread(geometry, baseGeometry, { toleranceMm }).then((result) => {
+    computeSurfaceDeviationOffThread(geometry, baseGeometry, {
+      toleranceMm,
+      addedColorHex: diffColors.addedHex,
+      removedColorHex: diffColors.removedHex,
+    }).then((result) => {
       if (cancelled || !result.success) return;
       // Never mutate the loaded geometry in place — clone before attaching
       // per-vertex diff colors.
@@ -48,13 +54,17 @@ export default function SurfaceHeatmap({ geometry, baseGeometry, toleranceMm }: 
     return () => {
       cancelled = true;
     };
-  }, [geometry, baseGeometry, toleranceMm]);
+  }, [geometry, baseGeometry, toleranceMm, diffColors]);
 
   useEffect(() => {
     let cancelled = false;
     computeSurfaceDeviationOffThread(baseGeometry, geometry, { toleranceMm }).then((result) => {
       if (cancelled || !result.success) return;
-      const rgba = buildGhostOverlayColors(result.data.signedDistancesMm, toleranceMm ?? 0, REMOVED_COLOR);
+      const rgba = buildGhostOverlayColors(
+        result.data.signedDistancesMm,
+        toleranceMm ?? 0,
+        new THREE.Color(diffColors.removedHex),
+      );
       const clone = baseGeometry.clone();
       clone.setAttribute("color", new THREE.BufferAttribute(rgba, 4));
       setGhost(clone);
@@ -62,7 +72,7 @@ export default function SurfaceHeatmap({ geometry, baseGeometry, toleranceMm }: 
     return () => {
       cancelled = true;
     };
-  }, [geometry, baseGeometry, toleranceMm]);
+  }, [geometry, baseGeometry, toleranceMm, diffColors]);
 
   if (!colored) return null;
 

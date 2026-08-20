@@ -1,26 +1,13 @@
 import * as THREE from "three";
 import type { Result } from "@meshdiff/shared/types/diff";
 import type { MeshParseWorkerRequest, MeshParseWorkerResponse, ParsedMeshGeometry } from "../workers/meshParseWorker";
+import { createWorkerClient } from "./createWorkerClient";
 
-// One worker for the whole app's lifetime — same rationale as
-// voxelDiffWorkerClient.ts (avoid re-parsing the module graph, incl.
-// three.js and linkedom, on every file drop).
-let worker: Worker | null = null;
-let nextRequestId = 0;
-const pending = new Map<number, (response: Result<ParsedMeshGeometry>) => void>();
-
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL("../workers/meshParseWorker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (event: MessageEvent<MeshParseWorkerResponse>) => {
-      const resolve = pending.get(event.data.id);
-      if (!resolve) return; // stale/unknown request (shouldn't happen) — drop it
-      pending.delete(event.data.id);
-      resolve(event.data.result);
-    };
-  }
-  return worker;
-}
+// One worker for the whole app's lifetime — avoids re-parsing the module
+// graph (incl. three.js and linkedom) on every file drop.
+const client = createWorkerClient<MeshParseWorkerRequest, MeshParseWorkerResponse>(
+  () => new Worker(new URL("../workers/meshParseWorker.ts", import.meta.url), { type: "module" }),
+);
 
 function toGeometry(data: ParsedMeshGeometry): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
@@ -31,6 +18,10 @@ function toGeometry(data: ParsedMeshGeometry): THREE.BufferGeometry {
   if (data.index) {
     geometry.setIndex(new THREE.BufferAttribute(data.index, 1));
   }
+  // Rides along on the standard userData bag rather than changing this
+  // function's return type — see loadMesh.ts's callers, most of which have
+  // no reason to care whether the mesh needed cleanup on load.
+  geometry.userData.meshRepair = data.repair;
   return geometry;
 }
 
@@ -43,13 +34,8 @@ function toGeometry(data: ParsedMeshGeometry): THREE.BufferGeometry {
  * arrays back is new.
  */
 export function loadMeshGeometryOffThread(file: File): Promise<Result<THREE.BufferGeometry>> {
-  const id = nextRequestId++;
-  const request: MeshParseWorkerRequest = { id, file };
-
-  return new Promise((resolve) => {
-    pending.set(id, (result) => {
-      resolve(result.success ? { success: true, data: toGeometry(result.data) } : result);
-    });
-    getWorker().postMessage(request);
-  });
+  const id = client.nextId();
+  return client.send({ id, file }).then((result) =>
+    result.success ? { success: true, data: toGeometry(result.data) } : result,
+  );
 }

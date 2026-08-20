@@ -2,53 +2,25 @@ import * as THREE from "three";
 import type { VoxelDiffResult } from "@meshdiff/shared/engine/diffVoxels";
 import type { Result } from "@meshdiff/shared/types/diff";
 import type { DiffWorkerBaseOptions, DiffWorkerRequest, DiffWorkerResponse } from "../workers/diffWorker";
+import { createWorkerClient } from "./createWorkerClient";
+import { toIndexArray } from "./geometryTransfer";
 
 // One worker for the whole app's lifetime — spinning up a fresh worker (and
 // re-parsing its module graph, incl. three.js) per diff would cost more than
 // the computation it's offloading.
-let worker: Worker | null = null;
-let nextRequestId = 0;
-const pending = new Map<number, (response: Result<VoxelDiffResult>) => void>();
+const client = createWorkerClient<DiffWorkerRequest, DiffWorkerResponse>(
+  () => new Worker(new URL("../workers/diffWorker.ts", import.meta.url), { type: "module" }),
+);
 
 // Mirrors the worker's cachedBase: which geometry pair (+ base options) the
 // worker currently has voxelized, so this client can tell a genuine
 // re-voxelize apart from "only the tolerance slider moved" and send the
-// cheap "tolerance" request kind for the latter. Reset whenever a new
-// worker is spun up or a "full" request fails, so the two never drift out
-// of sync with what the worker actually has cached.
+// cheap "tolerance" request kind for the latter. Reset whenever a "full"
+// request fails, so the two never drift out of sync with what the worker
+// actually has cached.
 let cachedGeometryA: THREE.BufferGeometry | null = null;
 let cachedGeometryB: THREE.BufferGeometry | null = null;
 let cachedBaseOptionsKey: string | null = null;
-
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL("../workers/diffWorker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (event: MessageEvent<DiffWorkerResponse>) => {
-      const resolve = pending.get(event.data.id);
-      if (!resolve) return; // stale/unknown request (shouldn't happen) — drop it
-      pending.delete(event.data.id);
-      resolve(event.data.result);
-    };
-  }
-  return worker;
-}
-
-function toIndexArray(geometry: THREE.BufferGeometry): Uint32Array | Uint16Array | null {
-  const index = geometry.getIndex();
-  if (!index) return null;
-  const array = index.array;
-  // .slice() copies rather than transfers — geometryA/geometryB are also
-  // used for on-screen rendering elsewhere, so their buffers must stay
-  // intact rather than being detached by a structured-clone transfer.
-  return array instanceof Uint16Array ? array.slice() : Uint32Array.from(array);
-}
-
-function send(request: DiffWorkerRequest, transfer: Transferable[]): Promise<Result<VoxelDiffResult>> {
-  return new Promise((resolve) => {
-    pending.set(request.id, resolve);
-    getWorker().postMessage(request, transfer);
-  });
-}
 
 /**
  * Off-main-thread version of computeVoxelDiff (see CLAUDE.md "3D Performance
@@ -75,13 +47,13 @@ export function computeVoxelDiffOffThread(
 
   const { toleranceMm = 0, ...baseOptions } = options ?? {};
   const baseOptionsKey = JSON.stringify(baseOptions);
-  const id = nextRequestId++;
+  const id = client.nextId();
 
   const canReuseCachedBase =
     geometryA === cachedGeometryA && geometryB === cachedGeometryB && baseOptionsKey === cachedBaseOptionsKey;
 
   if (canReuseCachedBase) {
-    return send({ id, kind: "tolerance", toleranceMm }, []);
+    return client.send({ id, kind: "tolerance", toleranceMm }, []);
   }
 
   cachedGeometryA = geometryA;
@@ -93,7 +65,7 @@ export function computeVoxelDiffOffThread(
   const indexA = toIndexArray(geometryA);
   const indexB = toIndexArray(geometryB);
 
-  return send(
+  return client.send(
     { id, kind: "full", positionsA, indexA, positionsB, indexB, options: baseOptions, toleranceMm },
     [positionsA.buffer, positionsB.buffer, ...(indexA ? [indexA.buffer] : []), ...(indexB ? [indexB.buffer] : [])],
   ).then((result) => {

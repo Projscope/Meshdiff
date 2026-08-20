@@ -35,22 +35,22 @@ export default function FaqAccordion() {
       {FAQS.map((item, index) => {
         const isOpen = openIndex === index;
         return (
-          <div key={item.q} className="rounded-lg border border-neutral-800 bg-neutral-900">
+          <div key={item.q} className="rounded-lg border border-ink-800 bg-ink-900">
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? null : index)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-neutral-200"
+              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-ink-200"
             >
               {item.q}
               <span
-                className={`ml-4 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-neutral-800 text-emerald-400 transition-transform ${
+                className={`ml-4 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-ink-800 text-accent-400 transition-transform ${
                   isOpen ? "rotate-45" : ""
                 }`}
               >
                 +
               </span>
             </button>
-            {isOpen && <p className="px-4 pb-3 text-sm text-neutral-400">{item.a}</p>}
+            {isOpen && <p className="px-4 pb-3 text-sm text-ink-400">{item.a}</p>}
           </div>
         );
       })}

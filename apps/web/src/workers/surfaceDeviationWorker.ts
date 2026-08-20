@@ -8,7 +8,7 @@ export interface SurfaceDeviationWorkerRequest {
   sourceIndex: Uint32Array | Uint16Array | null;
   referencePositions: Float32Array;
   referenceIndex: Uint32Array | Uint16Array | null;
-  options?: { clampMm?: number; toleranceMm?: number };
+  options?: { clampMm?: number; toleranceMm?: number; addedColorHex?: string; removedColorHex?: string };
 }
 
 export interface SurfaceDeviationWorkerResponse {

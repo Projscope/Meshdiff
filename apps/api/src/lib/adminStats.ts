@@ -32,10 +32,13 @@ export async function getAdminStats(
   const totalProbe = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
   const totalUsers = !totalProbe.error && "total" in totalProbe.data ? totalProbe.data.total : 0;
 
+  // "pro" here means "paying" for the stat card — includes Team
+  // subscribers, not just tier==='pro' rows, otherwise Team revenue would
+  // silently disappear from the conversion-rate stat.
   const { count: proCount, error: proCountError } = await supabase
     .from("subscriptions")
     .select("*", { count: "exact", head: true })
-    .eq("tier", "pro")
+    .in("tier", ["pro", "team"])
     .not("status", "in", `(${INACTIVE_SUBSCRIPTION_STATUSES.join(",")})`);
   if (proCountError) {
     return { success: false, error: "Failed to count pro subscriptions" };

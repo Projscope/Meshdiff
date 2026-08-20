@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { seedSampleProject } from "../lib/seedSampleProject.js";
 
 const DEFAULT_WORKSPACE_NAME = "My Workspace";
@@ -11,16 +11,13 @@ interface UpdateWorkspaceBody {
 }
 
 export default async function workspaceRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   // Lazily created on first read rather than backfilled — a user who signed
   // up before this feature shipped just gets the default the first time
   // they load the sidebar.
   app.get("/workspace", { preHandler: requireAuth }, async (request, reply) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-      reply.code(500);
-      return { success: false, error: "Workspace is not configured" };
-    }
+    const supabase = request.supabase!;
 
     try {
       const { data: existing, error: selectError } = await supabase
@@ -75,12 +72,7 @@ export default async function workspaceRoute(app: FastifyInstance): Promise<void
       return { success: false, error: "name must be a non-empty string" };
     }
 
-    const supabase = getSupabase();
-    if (!supabase) {
-      app.log.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured");
-      reply.code(500);
-      return { success: false, error: "Workspace is not configured" };
-    }
+    const supabase = request.supabase!;
 
     try {
       const { data, error } = await supabase

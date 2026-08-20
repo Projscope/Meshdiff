@@ -91,17 +91,17 @@ export default function FeaturesPage() {
   const gridRef = useScrollReveal<HTMLDivElement>();
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="min-h-screen bg-ink-950 text-ink-100">
       <main>
         {/* Hero */}
         <section className="mx-auto max-w-3xl px-6 pb-14 pt-20 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500">Features</p>
-          <h1 className="mt-4 text-4xl font-bold leading-[1.1] tracking-tight text-white md:text-5xl">
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink-400">Features</p>
+          <h1 className="mt-4 font-display text-4xl font-bold leading-[1.1] tracking-tight text-ink-50 md:text-5xl">
             Everything you need
             <br />
             to catch what changed.
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-neutral-400">
+          <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-ink-400">
             No CAD plugin, no manual overlay, no guesswork — Meshdiff reads two STL, 3MF, or OBJ files and gives
             you a real diff. Compare STL files, run an OBJ diff, or compare two 3D models of any format side by
             side.
@@ -109,13 +109,13 @@ export default function FeaturesPage() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
               to="/live"
-              className="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
+              className="rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
             >
               Open the diff tool
             </Link>
             <a
               href="/#pricing"
-              className="rounded-lg border border-neutral-700 px-5 py-2.5 text-sm font-medium text-neutral-200 transition hover:border-neutral-500 active:scale-[0.98]"
+              className="rounded-lg border border-ink-700 px-5 py-2.5 text-sm font-medium text-ink-200 transition hover:border-ink-500 active:scale-[0.98]"
             >
               See pricing
             </a>
@@ -123,24 +123,24 @@ export default function FeaturesPage() {
         </section>
 
         {/* Hero feature: the one row with a real screenshot */}
-        <section className="border-t border-neutral-900 px-6 py-16">
+        <section className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2">
             <div>
-              <span className="inline-block rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+              <span className="inline-block rounded-full border border-ink-700 bg-ink-800 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-400">
                 {HERO_FEATURE.tag}
               </span>
-              <h2 className="mt-4 text-2xl font-bold leading-tight text-white md:text-3xl">{HERO_FEATURE.title}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-neutral-400">{HERO_FEATURE.description}</p>
-              <ul className="mt-5 flex flex-col gap-2.5 text-sm text-neutral-300">
+              <h2 className="mt-4 text-2xl font-bold leading-tight text-ink-50 md:text-3xl">{HERO_FEATURE.title}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-ink-400">{HERO_FEATURE.description}</p>
+              <ul className="mt-5 flex flex-col gap-2.5 text-sm text-ink-300">
                 {HERO_FEATURE.bullets.map((bullet) => (
                   <li key={bullet} className="flex items-start gap-2.5">
-                    <Check size={16} weight="bold" className="mt-0.5 shrink-0 text-emerald-400" />
+                    <Check size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-400" />
                     <span>{bullet}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="overflow-hidden rounded-xl border border-neutral-800 shadow-2xl">
+            <div className="overflow-hidden rounded-xl border border-ink-800 shadow-2xl">
               <img
                 src={liveDiffPreview}
                 alt="Meshdiff's voxel diff viewer: side-by-side 3D versions with an added/removed geometry panel"
@@ -151,23 +151,23 @@ export default function FeaturesPage() {
         </section>
 
         {/* The rest: text-only cards, no placeholder screenshots */}
-        <section className="border-t border-neutral-900 px-6 py-16">
+        <section className="border-t border-ink-900 px-6 py-16">
           <div ref={gridRef} className="mx-auto grid max-w-6xl gap-5 md:grid-cols-2">
             {OTHER_FEATURES.map((feature) => (
               <div
                 key={feature.tag}
                 data-animate
-                className="reveal rounded-xl border border-neutral-800 bg-neutral-900 p-6"
+                className="reveal rounded-xl border border-ink-800 bg-ink-900 p-6"
               >
-                <span className="inline-block rounded-full border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                <span className="inline-block rounded-full border border-ink-700 bg-ink-800 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
                   {feature.tag}
                 </span>
-                <h3 className="mt-3 text-lg font-semibold text-white">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-400">{feature.description}</p>
-                <ul className="mt-4 flex flex-col gap-2 text-xs text-neutral-300">
+                <h3 className="mt-3 text-lg font-semibold text-ink-50">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-400">{feature.description}</p>
+                <ul className="mt-4 flex flex-col gap-2 text-xs text-ink-300">
                   {feature.bullets.map((bullet) => (
                     <li key={bullet} className="flex items-start gap-2">
-                      <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-emerald-400" />
+                      <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-ink-400" />
                       <span>{bullet}</span>
                     </li>
                   ))}
@@ -178,14 +178,14 @@ export default function FeaturesPage() {
         </section>
 
         {/* Closing CTA */}
-        <section className="border-t border-neutral-900 px-6 py-16 text-center">
-          <h2 className="text-2xl font-bold text-white">Ready to see what changed?</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-neutral-400">
+        <section className="border-t border-ink-900 px-6 py-16 text-center">
+          <h2 className="text-2xl font-bold text-ink-50">Ready to see what changed?</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-ink-400">
             Drop two files into the free diff tool — no account, nothing leaves your browser.
           </p>
           <Link
             to="/live"
-            className="mt-6 inline-block rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
+            className="mt-6 inline-block rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
           >
             Open the diff tool
           </Link>

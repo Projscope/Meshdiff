@@ -21,13 +21,13 @@ export default function CollapsibleSection({ title, children, defaultOpen = true
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-400 hover:text-neutral-300"
+        className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-400 hover:text-ink-300"
       >
         <span>{title}</span>
         <svg
           viewBox="0 0 12 12"
           fill="none"
-          className={`h-3 w-3 shrink-0 text-neutral-500 transition-transform ${open ? "" : "-rotate-90"}`}
+          className={`h-3 w-3 shrink-0 text-ink-500 transition-transform ${open ? "" : "-rotate-90"}`}
         >
           <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -40,14 +40,14 @@ export default function CollapsibleSection({ title, children, defaultOpen = true
 /** The rounded/bordered box with divided rows — same container the 3MF
  * Properties panel uses. */
 export function PropertyList({ children }: { children: ReactNode }) {
-  return <div className="divide-y divide-neutral-800 rounded-lg border border-neutral-800 bg-neutral-900">{children}</div>;
+  return <div className="divide-y divide-ink-800 rounded-lg border border-ink-800 bg-ink-900">{children}</div>;
 }
 
 /** A single label/value row inside a PropertyList. */
 export function PropertyRow({
   label,
   value,
-  valueClassName = "text-neutral-200",
+  valueClassName = "text-ink-200",
 }: {
   label: string;
   value: ReactNode;
@@ -55,7 +55,7 @@ export function PropertyRow({
 }) {
   return (
     <div className="flex flex-col gap-0.5 px-3 py-2 text-xs overflow-hidden">
-      <span className="text-neutral-500">{label}</span>
+      <span className="text-ink-500">{label}</span>
       <span className={`break-words ${valueClassName}`}>{value}</span>
     </div>
   );

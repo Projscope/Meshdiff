@@ -10,14 +10,14 @@ export interface DiffReportScreenshots {
 }
 
 const MESHDIFF_URL = "https://meshdiff.com/";
-const EMERALD = "#10b981";
-const NEUTRAL_950 = "#0a0a0a";
-const NEUTRAL_400 = "#a3a3a3";
-const NEUTRAL_700 = "#404040";
+const ACCENT = "#10b981";
+const NEUTRAL_950 = "#15181e";
+const NEUTRAL_400 = "#7c879e";
+const NEUTRAL_700 = "#333b4a";
 
 /** Draws the "^" logomark + Meshdiff wordmark, linked to meshdiff.com. */
 function drawLetterhead(doc: jsPDF) {
-  doc.setFillColor(EMERALD);
+  doc.setFillColor(ACCENT);
   doc.roundedRect(14, 14, 9, 9, 2, 2, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
@@ -30,7 +30,7 @@ function drawLetterhead(doc: jsPDF) {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(EMERALD);
+  doc.setTextColor(ACCENT);
   doc.textWithLink(MESHDIFF_URL, 26, 25, { url: MESHDIFF_URL });
 
   doc.setDrawColor(NEUTRAL_700);

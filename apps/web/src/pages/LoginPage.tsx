@@ -120,12 +120,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-neutral-800 bg-neutral-900 p-6">
-        <h1 className="text-lg font-semibold text-white">
+    <div className="flex min-h-screen items-center justify-center bg-ink-950 px-4">
+      <div className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6">
+        <h1 className="text-lg font-semibold text-ink-50">
           {mode === "signin" ? "Sign in to Meshdiff" : mode === "signup" ? "Create an account" : "Reset your password"}
         </h1>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-ink-500">
           {mode === "signin"
             ? "Access your saved projects."
             : mode === "signup"
@@ -141,7 +141,7 @@ export default function LoginPage() {
             placeholder="you@company.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+            className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
           />
           {mode !== "reset" && (
             <input
@@ -151,7 +151,7 @@ export default function LoginPage() {
               placeholder="Password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+              className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
             />
           )}
           {mode === "signin" && (
@@ -165,7 +165,7 @@ export default function LoginPage() {
                 setResendMessage(null);
                 setResetMessage(null);
               }}
-              className="self-end text-xs text-neutral-500 hover:text-neutral-300"
+              className="self-end text-xs text-ink-500 hover:text-ink-300"
             >
               Forgot password?
             </button>
@@ -173,7 +173,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-1 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="mt-1 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
           >
             {isSubmitting
               ? mode === "signin"
@@ -188,8 +188,8 @@ export default function LoginPage() {
                   : "Send reset link"}
           </button>
           {error && <span className="text-xs text-red-400">{error}</span>}
-          {signupMessage && <span className="text-xs text-emerald-400">{signupMessage}</span>}
-          {resetMessage && <span className="text-xs text-emerald-400">{resetMessage}</span>}
+          {signupMessage && <span className="text-xs text-accent-400">{signupMessage}</span>}
+          {resetMessage && <span className="text-xs text-accent-400">{resetMessage}</span>}
           {pendingConfirmationEmail && (
             <div className="mt-1 flex items-center gap-2">
               <button
@@ -200,7 +200,7 @@ export default function LoginPage() {
               >
                 {isResending ? "Sending…" : "Resend confirmation email"}
               </button>
-              {resendMessage && <span className="text-xs text-neutral-500">{resendMessage}</span>}
+              {resendMessage && <span className="text-xs text-ink-500">{resendMessage}</span>}
             </div>
           )}
         </form>
@@ -215,7 +215,7 @@ export default function LoginPage() {
             setResendMessage(null);
             setResetMessage(null);
           }}
-          className="mt-4 text-xs text-neutral-500 hover:text-neutral-300"
+          className="mt-4 text-xs text-ink-500 hover:text-ink-300"
         >
           {mode === "signin" ? "Need an account? Sign up" : mode === "signup" ? "Already have an account? Sign in" : "Back to sign in"}
         </button>

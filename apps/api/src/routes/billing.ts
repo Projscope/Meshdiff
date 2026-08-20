@@ -2,8 +2,10 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type Stripe from "stripe";
 import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
+import { requireSupabase } from "../lib/requireSupabase.js";
 import { getStripe, getFrontendUrl } from "../lib/stripe.js";
-import { getUserTier } from "../lib/subscription.js";
+import { getUserTier, getAccountAccess } from "../lib/subscription.js";
+import { priceIdForTier, tierForPriceId } from "../lib/priceCatalog.js";
 
 async function getOrCreateStripeCustomer(
   supabase: NonNullable<ReturnType<typeof getSupabase>>,
@@ -43,13 +45,23 @@ async function upsertSubscriptionRow(
   const item = subscription.items.data[0];
   if (!item) throw new Error(`Stripe subscription ${subscription.id} has no items`);
 
+  const tier = tierForPriceId(item.price.id);
+  if (!tier) {
+    // Unknown price ID — refuse to write a row rather than guessing a
+    // tier. Throwing surfaces as a 500 from the webhook handler, which
+    // Stripe retries; that's the right behavior for a real
+    // misconfiguration (e.g. a stale/test price ID leaking into prod).
+    throw new Error(`Unrecognized Stripe price ${item.price.id} on subscription ${subscription.id} — not in the price catalog`);
+  }
+
   const { error } = await supabase.from("subscriptions").upsert(
     {
       user_id: userId,
       stripe_subscription_id: subscription.id,
       stripe_price_id: item.price.id,
       status: subscription.status,
-      tier: "pro",
+      tier,
+      quantity: item.quantity ?? 1,
       current_period_start: new Date(item.current_period_start * 1000).toISOString(),
       current_period_end: new Date(item.current_period_end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
@@ -61,15 +73,35 @@ async function upsertSubscriptionRow(
 }
 
 export default async function billingRoute(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", requireSupabase);
+
   app.get("/billing/subscription", { preHandler: requireAuth }, async (request, reply) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      reply.code(500);
-      return { success: false, error: "Billing is not configured" };
-    }
+    const supabase = request.supabase!;
 
     try {
       const { tier, row } = await getUserTier(supabase, request.userId!);
+      const access = await getAccountAccess(supabase, request.userId!);
+
+      // Seat usage is only meaningful for the team's owner (teams.owner_user_id
+      // is unique post-migration, so this is at most one team) — a team
+      // member riding the owner's seats has no purchased/used figure of
+      // their own to show.
+      let seats: { purchased: number; used: number } | null = null;
+      if (tier === "team" && row) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("id")
+          .eq("owner_user_id", request.userId)
+          .maybeSingle();
+        if (team) {
+          const { count } = await supabase
+            .from("team_members")
+            .select("id", { count: "exact", head: true })
+            .eq("team_id", team.id);
+          seats = { purchased: row.quantity, used: count ?? 0 };
+        }
+      }
+
       return {
         success: true,
         data: {
@@ -77,7 +109,8 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
           status: row?.status ?? null,
           currentPeriodEnd: row?.current_period_end ?? null,
           cancelAtPeriodEnd: row?.cancel_at_period_end ?? false,
-          accountStatus: tier === "pro" ? "pro" : "restricted",
+          accountStatus: access.status,
+          seats,
         },
       };
     } catch (err) {
@@ -102,14 +135,15 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     return list.data[0] ?? null;
   }
 
-  app.post<{ Body: { couponCode?: string } }>(
+  app.post<{ Body: { tier?: "pro" | "team"; couponCode?: string } }>(
     "/billing/checkout",
     { preHandler: requireAuth },
     async (request, reply) => {
-      const supabase = getSupabase();
+      const supabase = request.supabase!;
       const stripe = getStripe();
-      const priceId = process.env.STRIPE_PRO_PRICE_ID;
-      if (!supabase || !stripe || !priceId) {
+      const tier = request.body?.tier === "team" ? "team" : "pro";
+      const priceId = priceIdForTier(tier);
+      if (!stripe || !priceId) {
         reply.code(500);
         return { success: false, error: "Billing is not configured" };
       }
@@ -142,10 +176,20 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
           }
         }
 
+        // Team is per-seat — quantity is chosen on Stripe's own hosted
+        // Checkout page via adjustable_quantity (no custom seat-picker UI
+        // needed on our side). Default of 5 covers the owner plus a few
+        // invites before anyone needs to touch it; adjustable right there
+        // if 5 is wrong for a given customer.
+        const lineItem: Stripe.Checkout.SessionCreateParams.LineItem =
+          tier === "team"
+            ? { price: priceId, quantity: 5, adjustable_quantity: { enabled: true, minimum: 1, maximum: 50 } }
+            : { price: priceId, quantity: 1 };
+
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
           customer: customerId,
-          line_items: [{ price: priceId, quantity: 1 }],
+          line_items: [lineItem],
           ...(discounts.length > 0 ? { discounts } : {}),
           success_url: `${frontendUrl}/projects?checkout=success`,
           cancel_url: `${frontendUrl}/projects?checkout=cancelled`,
@@ -208,9 +252,9 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
   });
 
   app.post("/billing/portal", { preHandler: requireAuth }, async (request, reply) => {
-    const supabase = getSupabase();
+    const supabase = request.supabase!;
     const stripe = getStripe();
-    if (!supabase || !stripe) {
+    if (!stripe) {
       reply.code(500);
       return { success: false, error: "Billing is not configured" };
     }
@@ -244,9 +288,9 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
   // webhook to eventually catch up (it will too, redundantly — upserting
   // twice from the same subscription state is harmless).
   async function setCancelAtPeriodEnd(request: FastifyRequest, reply: FastifyReply, cancelAtPeriodEnd: boolean) {
-    const supabase = getSupabase();
+    const supabase = request.supabase!;
     const stripe = getStripe();
-    if (!supabase || !stripe) {
+    if (!stripe) {
       reply.code(500);
       return { success: false, error: "Billing is not configured" };
     }
@@ -303,9 +347,9 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
 
     scoped.post("/billing/webhook", async (request, reply) => {
       const stripe = getStripe();
-      const supabase = getSupabase();
+      const supabase = request.supabase!;
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (!stripe || !supabase || !webhookSecret) {
+      if (!stripe || !webhookSecret) {
         app.log.error("Webhook called but billing not configured");
         reply.code(500);
         return { success: false, error: "Billing is not configured" };

@@ -23,8 +23,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="mt-1 text-sm text-neutral-400">Users, subscriptions, and shares at a glance</p>
+        <h1 className="text-2xl font-bold text-ink-50">Dashboard</h1>
+        <p className="mt-1 text-sm text-ink-400">Users, subscriptions, and shares at a glance</p>
       </div>
 
       {error && (
@@ -33,7 +33,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {data === null && !error && <div className="mt-6 text-sm text-neutral-500">Loading…</div>}
+      {data === null && !error && <div className="mt-6 text-sm text-ink-500">Loading…</div>}
 
       {data && (
         <>
@@ -41,19 +41,19 @@ export default function AdminDashboardPage() {
             <AdminStatsGrid stats={data.stats} />
           </div>
 
-          <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+          <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Signups
               </p>
-              <div className="flex overflow-hidden rounded border border-neutral-700 text-xs">
+              <div className="flex overflow-hidden rounded border border-ink-700 text-xs">
                 <button
                   type="button"
                   onClick={() => setGranularity("week")}
                   className={`px-2.5 py-1 ${
                     granularity === "week"
-                      ? "bg-emerald-500 text-neutral-950"
-                      : "text-neutral-400 hover:bg-neutral-800"
+                      ? "bg-accent-500 text-chrome-950"
+                      : "text-ink-400 hover:bg-ink-800"
                   }`}
                 >
                   Weekly
@@ -63,8 +63,8 @@ export default function AdminDashboardPage() {
                   onClick={() => setGranularity("month")}
                   className={`px-2.5 py-1 ${
                     granularity === "month"
-                      ? "bg-emerald-500 text-neutral-950"
-                      : "text-neutral-400 hover:bg-neutral-800"
+                      ? "bg-accent-500 text-chrome-950"
+                      : "text-ink-400 hover:bg-ink-800"
                   }`}
                 >
                   Monthly

@@ -9,7 +9,7 @@ const LABELS: Record<"pass" | "warn" | "fail", string> = {
 };
 
 const STYLES: Record<"pass" | "warn" | "fail", string> = {
-  pass: "bg-emerald-500/10 text-emerald-400 border-emerald-800",
+  pass: "bg-accent-500/10 text-accent-400 border-accent-800",
   warn: "bg-amber-500/10 text-amber-400 border-amber-800",
   fail: "bg-red-500/10 text-red-400 border-red-800",
 };
@@ -17,7 +17,7 @@ const STYLES: Record<"pass" | "warn" | "fail", string> = {
 export default function PrintabilityBadge({ status }: PrintabilityBadgeProps) {
   if (!status) {
     return (
-      <span className="rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-[11px] text-neutral-400">
+      <span className="rounded border border-ink-700 bg-ink-800 px-2 py-0.5 text-[11px] text-ink-400">
         Pending
       </span>
     );
