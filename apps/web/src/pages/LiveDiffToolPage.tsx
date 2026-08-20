@@ -9,7 +9,6 @@ import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureVi
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
-import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { useAuth } from "../lib/AuthProvider";
 import { getSubscription } from "../lib/projectsApi";
@@ -95,7 +94,8 @@ export default function LiveDiffToolPage({
   const [isRestoringShare, setIsRestoringShare] = useState(false);
   const [isSharedView, setIsSharedView] = useState(false);
   const [syncedCameraState, setSyncedCameraState] = useState<{ position: [number, number, number]; target: [number, number, number] } | null>(null);
-  const [isSyncEnabled, setIsSyncEnabled] = useState(true);
+  // Camera-lock toggle was removed from the toolbar — views always sync now.
+  const isSyncEnabled = true;
   const [selectedDemo, setSelectedDemo] = useState<"simple" | "bracket" | "gear">("simple");
   const [sameFileWarning, setSameFileWarning] = useState<string | null>(null);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
@@ -652,44 +652,6 @@ export default function LiveDiffToolPage({
                     >
                       Load Demo
                     </button>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isSyncEnabled}
-                        onChange={(e) => setIsSyncEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-neutral-700 bg-neutral-950 accent-emerald-500"
-                      />
-                      <span className="text-xs text-neutral-300">Locked views</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // The diff pane has its own Zoom to Model button
-                        // (see DiffView.tsx) — this one only needs to cover
-                        // the two individual model viewers.
-                        viewerARef.current?.zoomToFit();
-                        viewerBRef.current?.zoomToFit();
-                      }}
-                      title="Zoom to fit both models in view"
-                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
-                    >
-                      Zoom to Models
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // The diff pane has its own Reset View button (see
-                        // DiffView.tsx) — this one only needs to cover the
-                        // two individual model viewers.
-                        viewerARef.current?.resetView();
-                        viewerBRef.current?.resetView();
-                      }}
-                      title="Reset both model views to how they loaded"
-                      className="rounded border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white"
-                    >
-                      ⟲ Reset Views
-                    </button>
-                    <ControlSchemeSelect />
                   </>
                 ) : (
                   <button
@@ -700,10 +662,31 @@ export default function LiveDiffToolPage({
                     + Load Model
                   </button>
                 )}
-                <span className="text-neutral-500 hidden sm:inline">
-                  STL · 3MF · OBJ — parsed locally, in-browser
-                </span>
               </div>
+              {activeTool === "compare" && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!fileA || !fileB}
+                    onClick={() => {
+                      setShareUrl(null);
+                      setShareError(null);
+                      setIsShareModalOpen(true);
+                    }}
+                    className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
+                  >
+                    Share This Diff
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!stats}
+                    onClick={handleDownloadReport}
+                    className="rounded bg-emerald-500 px-3 py-1.5 font-medium text-neutral-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-600"
+                  >
+                    Download Report
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Privacy Banner */}
@@ -836,29 +819,6 @@ export default function LiveDiffToolPage({
                       <DetailedStatsPanel stats={stats} hasComparison boundingBoxB={boundingBoxB} />
                     </div>
                   )}
-
-                  <div className="flex items-center justify-end gap-2 text-xs">
-                    <button
-                      type="button"
-                      disabled={!fileA || !fileB}
-                      onClick={() => {
-                        setShareUrl(null);
-                        setShareError(null);
-                        setIsShareModalOpen(true);
-                      }}
-                      className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:text-neutral-600"
-                    >
-                      Share This Diff
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!stats}
-                      onClick={handleDownloadReport}
-                      className="rounded bg-emerald-500 px-3 py-1.5 font-medium text-neutral-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-600"
-                    >
-                      Download Report
-                    </button>
-                  </div>
                 </>
               )}
             </section>
