@@ -3,13 +3,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import * as THREE from "three";
 import { getVersion, listVersions, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
 import { loadMeshGeometry } from "../engine/loadMesh";
-import DiffView, { type DiffMode, type DiffViewHandle } from "../components/DiffView";
+import DiffView, { type DiffMode, type DiffViewHandle, type DiffAlignment } from "../components/DiffView";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import ReadOnlyMeshViewer, { type ReadOnlyMeshViewerHandle } from "../components/ReadOnlyMeshViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import LoadingModal from "../components/LoadingModal";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
+import { useDiffColors } from "../lib/diffPalette";
 
 export default function CompareVersionsPage() {
   const { projectId, versionAId, versionBId } = useParams<{
@@ -18,12 +19,14 @@ export default function CompareVersionsPage() {
     versionBId: string;
   }>();
   const navigate = useNavigate();
+  const diffColors = useDiffColors();
   const [versionA, setVersionA] = useState<VersionDetail | null>(null);
   const [versionB, setVersionB] = useState<VersionDetail | null>(null);
   const [geometryA, setGeometryA] = useState<THREE.BufferGeometry | null>(null);
   const [geometryB, setGeometryB] = useState<THREE.BufferGeometry | null>(null);
   const [mode, setMode] = useState<DiffMode>("voxel");
   const [toleranceMm, setToleranceMm] = useState(0.15);
+  const [alignment, setAlignment] = useState<DiffAlignment>("none");
   const [stats, setStats] = useState<(VoxelDiffStats & { toleranceMm: number }) | null>(null);
   const [boundingBoxB, setBoundingBoxB] = useState<[number, number, number]>([0, 0, 0]);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +135,11 @@ export default function CompareVersionsPage() {
       projectId,
       versionAId,
       versionBId,
-      mode,
+      // Shared links only persist voxel/surface today (see migration
+      // 0011_shares.sql's check constraint) — Overlay is a live-viewing
+      // mode, not (yet) a shareable one, so it falls back to Voxels rather
+      // than failing the share.
+      mode === "overlay" ? "voxel" : mode,
       stats.toleranceMm,
       expiresInDays,
     );
@@ -180,6 +187,8 @@ export default function CompareVersionsPage() {
             onModeChange={setMode}
             toleranceMm={toleranceMm}
             onToleranceChange={setToleranceMm}
+            alignment={alignment}
+            onAlignmentChange={setAlignment}
             onStatsChange={setStats}
           />
         </div>
@@ -188,13 +197,13 @@ export default function CompareVersionsPage() {
           <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
               <div className="text-[10px] uppercase tracking-wide text-neutral-500">Added voxels</div>
-              <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+              <div className={`mt-0.5 text-lg font-semibold ${diffColors.addedTextClass}`}>
                 +{stats.addedCount.toLocaleString()}
               </div>
             </div>
             <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
               <div className="text-[10px] uppercase tracking-wide text-neutral-500">Removed voxels</div>
-              <div className="mt-0.5 text-lg font-semibold text-red-400">
+              <div className={`mt-0.5 text-lg font-semibold ${diffColors.removedTextClass}`}>
                 -{stats.removedCount.toLocaleString()}
               </div>
             </div>
@@ -207,7 +216,7 @@ export default function CompareVersionsPage() {
             </div>
             <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
               <div className="text-[10px] uppercase tracking-wide text-neutral-500">Tolerance</div>
-              <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+              <div className="mt-0.5 text-lg font-semibold text-neutral-100">
                 {stats.toleranceMm.toFixed(2)} mm
               </div>
             </div>

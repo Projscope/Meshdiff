@@ -34,6 +34,12 @@ export function computeSurfaceDeviation(
     clampMm?: number;
     /** Deviations within this distance render as unchanged (gray), not colored. */
     toleranceMm?: number;
+    /** Overrides the added/removed gradient endpoints (see diffPalette.ts) —
+     * hex strings, not THREE.Color instances, since this runs inside a Web
+     * Worker and a Color instance would lose its prototype crossing that
+     * postMessage boundary. Defaults to the classic green/red. */
+    addedColorHex?: string;
+    removedColorHex?: string;
   },
 ): Result<SurfaceDeviationResult> {
   const sourcePositions = sourceGeometry.attributes.position;
@@ -63,6 +69,8 @@ export function computeSurfaceDeviation(
   const clamp = options?.clampMm ?? maxAbsDeviationMm;
   const normalizer = clamp > 0 ? clamp : 1;
   const toleranceMm = options?.toleranceMm ?? 0;
+  const addedColor = options?.addedColorHex ? new THREE.Color(options.addedColorHex) : ADDED_COLOR;
+  const removedColor = options?.removedColorHex ? new THREE.Color(options.removedColorHex) : REMOVED_COLOR;
   const colors = new Float32Array(vertexCount * 3);
   const color = new THREE.Color();
 
@@ -76,9 +84,9 @@ export function computeSurfaceDeviation(
     }
     const t = THREE.MathUtils.clamp(distance / normalizer, -1, 1);
     if (t >= 0) {
-      color.copy(UNCHANGED_COLOR).lerp(ADDED_COLOR, t);
+      color.copy(UNCHANGED_COLOR).lerp(addedColor, t);
     } else {
-      color.copy(UNCHANGED_COLOR).lerp(REMOVED_COLOR, -t);
+      color.copy(UNCHANGED_COLOR).lerp(removedColor, -t);
     }
     colors[i * 3] = color.r;
     colors[i * 3 + 1] = color.g;

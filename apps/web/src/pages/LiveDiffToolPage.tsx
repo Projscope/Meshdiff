@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { Check } from "@phosphor-icons/react";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import Viewer, { type ViewerHandle } from "../components/Viewer";
-import DiffView, { type DiffViewHandle, type DiffMode } from "../components/DiffView";
+import DiffView, { type DiffViewHandle, type DiffMode, type DiffAlignment } from "../components/DiffView";
 import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
@@ -13,6 +13,7 @@ import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../l
 import { useAuth } from "../lib/AuthProvider";
 import { getSubscription } from "../lib/projectsApi";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
+import { useDiffColors } from "../lib/diffPalette";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 
 import compareDiffImage from '../assets/compare.svg';
@@ -69,6 +70,7 @@ export default function LiveDiffToolPage({
   autoOpenCompare = false,
 }: LiveDiffToolPageProps = {}) {
   useDocumentMeta(metaTitle, metaDescription);
+  const diffColors = useDiffColors();
   const [activeTool, setActiveTool] = useState<LiveTool | null>(autoOpenCompare ? "compare" : null);
   const [hoveredTool, setHoveredTool] = useState<LiveTool | null>(null);
   const [isToolModalOpen, setIsToolModalOpen] = useState(autoOpenCompare);
@@ -80,6 +82,7 @@ export default function LiveDiffToolPage({
   const [fileB, setFileB] = useState<File | null>(null);
   const [mode, setMode] = useState<DiffMode>("voxel");
   const [toleranceMm, setToleranceMm] = useState(0.15);
+  const [alignment, setAlignment] = useState<DiffAlignment>("none");
   const [stats, setStats] = useState<DiffStats | null>(null);
   const viewerARef = useRef<ViewerHandle>(null);
   const viewerBRef = useRef<ViewerHandle>(null);
@@ -228,7 +231,12 @@ export default function LiveDiffToolPage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode,
+          // The server only accepts 'voxel'/'surface' (see share.ts's
+          // validation, backed by migration 0011_shares.sql's check
+          // constraint) — Overlay is a live-viewing mode, not yet a
+          // shareable one, so it falls back to Voxels rather than the
+          // request failing outright.
+          mode: mode === "overlay" ? "voxel" : mode,
           toleranceMm,
           expiresInDays,
           fileA: { name: fileA.name, size: fileA.size },
@@ -757,6 +765,8 @@ export default function LiveDiffToolPage({
                       onModeChange={setMode}
                       toleranceMm={toleranceMm}
                       onToleranceChange={setToleranceMm}
+                      alignment={alignment}
+                      onAlignmentChange={setAlignment}
                       syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
                       onCameraChange={handleCameraChange}
                       isSyncEnabled={isSyncEnabled}
@@ -770,7 +780,7 @@ export default function LiveDiffToolPage({
                           <div className="text-[10px] uppercase tracking-wide text-neutral-500">
                             Added voxels
                           </div>
-                          <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+                          <div className={`mt-0.5 text-lg font-semibold ${diffColors.addedTextClass}`}>
                             +{stats.addedCount.toLocaleString()}
                           </div>
                         </div>
@@ -778,7 +788,7 @@ export default function LiveDiffToolPage({
                           <div className="text-[10px] uppercase tracking-wide text-neutral-500">
                             Removed voxels
                           </div>
-                          <div className="mt-0.5 text-lg font-semibold text-red-400">
+                          <div className={`mt-0.5 text-lg font-semibold ${diffColors.removedTextClass}`}>
                             -{stats.removedCount.toLocaleString()}
                           </div>
                         </div>
@@ -795,7 +805,7 @@ export default function LiveDiffToolPage({
                           <div className="text-[10px] uppercase tracking-wide text-neutral-500">
                             Tolerance
                           </div>
-                          <div className="mt-0.5 text-lg font-semibold text-emerald-400">
+                          <div className="mt-0.5 text-lg font-semibold text-neutral-100">
                             {stats.toleranceMm.toFixed(2)} mm
                           </div>
                         </div>

@@ -20,6 +20,7 @@ import {
 } from "../lib/projectsApi";
 import { uploadVersion } from "../lib/uploadVersion";
 import ApprovalBadge, { APPROVAL_DOT_COLOR } from "../components/ApprovalBadge";
+import { useDiffColors } from "../lib/diffPalette";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
 import LoadingModal from "../components/LoadingModal";
@@ -85,6 +86,7 @@ export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { isPro } = useAccountStatus();
+  const diffColors = useDiffColors();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
@@ -627,12 +629,12 @@ export default function ProjectDetailPage() {
                         {bar ? (
                           <>
                             <div className="whitespace-nowrap font-mono text-xs">
-                              <span className="text-emerald-400">+{comparison.addedCount!.toLocaleString()}</span>{" "}
-                              <span className="text-red-400">-{comparison.removedCount!.toLocaleString()}</span>
+                              <span className={diffColors.addedTextClass}>+{comparison.addedCount!.toLocaleString()}</span>{" "}
+                              <span className={diffColors.removedTextClass}>-{comparison.removedCount!.toLocaleString()}</span>
                             </div>
                             <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-neutral-800">
-                              <div className="bg-emerald-500" style={{ width: `${bar.addedPercent}%` }} />
-                              <div className="bg-red-500" style={{ width: `${bar.removedPercent}%` }} />
+                              <div className={diffColors.addedBgClass} style={{ width: `${bar.addedPercent}%` }} />
+                              <div className={diffColors.removedBgClass} style={{ width: `${bar.removedPercent}%` }} />
                             </div>
                           </>
                         ) : (

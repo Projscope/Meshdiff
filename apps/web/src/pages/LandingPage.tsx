@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -27,6 +27,13 @@ import { supabase } from "../lib/supabaseClient";
 import { getSubscription } from "../lib/projectsApi";
 import { markPendingProCheckout } from "../lib/pendingCheckout";
 import AlreadyProModal from "../components/AlreadyProModal";
+
+// R3F/Three.js/the voxel-diff worker only download once someone actually
+// clicks to try the demo (see the click-to-activate state below) — an
+// always-embedded version of this previously got pulled from this exact
+// page for its page-weight cost (three.js vendor chunk 77-82% unused on
+// first paint, per the Lighthouse audit that drove the original removal).
+const LandingLiveDemo = lazy(() => import("../components/LandingLiveDemo"));
 
 import teamsImg from '../assets/teams.webp';
 import proImg from '../assets/pro.jpeg';
@@ -201,6 +208,13 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showAlreadyPro, setShowAlreadyPro] = useState(false);
+  // ?demo=open auto-activates the hero demo on load — a testing/sharing
+  // convenience (e.g. re-running a Lighthouse pass against the "always
+  // embedded" case), not something surfaced to real visitors. Default
+  // behavior (click-to-activate) is unchanged for everyone else.
+  const [isDemoActive, setIsDemoActive] = useState(
+    () => new URLSearchParams(window.location.search).get("demo") === "open",
+  );
   const proOfferCountdown = useCountdown(LAUNCH_OFFER_DEADLINE);
 
   function scrollToEarlyAccess() {
@@ -271,7 +285,7 @@ export default function LandingPage() {
             <h1 className="mt-4 text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
               See exactly what changed
               <br />
-              <span className="text-emerald-400">between two meshes.</span>
+              between two meshes.
             </h1>
             <p className="mx-auto mt-5 max-w-lg text-[15px] leading-relaxed text-neutral-400">
               Compare STL files, OBJ, and 3MF models with a real 3D diff — not
@@ -298,28 +312,41 @@ export default function LandingPage() {
 
           </div>
 
-          <Link
-            to="/live"
-            aria-label="Open the free diff tool"
-            className="group relative mx-auto mt-12 block max-w-6xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-emerald-500/50"
-          >
-            <picture>
-              <source srcSet={liveDiffPreviewWebp} type="image/webp" />
-              <img
-                src={liveDiffPreview}
-                alt="Meshdiff Live Diff tool: side-by-side 3D viewers for Version A and Version B, with a voxel diff panel showing added and removed geometry"
-                className="block w-full"
-                fetchPriority="high"
-                width={1200}
-                height={620}
-              />
-            </picture>
-            <div className="absolute inset-0 flex items-center justify-center bg-neutral-950/0 opacity-0 transition group-hover:bg-neutral-950/60 group-hover:opacity-100">
-              <span className="rounded-full bg-neutral-900/90 px-4 py-2 text-xs font-medium text-emerald-400 shadow-lg">
-                Open the free diff tool
-              </span>
-            </div>
-          </Link>
+          {isDemoActive ? (
+            <Suspense
+              fallback={
+                <div className="mx-auto mt-12 flex h-[320px] max-w-6xl items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900 text-sm text-neutral-400 shadow-2xl sm:h-[380px]">
+                  Loading the live demo…
+                </div>
+              }
+            >
+              <LandingLiveDemo />
+            </Suspense>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsDemoActive(true)}
+              aria-label="Try the live diff demo"
+              className="group relative mx-auto mt-12 block w-full max-w-6xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-neutral-600"
+            >
+              <picture>
+                <source srcSet={liveDiffPreviewWebp} type="image/webp" />
+                <img
+                  src={liveDiffPreview}
+                  alt="Meshdiff Live Diff tool: side-by-side 3D viewers for Version A and Version B, with a voxel diff panel showing added and removed geometry"
+                  className="block w-full"
+                  fetchPriority="high"
+                  width={1200}
+                  height={801}
+                />
+              </picture>
+              <div className="absolute inset-0 flex items-center justify-center bg-neutral-950/0 opacity-0 transition group-hover:bg-neutral-950/60 group-hover:opacity-100">
+                <span className="rounded-full bg-neutral-900/90 px-4 py-2 text-xs font-medium text-emerald-400 shadow-lg">
+                  ▶ Try it live, right here
+                </span>
+              </div>
+            </button>
+          )}
 
           <div className="mx-auto mt-12 grid max-w-lg grid-cols-4 gap-4 border-t border-neutral-900 pt-8">
             {HERO_STATS.map((stat) => (
@@ -337,14 +364,14 @@ export default function LandingPage() {
           <div className="mt-8 grid gap-4 md:grid-cols-12">
             {/* Hardware teams (Top-Left Aligned Text) */}
             <div
-              className="relative flex flex-col justify-start items-start min-h-[480px] rounded-xl border border-emerald-500/25 bg-neutral-900 p-6 md:col-span-8 bg-cover bg-center bg-no-repeat overflow-hidden group"
+              className="relative flex flex-col justify-start items-start min-h-[480px] rounded-xl border border-neutral-700 bg-neutral-900 p-6 md:col-span-8 bg-cover bg-center bg-no-repeat overflow-hidden group"
               style={{ backgroundImage: `url(${teamsImg})` }}
             >
               {/* Top-down gradient overlay for top text contrast */}
               <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-neutral-950/60 to-transparent pointer-events-none" />
 
               <div className="relative z-10">
-                <UsersThree size={28} weight="light" className="text-emerald-400" />
+                <UsersThree size={28} weight="light" className="text-neutral-400" />
                 <h3 className="mt-4 text-base font-semibold text-white">Hardware teams</h3>
                 <p className="mt-2 max-w-sm text-sm text-neutral-400">
                   Review revisions together, approve changes, and keep a
@@ -409,7 +436,7 @@ export default function LandingPage() {
                     data-animate
                     className="reveal rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition hover:-translate-y-0.5 hover:border-neutral-700"
                   >
-                    <Icon size={28} weight="light" className="text-emerald-400" />
+                    <Icon size={28} weight="light" className="text-neutral-400" />
                     <h3 className="mt-4 text-base font-semibold text-white">{feature.title}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-neutral-400">{feature.description}</p>
                     <ul className="mt-4 flex flex-wrap gap-2">
@@ -440,12 +467,12 @@ export default function LandingPage() {
             <div ref={processRef} className="relative">
               <div
                 aria-hidden="true"
-                className="absolute bottom-0 left-6 top-0 w-px bg-gradient-to-b from-emerald-500 to-neutral-900"
+                className="absolute bottom-0 left-6 top-0 w-px bg-gradient-to-b from-neutral-700 to-neutral-900"
               />
               <div className="flex flex-col gap-10">
                 {PROCESS_STEPS.map((step) => (
                   <div key={step.number} data-animate className="reveal relative flex gap-6">
-                    <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-neutral-700 bg-neutral-900 font-mono text-sm font-bold text-emerald-400">
+                    <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-neutral-700 bg-neutral-900 font-mono text-sm font-bold text-neutral-300">
                       {step.number}
                     </div>
                     <div className="pt-1.5">
@@ -483,7 +510,7 @@ export default function LandingPage() {
                   key={item.label}
                   className="flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3"
                 >
-                  <LinkSimple size={18} weight="light" className="shrink-0 text-emerald-400" />
+                  <LinkSimple size={18} weight="light" className="shrink-0 text-neutral-400" />
                   <span className="w-14 shrink-0 text-sm font-semibold text-white">{item.label}</span>
                   <span className="text-xs text-neutral-400">{item.detail}</span>
                 </div>
@@ -509,7 +536,7 @@ export default function LandingPage() {
                   const Icon = step.icon;
                   return (
                     <div key={step.label} className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-                      <Icon size={22} weight="light" className="text-emerald-400" />
+                      <Icon size={22} weight="light" className="text-neutral-400" />
                       <h3 className="mt-3 text-sm font-semibold text-white">{step.label}</h3>
                       <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{step.detail}</p>
                       {i < TEAM_WORKFLOW.length - 1 && (

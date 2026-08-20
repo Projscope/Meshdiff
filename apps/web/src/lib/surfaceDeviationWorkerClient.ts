@@ -24,7 +24,7 @@ const client = createWorkerClient<SurfaceDeviationWorkerRequest, SurfaceDeviatio
 export function computeSurfaceDeviationOffThread(
   sourceGeometry: THREE.BufferGeometry,
   referenceGeometry: THREE.BufferGeometry,
-  options?: { clampMm?: number; toleranceMm?: number },
+  options?: { clampMm?: number; toleranceMm?: number; addedColorHex?: string; removedColorHex?: string },
 ): Promise<Result<SurfaceDeviationResult>> {
   const sourcePositions = sourceGeometry.attributes.position;
   const referencePositions = referenceGeometry.attributes.position;

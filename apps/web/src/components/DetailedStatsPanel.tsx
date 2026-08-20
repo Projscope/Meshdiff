@@ -1,5 +1,6 @@
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import CollapsibleSection, { PropertyList, PropertyRow } from "./CollapsibleSection";
+import { useDiffColors } from "../lib/diffPalette";
 
 interface DetailedStatsPanelProps {
   /**
@@ -20,6 +21,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
   // derive it from the voxel counts rather than plumb a separate prop that
   // could drift out of sync with the same computation.
   const volumeB = stats ? stats.voxelVolumeMm3 * (stats.unchangedCount + stats.addedCount) : 0;
+  const diffColors = useDiffColors();
 
   return (
     <div className="space-y-6 text-sm">
@@ -35,12 +37,12 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                 <PropertyRow
                   label="Volume"
                   value={`${stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³`}
-                  valueClassName={stats.approxVolumeDeltaMm3 < 0 ? "text-red-400" : "text-emerald-400"}
+                  valueClassName={stats.approxVolumeDeltaMm3 < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
                 />
                 <PropertyRow
                   label="Volume Change"
                   value={`${stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%`}
-                  valueClassName={stats.approxVolumeDeltaPercent < 0 ? "text-red-400" : "text-emerald-400"}
+                  valueClassName={stats.approxVolumeDeltaPercent < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
                 />
                 <PropertyRow
                   label="Size Δ X"
@@ -62,16 +64,16 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                   value={`${stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}${stats.triangleDelta}`}
                   valueClassName={
                     stats.triangleDelta > 0
-                      ? "text-emerald-400"
+                      ? diffColors.addedTextClass
                       : stats.triangleDelta < 0
-                        ? "text-red-400"
+                        ? diffColors.removedTextClass
                         : "text-neutral-500"
                   }
                 />
                 <PropertyRow
                   label="Surface Area"
                   value={`${stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}${Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²`}
-                  valueClassName={stats.surfaceAreaDelta < 0 ? "text-red-400" : "text-emerald-400"}
+                  valueClassName={stats.surfaceAreaDelta < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
                 />
               </PropertyList>
               {stats.thinWallWarning && (
@@ -143,12 +145,12 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                 <PropertyRow
                   label="Added"
                   value={stats.holesAdded > 0 ? `+${stats.holesAdded}` : "0"}
-                  valueClassName={stats.holesAdded > 0 ? "text-emerald-400" : "text-neutral-500"}
+                  valueClassName={stats.holesAdded > 0 ? diffColors.addedTextClass : "text-neutral-500"}
                 />
                 <PropertyRow
                   label="Removed"
                   value={stats.holesRemoved > 0 ? `-${stats.holesRemoved}` : "0"}
-                  valueClassName={stats.holesRemoved > 0 ? "text-red-400" : "text-neutral-500"}
+                  valueClassName={stats.holesRemoved > 0 ? diffColors.removedTextClass : "text-neutral-500"}
                 />
                 <PropertyRow
                   label="Diameter Changed"

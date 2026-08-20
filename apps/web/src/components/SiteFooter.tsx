@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { APP_VERSION } from "../lib/version";
 import { SHOW_MONETIZATION } from "../lib/featureFlags";
+import projscopeFavicon from "../assets/projscope-favicon.png";
 
 export default function SiteFooter() {
   return (
@@ -60,8 +61,14 @@ export default function SiteFooter() {
         <div>
           <p className="text-xs font-semibold text-neutral-300">Company</p>
           <nav className="mt-3 flex flex-col gap-2 text-xs text-neutral-400">
-            <a href="https://projscope.com" target="_blank" rel="noreferrer" className="hover:text-neutral-300">
-              projscope
+            <a
+              href="https://projscope.com"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 hover:text-neutral-300"
+            >
+              <img src={projscopeFavicon} alt="" className="h-3.5 w-3.5" />
+              Projscope
             </a>
             <a href="mailto:support@projscope.com" className="hover:text-neutral-300">
               support@projscope.com
@@ -70,8 +77,21 @@ export default function SiteFooter() {
         </div>
       </div>
 
-      <div className="mx-auto mt-8 max-w-6xl border-t border-neutral-900 pt-4 text-xs text-neutral-400">
-        © {new Date().getFullYear()} Meshdiff, a project by projscope.
+      <div className="mx-auto mt-8 flex max-w-6xl items-center justify-between border-t border-neutral-900 pt-4 text-xs text-neutral-400">
+        <span>© {new Date().getFullYear()} Meshdiff</span>
+        <span>
+          developed by{" "}
+          <a
+            href="https://projscope.com"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 align-middle hover:text-neutral-300"
+          >
+            <img src={projscopeFavicon} alt="" className="h-3 w-3" />
+            Projscope
+          </a>
+          .
+        </span>
       </div>
     </footer>
   );

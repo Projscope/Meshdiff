@@ -95,7 +95,7 @@ export default function FeaturesPage() {
       <main>
         {/* Hero */}
         <section className="mx-auto max-w-3xl px-6 pb-14 pt-20 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500">Features</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400">Features</p>
           <h1 className="mt-4 text-4xl font-bold leading-[1.1] tracking-tight text-white md:text-5xl">
             Everything you need
             <br />
@@ -126,7 +126,7 @@ export default function FeaturesPage() {
         <section className="border-t border-neutral-900 px-6 py-16">
           <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2">
             <div>
-              <span className="inline-block rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+              <span className="inline-block rounded-full border border-neutral-700 bg-neutral-800 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
                 {HERO_FEATURE.tag}
               </span>
               <h2 className="mt-4 text-2xl font-bold leading-tight text-white md:text-3xl">{HERO_FEATURE.title}</h2>
@@ -134,7 +134,7 @@ export default function FeaturesPage() {
               <ul className="mt-5 flex flex-col gap-2.5 text-sm text-neutral-300">
                 {HERO_FEATURE.bullets.map((bullet) => (
                   <li key={bullet} className="flex items-start gap-2.5">
-                    <Check size={16} weight="bold" className="mt-0.5 shrink-0 text-emerald-400" />
+                    <Check size={16} weight="bold" className="mt-0.5 shrink-0 text-neutral-400" />
                     <span>{bullet}</span>
                   </li>
                 ))}
@@ -167,7 +167,7 @@ export default function FeaturesPage() {
                 <ul className="mt-4 flex flex-col gap-2 text-xs text-neutral-300">
                   {feature.bullets.map((bullet) => (
                     <li key={bullet} className="flex items-start gap-2">
-                      <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-emerald-400" />
+                      <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-neutral-400" />
                       <span>{bullet}</span>
                     </li>
                   ))}
