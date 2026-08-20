@@ -10,6 +10,9 @@ import ModelScene from "./ModelScene";
 import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
 import CameraSync from "./CameraSync";
+import MeasureToolbar from "./MeasureToolbar";
+import MeasureSceneOverlay from "./MeasureSceneOverlay";
+import { useMeasureTool } from "../lib/useMeasureTool";
 
 interface ViewerProps {
   label: string;
@@ -56,14 +59,17 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
+  const measure = useMeasureTool();
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
     if (result.success) {
       setGeometry(result.data);
+      let display = result.data;
       setDisplayGeometry(result.data);
       setHasVertexColors(false);
       setError(null);
+      measure.clearMeasurement();
       // The diff engine gets the stripped position-only geometry regardless
       // of color — only the mesh actually rendered in this viewer swaps to
       // the colored version, and only if the file is 3MF with real color.
@@ -75,6 +81,9 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       // every corner, with a floor so a tiny part doesn't look cropped.
       result.data.computeBoundingBox();
       const box = result.data.boundingBox;
+      const boundingBoxSize: [number, number, number] = box
+        ? box.getSize(new THREE.Vector3()).toArray()
+        : [0, 0, 0];
       if (box) {
         setGridFadeDistance(Math.max(box.getSize(new THREE.Vector3()).length() * 1.5, 50));
       }
@@ -82,10 +91,16 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       if (file.name.toLowerCase().endsWith(".3mf")) {
         const colored = await loadMeshForDisplay(file);
         if (colored.success && colored.data.hasColor) {
+          display = colored.data.geometry;
           setDisplayGeometry(colored.data.geometry);
           setHasVertexColors(true);
         }
       }
+
+      // Uses whichever geometry actually ends up rendered/raycast against
+      // (the color-swapped 3MF version when applicable), so vertex/edge
+      // snapping matches what's on screen.
+      measure.setGeometry(display, boundingBoxSize);
     } else {
       setError(result.error);
     }
@@ -125,7 +140,13 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   return (
     <div
       className={`relative h-full w-full overflow-hidden rounded-lg border bg-neutral-950 ${
-        isDragOver ? "border-blue-500" : "border-neutral-800"
+        isDragOver
+          ? "border-blue-500"
+          : measure.isMeasuring && measure.measureMode === "radius"
+            ? "border-sky-500"
+            : measure.isMeasuring
+              ? "border-amber-500"
+              : "border-neutral-800"
       }`}
       onDragOver={(event) => {
         event.preventDefault();
@@ -152,10 +173,18 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         <button
           type="button"
           onClick={() => setShowControls(!showControls)}
+          title="Rotate/zoom speed"
           className="rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
         >
           ⚙
         </button>
+        {geometry && (
+          <MeasureToolbar
+            measure={measure}
+            onZoomToFit={() => zoomToFitRef.current?.()}
+            onResetView={() => resetViewRef.current?.()}
+          />
+        )}
       </div>
       {showControls && geometry && (
         <div className="absolute left-3 top-8 z-20 rounded border border-neutral-700 bg-neutral-900 p-2 text-xs text-neutral-300">
@@ -243,7 +272,12 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
               <ZoomToFitBridge zoomRef={zoomToFitRef} />
-              <mesh geometry={displayGeometry}>
+              <mesh
+                geometry={displayGeometry}
+                onClick={(event) => measure.onClick(event)}
+                onPointerMove={measure.onPointerMove}
+                onPointerOut={measure.onPointerOut}
+              >
                 {/* key forces a fresh material instance when hasVertexColors
                     flips — mutating vertexColors on an already-compiled
                     material in place doesn't recompile its shader, so the
@@ -256,6 +290,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
               </mesh>
             </Bounds>
           )}
+          <MeasureSceneOverlay measure={measure} />
         </ModelScene>
         <CameraSync
           syncedCameraState={syncedCameraState}
