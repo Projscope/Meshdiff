@@ -18,6 +18,10 @@ function toGeometry(data: ParsedMeshGeometry): THREE.BufferGeometry {
   if (data.index) {
     geometry.setIndex(new THREE.BufferAttribute(data.index, 1));
   }
+  // Rides along on the standard userData bag rather than changing this
+  // function's return type — see loadMesh.ts's callers, most of which have
+  // no reason to care whether the mesh needed cleanup on load.
+  geometry.userData.meshRepair = data.repair;
   return geometry;
 }
 

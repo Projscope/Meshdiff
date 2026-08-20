@@ -128,6 +128,41 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
           </PropertyList>
         </CollapsibleSection>
       )}
+
+      {stats && (
+        <CollapsibleSection title="Hole Inventory">
+          {stats.holeCountB > 0 && stats.minHoleDiameterMm < 2 && (
+            <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+              ⚠ Small hole diameter ({stats.minHoleDiameterMm.toFixed(2)}mm) may fill in during printing
+            </div>
+          )}
+          <PropertyList>
+            <PropertyRow label="Holes Detected" value={stats.holeCountB} />
+            {hasComparison && (
+              <>
+                <PropertyRow
+                  label="Added"
+                  value={stats.holesAdded > 0 ? `+${stats.holesAdded}` : "0"}
+                  valueClassName={stats.holesAdded > 0 ? "text-emerald-400" : "text-neutral-500"}
+                />
+                <PropertyRow
+                  label="Removed"
+                  value={stats.holesRemoved > 0 ? `-${stats.holesRemoved}` : "0"}
+                  valueClassName={stats.holesRemoved > 0 ? "text-red-400" : "text-neutral-500"}
+                />
+                <PropertyRow
+                  label="Diameter Changed"
+                  value={stats.holesDiameterChanged}
+                  valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-400" : "text-neutral-500"}
+                />
+              </>
+            )}
+            {stats.holeCountB > 0 && (
+              <PropertyRow label="Smallest Diameter" value={`${stats.minHoleDiameterMm.toFixed(2)} mm`} />
+            )}
+          </PropertyList>
+        </CollapsibleSection>
+      )}
     </div>
   );
 }
