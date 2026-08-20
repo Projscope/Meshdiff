@@ -342,21 +342,40 @@ export default function VersionDetailPage() {
   function handleMeasureHover(event: ThreeEvent<MouseEvent>) {
     if (!isMeasuring) return;
     event.stopPropagation();
-    const snapped = nearestMeasurePoint(event);
 
-    if (measureMode === "radius" && snapped) {
-      const loop = findNearestLoop(boundaryLoops, snapped, 1e-3);
-      if (loop) {
-        setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
-        setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
-        setMeasureHover(null);
-        return;
+    // Hole/boss auto-detect still searches off the true vertex/edge snap
+    // (not the freeform surface point) — it's asking "is there a circular
+    // feature near this specific edge", a different question from "where's
+    // the cursor," and forcing it through the magnet threshold would make
+    // holes much harder to detect near their center.
+    if (measureMode === "radius") {
+      const snappedForHoleSearch = nearestMeasurePoint(event);
+      if (snappedForHoleSearch) {
+        const loop = findNearestLoop(boundaryLoops, snappedForHoleSearch, 1e-3);
+        if (loop) {
+          setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
+          setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
+          setMeasureHover(null);
+          setNearbyVertices([]);
+          setNearbyEdges([]);
+          return;
+        }
       }
       setRadiusPreviewFit(null);
       setRadiusPreviewLoopPoints(null);
     }
 
-    setMeasureHover(snapped ? [snapped.x, snapped.y, snapped.z] : null);
+    // Same freeform-with-magnet placement as comments, plus the same
+    // nearby vertex/edge highlight so it's clear what's in snapping range.
+    const point = snappedOrSurfacePoint(event);
+    setMeasureHover(point ? [point.x, point.y, point.z] : null);
+    if (point) {
+      updateNearbyVertices(point);
+      updateNearbyEdges(point);
+    } else {
+      setNearbyVertices([]);
+      setNearbyEdges([]);
+    }
   }
 
   function handleMeshClick(event: ThreeEvent<MouseEvent>) {
@@ -375,7 +394,7 @@ export default function VersionDetailPage() {
         return;
       }
 
-      const snapped = nearestMeasurePoint(event);
+      const snapped = snappedOrSurfacePoint(event);
       if (!snapped) return;
       const point: [number, number, number] = [snapped.x, snapped.y, snapped.z];
       if (measureMode === "distance") {
@@ -385,6 +404,8 @@ export default function VersionDetailPage() {
           setMeasureB(point);
           setIsMeasuring(false);
           setMeasureHover(null);
+          setNearbyVertices([]);
+          setNearbyEdges([]);
         }
       } else {
         setRadiusPoints((prev) => {
@@ -400,6 +421,8 @@ export default function VersionDetailPage() {
             );
             setIsMeasuring(false);
             setMeasureHover(null);
+            setNearbyVertices([]);
+            setNearbyEdges([]);
           }
           return next;
         });
@@ -428,40 +451,42 @@ export default function VersionDetailPage() {
   }
 
   // Highlight radius for nearby-vertex/edge coloring while placing/dragging
-  // a comment — scaled off the model's own size so it reads sensibly
-  // whether the model is a 10mm bracket or a 200mm enclosure.
-  function commentSnapRadius(): number {
+  // a comment or hovering in measure mode — scaled off the model's own size
+  // so it reads sensibly whether the model is a 10mm bracket or a 200mm
+  // enclosure.
+  function snapHighlightRadius(): number {
     const maxDimension = Math.max(...boundingBox);
     return maxDimension > 0 ? Math.max(maxDimension * 0.04, 0.5) : 1;
   }
 
-  // Deliberately much tighter than commentSnapRadius() above — that one's
+  // Deliberately much tighter than snapHighlightRadius() above — that one's
   // a broad "here's what's nearby" preview area, not a snap distance. Using
   // it as the magnet threshold would mean almost every point on a face of a
   // simple/low-poly model snaps, since its own vertices are already within
   // 4% of the model's size — exactly the "sticks immediately" behavior this
   // is fixing.
-  function commentSnapThreshold(): number {
+  function snapMagnetThreshold(): number {
     const maxDimension = Math.max(...boundingBox);
     return maxDimension > 0 ? Math.max(maxDimension * 0.01, 0.15) : 0.3;
   }
 
   // The actual surface point under the cursor, magnetized to the nearest
   // vertex/edge only when the cursor is genuinely close to one. Otherwise
-  // this is freeform placement anywhere on the surface, unlike the measure
-  // tool's nearestMeasurePoint below, which always forces a snap.
+  // this is freeform placement anywhere on the surface — used for both
+  // comment placement and (unlike nearestMeasurePoint's forced snap) the
+  // measure tool's own point picking below.
   function snappedOrSurfacePoint(event: ThreeEvent<MouseEvent>): THREE.Vector3 | null {
     if (!event.face) return null;
     const surfacePoint = event.point.clone().applyMatrix4(GROUP_ROTATION_INVERSE);
     const snapped = nearestMeasurePoint(event);
-    if (snapped && snapped.distanceTo(surfacePoint) <= commentSnapThreshold()) {
+    if (snapped && snapped.distanceTo(surfacePoint) <= snapMagnetThreshold()) {
       return snapped;
     }
     return surfacePoint;
   }
 
   function updateNearbyVertices(center: THREE.Vector3) {
-    const radius = commentSnapRadius();
+    const radius = snapHighlightRadius();
     const nearby = uniqueVerticesRef.current
       .filter((vertex) => vertex.distanceTo(center) <= radius)
       .map((vertex): [number, number, number] => [vertex.x, vertex.y, vertex.z]);
@@ -471,7 +496,7 @@ export default function VersionDetailPage() {
   }
 
   function updateNearbyEdges(center: THREE.Vector3) {
-    const radius = commentSnapRadius();
+    const radius = snapHighlightRadius();
     const nearby: Array<[[number, number, number], [number, number, number]]> = [];
     for (const [a, b] of uniqueEdgesRef.current) {
       const clipped = clipSegmentToCircle(a, b, center, radius);
@@ -543,6 +568,24 @@ export default function VersionDetailPage() {
     return () => window.removeEventListener("mouseup", stopDragging);
   }, [isDraggingPin]);
 
+  // A tool reads as "active" whether it's still mid-measurement or already
+  // has a finished result sitting on screen — either way, clicking its
+  // toolbar button again should clear it rather than silently starting a
+  // second measurement over the first.
+  function isToolActive(mode: "distance" | "radius"): boolean {
+    if (measureMode !== mode) return false;
+    if (isMeasuring) return true;
+    return mode === "distance" ? !!(measureA || measureB) : radiusPoints.length > 0 || !!radiusCommittedFit;
+  }
+
+  function toggleMeasuring(mode: "distance" | "radius") {
+    if (isToolActive(mode)) {
+      clearMeasurement();
+    } else {
+      startMeasuring(mode);
+    }
+  }
+
   function startMeasuring(mode: "distance" | "radius") {
     setMeasureMode(mode);
     setIsMeasuring(true);
@@ -554,6 +597,8 @@ export default function VersionDetailPage() {
     setRadiusCommittedFit(null);
     setRadiusCommittedLoopPoints(null);
     setMeasureHover(null);
+    setNearbyVertices([]);
+    setNearbyEdges([]);
   }
 
   function clearMeasurement() {
@@ -566,6 +611,8 @@ export default function VersionDetailPage() {
     setRadiusCommittedFit(null);
     setRadiusCommittedLoopPoints(null);
     setMeasureHover(null);
+    setNearbyVertices([]);
+    setNearbyEdges([]);
   }
 
   async function handleSubmitComment(body: string) {
@@ -635,24 +682,54 @@ export default function VersionDetailPage() {
           }`}
       >
         {geometry && (
-          <div className="absolute left-3 top-2 z-10 flex gap-1.5">
+          <div className="absolute left-3 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-950/70 p-1">
+            <button
+              type="button"
+              onClick={() => toggleMeasuring("distance")}
+              title={
+                isToolActive("distance")
+                  ? "Click to clear this distance measurement"
+                  : "Measure distance between two points"
+              }
+              className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
+                isToolActive("distance")
+                  ? "bg-amber-500/20 text-amber-400"
+                  : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+              }`}
+            >
+              📏
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleMeasuring("radius")}
+              title={isToolActive("radius") ? "Click to clear this radius measurement" : "Measure a hole/boss radius"}
+              className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
+                isToolActive("radius")
+                  ? "bg-sky-500/20 text-sky-400"
+                  : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+              }`}
+            >
+              ⌀
+            </button>
+            <div className="mx-0.5 h-5 w-px bg-neutral-800" />
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
               title="Zoom to fit the model in view"
-              className="rounded border border-neutral-700 bg-neutral-950/70 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white"
             >
-              Zoom to Model
+              ⛶
             </button>
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
               title="Reset camera to the loaded view"
-              className="rounded border border-neutral-700 bg-neutral-950/70 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white"
             >
-              ⟲ Reset View
+              ⟲
             </button>
-            <ControlSchemeSelect />
+            <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+            <ControlSchemeSelect showLegend={false} />
           </div>
         )}
         <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
@@ -738,11 +815,11 @@ export default function VersionDetailPage() {
                 )}
                 {!pendingPosition && commentSnapPreview && (
                   <>
-                    {/* Sized to commentSnapRadius() so this visually IS the
+                    {/* Sized to snapHighlightRadius() so this visually IS the
                         "close area" the nearby vertex/edge highlights below
                         are limited to, not just a fixed-size cosmetic marker. */}
                     <mesh position={commentSnapPreview}>
-                      <sphereGeometry args={[commentSnapRadius(), 16, 16]} />
+                      <sphereGeometry args={[snapHighlightRadius(), 16, 16]} />
                       <meshBasicMaterial color="#a5b4fc" transparent opacity={0.3} depthTest={false} />
                     </mesh>
                     <mesh position={commentSnapPreview}>
@@ -751,27 +828,30 @@ export default function VersionDetailPage() {
                     </mesh>
                   </>
                 )}
-                {(isPlacingComment || isDraggingPin) &&
-                  nearbyVertices.map((vertex, index) => (
-                    <mesh key={`${vertex.join(",")}-${index}`} position={vertex}>
-                      <sphereGeometry args={[0.35, 8, 8]} />
-                      <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthTest={false} />
-                    </mesh>
-                  ))}
-                {(isPlacingComment || isDraggingPin) &&
-                  nearbyEdges.map(([a, b], index) => (
-                    <Line
-                      key={`${a.join(",")}-${b.join(",")}-${index}`}
-                      points={[a, b]}
-                      color="#facc15"
-                      lineWidth={2.5}
-                      transparent
-                      opacity={0.85}
-                      depthTest={false}
-                    />
-                  ))}
               </>
             )}
+            {/* Nearby vertex/edge "close area" highlight — shared by comment
+                placement/dragging and measure-tool hovering, so it isn't
+                gated behind project?.teamId like the comment UI above. */}
+            {(isPlacingComment || isDraggingPin || isMeasuring) &&
+              nearbyVertices.map((vertex, index) => (
+                <mesh key={`${vertex.join(",")}-${index}`} position={vertex}>
+                  <sphereGeometry args={[0.35, 8, 8]} />
+                  <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthTest={false} />
+                </mesh>
+              ))}
+            {(isPlacingComment || isDraggingPin || isMeasuring) &&
+              nearbyEdges.map(([a, b], index) => (
+                <Line
+                  key={`${a.join(",")}-${b.join(",")}-${index}`}
+                  points={[a, b]}
+                  color="#facc15"
+                  lineWidth={2.5}
+                  transparent
+                  opacity={0.85}
+                  depthTest={false}
+                />
+              ))}
             {measureMode === "distance" ? (
               <MeasurementOverlay pointA={measureA} pointB={measureB} hoverPoint={measureHover} />
             ) : (
@@ -817,68 +897,6 @@ export default function VersionDetailPage() {
             </div>
 
             <div className="mt-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                  Measure tools
-                </h3>
-                {(measureA || measureB || radiusPoints.length > 0 || radiusCommittedFit) && (
-                  <button
-                    type="button"
-                    onClick={clearMeasurement}
-                    className="text-[11px] text-neutral-500 hover:text-neutral-300"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => startMeasuring("distance")}
-                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${isMeasuring && measureMode === "distance"
-                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                    }`}
-                >
-                  {isMeasuring && measureMode === "distance" ? "Click two points…" : "Distance"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startMeasuring("radius")}
-                  className={`flex-1 rounded border px-2 py-1 text-[11px] font-medium ${isMeasuring && measureMode === "radius"
-                    ? "border-sky-500 bg-sky-500/10 text-sky-400"
-                    : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
-                    }`}
-                >
-                  {isMeasuring && measureMode === "radius"
-                    ? radiusPreviewFit
-                      ? "Click to confirm…"
-                      : `Click point ${radiusPoints.length + 1} of 3…`
-                    : "Radius"}
-                </button>
-              </div>
-              <p className="mt-1.5 text-xs text-neutral-500">
-                {measureMode === "distance"
-                  ? measureA && measureB
-                    ? `${new THREE.Vector3(...measureA).distanceTo(new THREE.Vector3(...measureB)).toFixed(2)} mm between the two selected points.`
-                    : isMeasuring
-                      ? measureA
-                        ? "First point set — click a second point (vertex or edge)."
-                        : "Click a vertex or edge on the model to start."
-                      : "Click two points (vertices or edges) on the model to measure the distance between them."
-                  : radiusCommittedFit
-                    ? `R ${radiusCommittedFit.radius.toFixed(2)} mm, ⌀ ${(radiusCommittedFit.radius * 2).toFixed(2)} mm.`
-                    : radiusPreviewFit
-                      ? `Detected hole — R ${radiusPreviewFit.radius.toFixed(2)} mm, ⌀ ${(radiusPreviewFit.radius * 2).toFixed(2)} mm. Click to confirm.`
-                      : isMeasuring
-                        ? radiusPoints.length > 0
-                          ? `Click ${3 - radiusPoints.length} more point${3 - radiusPoints.length === 1 ? "" : "s"} on the rim, or hover a hole to auto-detect it.`
-                          : "Hover a hole or boss to auto-detect its edge, or click 3 points on it manually."
-                        : "Click a hole/boss to measure its radius (auto-detected), or click 3 points manually."}
-              </p>
-            </div>
-
-            <div className="mt-4">
               <CollapsibleSection title="Summary">
                 <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs leading-relaxed text-neutral-300">
                   {version.changeSummary ?? "No summary available."}

@@ -11,7 +11,14 @@ import { CONTROL_SCHEME_LEGEND, useControlScheme } from "../lib/controlScheme";
  * active, via CONTROL_SCHEME_LEGEND — so the shortcut reference updates
  * immediately when the scheme is switched, without needing its own copy.
  */
-export default function ControlSchemeSelect() {
+interface ControlSchemeSelectProps {
+  /** Off for compact icon toolbars — the per-action key/mouse combos are
+   * still reachable via the select's own tooltip, just not spelled out as
+   * a row of badges next to it. */
+  showLegend?: boolean;
+}
+
+export default function ControlSchemeSelect({ showLegend = true }: ControlSchemeSelectProps) {
   const [scheme, setScheme] = useControlScheme();
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -24,15 +31,24 @@ export default function ControlSchemeSelect() {
         <option value="meshdiff">Controls: Meshdiff</option>
         <option value="cad">Controls: CAD (Fusion/AutoCAD)</option>
       </select>
-      {CONTROL_SCHEME_LEGEND[scheme].map(({ label, combo }) => (
+      {showLegend ? (
+        CONTROL_SCHEME_LEGEND[scheme].map(({ label, combo }) => (
+          <span
+            key={label}
+            title={combo}
+            className="cursor-default rounded border border-neutral-800 bg-neutral-900 px-1.5 py-0.5 text-[10px] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+          >
+            {label}
+          </span>
+        ))
+      ) : (
         <span
-          key={label}
-          title={combo}
-          className="cursor-default rounded border border-neutral-800 bg-neutral-900 px-1.5 py-0.5 text-[10px] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+          title={CONTROL_SCHEME_LEGEND[scheme].map(({ label, combo }) => `${label}: ${combo}`).join("\n")}
+          className="flex h-5 w-5 cursor-default items-center justify-center rounded-full border border-neutral-700 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
         >
-          {label}
+          ℹ
         </span>
-      ))}
+      )}
     </div>
   );
 }

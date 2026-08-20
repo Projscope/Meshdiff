@@ -8,7 +8,6 @@ import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import ReadOnlyMeshViewer, { type ReadOnlyMeshViewerHandle } from "../components/ReadOnlyMeshViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import LoadingModal from "../components/LoadingModal";
-import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { downloadDiffReportPdf } from "../lib/diffReportPdf";
 
@@ -216,70 +215,40 @@ export default function CompareVersionsPage() {
         )}
       </div>
 
-      <div className="w-80 shrink-0 overflow-y-auto">
-        <div className="flex items-center justify-between gap-2">
-          <Link
-            to={`/projects/${projectId}`}
-            className="text-xs text-neutral-500 hover:text-neutral-300"
+      {/* w-96 (not w-80) so the widest rows (e.g. "Bounding Box") never
+          bump into the scrollbar; overflow-x-hidden also guards against the
+          CSS quirk where overflow-y: auto alone makes overflow-x compute to
+          auto too, popping a horizontal scrollbar over a single stray pixel. */}
+      <div className="w-96 shrink-0 overflow-y-auto overflow-x-hidden">
+        <Link
+          to={`/projects/${projectId}`}
+          className="text-xs text-neutral-500 hover:text-neutral-300"
+        >
+          ← Back to project
+        </Link>
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleShareClick}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
           >
-            ← Back to project
-          </Link>
-          <div className="flex items-center gap-2">
+            🔗 Share
+          </button>
+          {stats && (
             <button
               type="button"
-              onClick={() => {
-                // Fits all three viewers together, keeping each one's
-                // current rotation — the point is bringing the model back
-                // into frame after panning/zooming away, not undoing a
-                // deliberate rotation (that's what Reset View is for).
-                viewerARef.current?.zoomToFit();
-                viewerBRef.current?.zoomToFit();
-                diffViewRef.current?.zoomToFit();
-              }}
-              title="Zoom to fit all views"
-              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
+              onClick={() =>
+                downloadDiffReportPdf(stats, isProOrTeam, {
+                  viewA: viewerARef.current?.captureScreenshot(),
+                  viewB: viewerBRef.current?.captureScreenshot(),
+                  combined: diffViewRef.current?.captureScreenshot(),
+                })
+              }
+              className="flex-1 rounded bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
             >
-              Zoom to Model
+              Download Report
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                // Resets all three viewers together — the point is
-                // undoing however much the user has panned/rotated/zoomed
-                // across the whole comparison, not just one pane.
-                viewerARef.current?.resetView();
-                viewerBRef.current?.resetView();
-                diffViewRef.current?.resetView();
-              }}
-              title="Reset all views to how they loaded"
-              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
-            >
-              ⟲ Reset View
-            </button>
-            <ControlSchemeSelect />
-            <button
-              type="button"
-              onClick={handleShareClick}
-              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
-            >
-              🔗 Share
-            </button>
-            {stats && (
-              <button
-                type="button"
-                onClick={() =>
-                  downloadDiffReportPdf(stats, isProOrTeam, {
-                    viewA: viewerARef.current?.captureScreenshot(),
-                    viewB: viewerBRef.current?.captureScreenshot(),
-                    combined: diffViewRef.current?.captureScreenshot(),
-                  })
-                }
-                className="rounded bg-emerald-500 px-2.5 py-1 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
-              >
-                Download Report
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {allVersions.length > 1 && (
