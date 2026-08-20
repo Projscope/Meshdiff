@@ -21,13 +21,15 @@ export default function PendingCommentPopover({ position, onSubmit, onCancel }: 
     setIsSubmitting(false);
   }
 
+  // No distanceFactor — stays a fixed, readable size on screen regardless
+  // of camera zoom, same as CommentPopover.
   return (
-    <Html position={position} distanceFactor={40} occlude={false} zIndexRange={[100, 0]}>
+    <Html position={position} occlude={false} zIndexRange={[100, 0]}>
       <form
         onSubmit={handleSubmit}
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
-        className="w-64 -translate-x-[calc(100%+12px)] -translate-y-1/2 rounded-lg border border-indigo-700 bg-neutral-900 p-2.5 shadow-xl"
+        className="w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 rounded-lg border border-indigo-700 bg-neutral-900 p-2.5 shadow-xl"
       >
         <textarea
           autoFocus

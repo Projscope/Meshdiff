@@ -68,12 +68,15 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
     setIsReplying(false);
   }
 
+  // No distanceFactor on the Html below — this should stay a fixed,
+  // readable size on screen regardless of camera zoom, not shrink along
+  // with the model.
   return (
-    <Html position={comment.position} distanceFactor={40} occlude={false} zIndexRange={[100, 0]}>
+    <Html position={comment.position} occlude={false} zIndexRange={[100, 0]}>
       <div
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
-        className="relative flex w-64 -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border border-neutral-700 bg-neutral-900 p-2.5 shadow-xl"
+        className="relative flex w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border border-neutral-700 bg-neutral-900 p-2.5 shadow-xl"
       >
         {/* Close stays alone in the top-right corner, well clear of the
             per-comment Delete links below — those live next to Reply
@@ -138,7 +141,19 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
         )}
 
         {replies.length > 0 && (
-          <div className="flex flex-col gap-2 border-t border-neutral-800 pt-2 pl-2">
+          <div
+            onWheel={(event) => event.stopPropagation()}
+            className={`flex flex-col gap-2 border-t border-neutral-800 pt-2 pl-2 ${
+              // Parent counts as one message — once the thread exceeds 4
+              // total, the replies scroll instead of growing the card
+              // indefinitely.
+              // overflow-x-hidden isn't just belt-and-suspenders here: per
+              // spec, setting only overflow-y to auto/scroll makes the
+              // browser compute overflow-x as auto too, which can pop a
+              // horizontal scrollbar on any content a pixel too wide.
+              replies.length > 3 ? "max-h-48 overflow-y-auto overflow-x-hidden thin-scrollbar pr-1" : ""
+            }`}
+          >
             {replies.map((reply) => (
               <CommentEntry
                 key={reply.id}

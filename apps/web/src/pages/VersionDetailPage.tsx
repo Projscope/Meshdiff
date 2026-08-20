@@ -701,6 +701,7 @@ export default function VersionDetailPage() {
                       highlighted={hoveredCommentId === comment.id || selectedCommentId === comment.id}
                       onHoverChange={(hovering) => setHoveredCommentId(hovering ? comment.id : null)}
                       onSelect={() => setSelectedCommentId(comment.id)}
+                      messageCount={1 + comments.filter((c) => c.parentCommentId === comment.id).length}
                     />
                   ))}
                 {comments
