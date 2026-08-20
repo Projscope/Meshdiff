@@ -5,7 +5,7 @@ export default {
     extend: {
       fontFamily: {
         sans: [
-          "Roboto",
+          '"IBM Plex Sans"',
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
@@ -14,6 +14,61 @@ export default {
           "Arial",
           "sans-serif",
         ],
+        display: ['"Space Grotesk"', "ui-sans-serif", "system-ui", "sans-serif"],
+      },
+      colors: {
+        // Brand re-theme (see MEMORY.md design-mockup note): a navy-tinted
+        // neutral scale + blue accent, replacing the old Tailwind
+        // neutral/emerald defaults everywhere those classes are used
+        // (ink-* / accent-* were mechanically swapped in for neutral-* /
+        // emerald-* across the app — see git history for the rename).
+        //
+        // `ink` is theme-reactive: each stop reads a CSS custom property
+        // (defined in index.css) so the light/dark toggle can swap the
+        // entire scale at once — no per-component dark:/light: classes
+        // needed. `chrome` is a frozen copy of the scale's dark-mode
+        // values, for the handful of spots (text on an accent-colored
+        // button/badge, the embeddable badge mockups on EmbedBadgePage)
+        // that must stay a fixed shade regardless of page theme.
+        ink: {
+          50: "rgb(var(--ink-50) / <alpha-value>)",
+          100: "rgb(var(--ink-100) / <alpha-value>)",
+          200: "rgb(var(--ink-200) / <alpha-value>)",
+          300: "rgb(var(--ink-300) / <alpha-value>)",
+          400: "rgb(var(--ink-400) / <alpha-value>)",
+          500: "rgb(var(--ink-500) / <alpha-value>)",
+          600: "rgb(var(--ink-600) / <alpha-value>)",
+          700: "rgb(var(--ink-700) / <alpha-value>)",
+          800: "rgb(var(--ink-800) / <alpha-value>)",
+          900: "rgb(var(--ink-900) / <alpha-value>)",
+          950: "rgb(var(--ink-950) / <alpha-value>)",
+        },
+        chrome: {
+          50: "#f5f7fb",
+          100: "#e8ecf3",
+          200: "#d1d8e4",
+          300: "#aab5c8",
+          400: "#7c879e",
+          500: "#5a6478",
+          600: "#444d5f",
+          700: "#333b4a",
+          800: "#262c38",
+          900: "#1b1f27",
+          950: "#15181e",
+        },
+        accent: {
+          50: "#ecfdf5",
+          100: "#d1fae5",
+          200: "#a7f3d0",
+          300: "#6ee7b7",
+          400: "#34d399",
+          500: "#10b981",
+          600: "#059669",
+          700: "#047857",
+          800: "#065f46",
+          900: "#064e3b",
+          950: "#022c22",
+        },
       },
     },
   },

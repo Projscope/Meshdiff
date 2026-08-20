@@ -7,6 +7,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Applies the stored light/dark preference before first paint —
+         without this, the page would flash dark (the default) then swap
+         to light a moment after React mounts and useTheme() runs. -->
+    <script>
+      (function () {
+        var theme = localStorage.getItem("meshdiff_theme") === "light" ? "light" : "dark";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+
     <title>Meshdiff — Compare 3D Model Versions (STL, 3MF, OBJ Diff Tool)</title>
     <meta
       name="description"
@@ -18,17 +28,23 @@
     />
     <meta name="author" content="Meshdiff" />
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#4338ca" />
+    <meta name="theme-color" content="#15181e" />
 
     <link rel="canonical" href="https://meshdiff.com/" />
 
-    <!-- Landing page's hero screenshot is the LCP element, but it only
-         appears once React renders (client-side, no SSR) — Lighthouse
-         flags this as "not discoverable in the initial document".
-         Referencing it here lets Vite fingerprint it into the build as
-         usual while still emitting a real <link rel=preload> in the
-         initial HTML, so the browser starts fetching it immediately
-         instead of waiting on JS to run first. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- The live-tool preview screenshot sits just below the hero and only
+         appears once React renders (client-side, no SSR), so the browser
+         wouldn't normally discover it until JS runs. Referencing it here
+         lets Vite fingerprint it into the build as usual while still
+         emitting a real <link rel=preload> in the initial HTML, so the
+         fetch starts immediately instead of waiting on JS. -->
     <link rel="preload" as="image" type="image/webp" href="/src/assets/live-diff-preview.webp" fetchpriority="high" />
 
     <!-- Open Graph -->

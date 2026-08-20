@@ -85,8 +85,8 @@ export default function ThreeMFPropertiesPanel({ properties, defaultOpen = false
         <PropertyRow label="Unit" value={properties.unit} />
         {entries.map(([key, value]) => (
           <div key={key} className="px-3 py-2 text-xs">
-            <span className="block text-neutral-500">{FIELD_LABELS[key] ?? key}</span>
-            <span className="mt-0.5 block whitespace-pre-line break-words text-left leading-relaxed text-neutral-200">
+            <span className="block text-ink-500">{FIELD_LABELS[key] ?? key}</span>
+            <span className="mt-0.5 block whitespace-pre-line break-words text-left leading-relaxed text-ink-200">
               {cleanMetadataValue(value)}
             </span>
           </div>

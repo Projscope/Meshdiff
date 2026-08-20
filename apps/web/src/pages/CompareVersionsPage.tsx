@@ -195,28 +195,28 @@ export default function CompareVersionsPage() {
 
         {stats && (
           <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Added voxels</div>
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Added voxels</div>
               <div className={`mt-0.5 text-lg font-semibold ${diffColors.addedTextClass}`}>
                 +{stats.addedCount.toLocaleString()}
               </div>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Removed voxels</div>
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Removed voxels</div>
               <div className={`mt-0.5 text-lg font-semibold ${diffColors.removedTextClass}`}>
                 -{stats.removedCount.toLocaleString()}
               </div>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Volume delta</div>
-              <div className="mt-0.5 text-lg font-semibold text-neutral-100">
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Volume delta</div>
+              <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
                 {stats.approxVolumeDeltaPercent.toFixed(1)}%
               </div>
             </div>
-            <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-neutral-500">Tolerance</div>
-              <div className="mt-0.5 text-lg font-semibold text-neutral-100">
+            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">Tolerance</div>
+              <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.toleranceMm.toFixed(2)} mm
               </div>
             </div>
@@ -231,7 +231,7 @@ export default function CompareVersionsPage() {
       <div className="w-96 shrink-0 overflow-y-auto overflow-x-hidden">
         <Link
           to={`/projects/${projectId}`}
-          className="text-xs text-neutral-500 hover:text-neutral-300"
+          className="text-xs text-ink-500 hover:text-ink-300"
         >
           ← Back to project
         </Link>
@@ -239,7 +239,7 @@ export default function CompareVersionsPage() {
           <button
             type="button"
             onClick={handleShareClick}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
           >
             🔗 Share
           </button>
@@ -253,7 +253,7 @@ export default function CompareVersionsPage() {
                   combined: diffViewRef.current?.captureScreenshot(),
                 })
               }
-              className="flex-1 rounded bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-neutral-950 hover:bg-emerald-400"
+              className="flex-1 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
             >
               Download Report
             </button>
@@ -261,13 +261,13 @@ export default function CompareVersionsPage() {
         </div>
 
         {allVersions.length > 1 && (
-          <div className="mt-3 flex flex-col gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-xs">
-            <span className="font-semibold uppercase tracking-widest text-neutral-500">Compare</span>
+          <div className="mt-3 flex flex-col gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs">
+            <span className="font-semibold uppercase tracking-widest text-ink-500">Compare</span>
             <div className="flex items-center gap-2">
               <select
                 value={versionAId ?? ""}
                 onChange={(event) => handleChangeA(event.target.value)}
-                className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-neutral-200"
+                className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
               >
                 {allVersions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -275,11 +275,11 @@ export default function CompareVersionsPage() {
                   </option>
                 ))}
               </select>
-              <span className="shrink-0 text-neutral-600">→</span>
+              <span className="shrink-0 text-ink-600">→</span>
               <select
                 value={versionBId ?? ""}
                 onChange={(event) => handleChangeB(event.target.value)}
-                className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-neutral-200"
+                className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
               >
                 {allVersions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -299,10 +299,10 @@ export default function CompareVersionsPage() {
 
         {versionA && versionB && (
           <>
-            <h1 className="mt-2 text-sm font-semibold text-white">
+            <h1 className="mt-2 text-sm font-semibold text-ink-50">
               v{versionA.versionNumber} → v{versionB.versionNumber}
             </h1>
-            <p className="mt-0.5 truncate text-xs text-neutral-500">
+            <p className="mt-0.5 truncate text-xs text-ink-500">
               {versionA.fileName} vs {versionB.fileName}
             </p>
 

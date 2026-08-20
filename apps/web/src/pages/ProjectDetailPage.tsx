@@ -73,9 +73,9 @@ function timeAgo(iso: string): string {
 
 function StatCard({ label, value, accent }: { label: string; value: React.ReactNode; accent?: "amber" }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</p>
-      <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-400" : "text-white"}`}>
+    <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
+      <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-400" : "text-ink-50"}`}>
         {value}
       </p>
     </div>
@@ -375,7 +375,7 @@ export default function ProjectDetailPage() {
   const latestVolumeDeltaPercent = comparisons.length > 0 ? comparisons[comparisons.length - 1].volumeDeltaPercent : null;
   const PRINTABILITY_LABEL: Record<"pass" | "warn" | "fail", string> = { pass: "Pass", warn: "Warning", fail: "Fail" };
   const PRINTABILITY_COLOR: Record<"pass" | "warn" | "fail", string> = {
-    pass: "text-emerald-400",
+    pass: "text-accent-400",
     warn: "text-amber-400",
     fail: "text-red-400",
   };
@@ -404,20 +404,20 @@ export default function ProjectDetailPage() {
 
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs text-neutral-500">
-            <Link to="/projects" className="hover:text-neutral-300">
+          <p className="text-xs text-ink-500">
+            <Link to="/projects" className="hover:text-ink-300">
               Projects
             </Link>
             {project && <> / {project.name}</>}
           </p>
           <div className="mt-1 flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-white">{project?.name ?? "…"}</h1>
+            <h1 className="text-2xl font-bold text-ink-50">{project?.name ?? "…"}</h1>
             {project && (project.myRole === "owner" || project.myRole === "admin") && (
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(true)}
                 title="Edit project name and description"
-                className="shrink-0 rounded p-1 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+                className="shrink-0 rounded p-1 text-ink-500 hover:bg-ink-800 hover:text-ink-200"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -426,7 +426,7 @@ export default function ProjectDetailPage() {
               </button>
             )}
           </div>
-          {project?.description && <p className="mt-1 text-sm text-neutral-400">{project.description}</p>}
+          {project?.description && <p className="mt-1 text-sm text-ink-400">{project.description}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {project?.myRole === "owner" && myTeams.length > 0 && (
@@ -435,7 +435,7 @@ export default function ProjectDetailPage() {
               disabled={isChangingTeam}
               onChange={(event) => void handleChangeTeam(event.target.value || null)}
               title="Move this project into a team, or keep it personal"
-              className="rounded border border-neutral-700 bg-neutral-950 px-2 py-2 text-xs text-neutral-300 disabled:opacity-50"
+              className="rounded border border-ink-700 bg-ink-950 px-2 py-2 text-xs text-ink-300 disabled:opacity-50"
             >
               <option value="">Personal</option>
               {myTeams.map((team) => (
@@ -449,7 +449,7 @@ export default function ProjectDetailPage() {
             <button
               type="button"
               onClick={() => void handleShare()}
-              className="flex items-center gap-1.5 rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-200 hover:border-neutral-500"
+              className="flex items-center gap-1.5 rounded border border-ink-700 px-3 py-2 text-xs font-medium text-ink-200 hover:border-ink-500"
             >
               🔗 {shareCopied ? "Copied!" : "Share Project"}
             </button>
@@ -459,7 +459,7 @@ export default function ProjectDetailPage() {
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || !isPro}
             title={!isPro ? "Upgrade to Pro to upload new versions" : ""}
-            className="flex items-center gap-2 rounded bg-emerald-500 px-3 py-2 text-xs font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
+            className="flex items-center gap-2 rounded bg-accent-500 px-3 py-2 text-xs font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
           >
             {isUploading ? "Uploading" : "Upload"}
           </button>
@@ -468,7 +468,7 @@ export default function ProjectDetailPage() {
               type="button"
               onClick={() => setIsDeleteProjectOpen(true)}
               title="Delete this project"
-              className="rounded border border-neutral-700 px-3 py-2 text-xs font-medium text-red-400 hover:border-red-500/60 hover:bg-red-500/10"
+              className="rounded border border-ink-700 px-3 py-2 text-xs font-medium text-red-400 hover:border-red-500/60 hover:bg-red-500/10"
             >
               Delete
             </button>
@@ -477,7 +477,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {isDragOver && (
-        <div className="mt-4 rounded-lg border-2 border-dashed border-emerald-500 bg-emerald-500/5 py-4 text-center text-sm text-emerald-300">
+        <div className="mt-4 rounded-lg border-2 border-dashed border-accent-500 bg-accent-500/5 py-4 text-center text-sm text-accent-300">
           Drop STL, 3MF, or OBJ to upload a new version
         </div>
       )}
@@ -496,14 +496,14 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className="mt-6 flex gap-6 rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+      <div className="mt-6 flex gap-6 rounded-lg border border-ink-800 bg-ink-900 p-6">
         {project?.thumbnailUrl && (
           <div className="shrink-0">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Latest Model</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Latest Model</p>
             <img
               src={project.thumbnailUrl}
               alt={project.name}
-              className="mt-3 h-64 w-64 rounded bg-neutral-950 object-contain"
+              className="mt-3 h-64 w-64 rounded bg-ink-950 object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
@@ -516,12 +516,12 @@ export default function ProjectDetailPage() {
           <>
             <StatCard label="Comparisons" value={Math.max(0, versions.length - 1)} />
             <StatCard label="Open Reviews" value={openReviews} accent={openReviews > 0 ? "amber" : undefined} />
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Approval Rate</p>
-              <p className="mt-1.5 text-2xl font-bold text-emerald-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
+            <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Approval Rate</p>
+              <p className="mt-1.5 text-2xl font-bold text-accent-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
               {approvalRate !== null && (
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-neutral-800">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${approvalRate}%` }} />
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-ink-800">
+                  <div className="h-full rounded-full bg-accent-500" style={{ width: `${approvalRate}%` }} />
                 </div>
               )}
             </div>
@@ -529,11 +529,11 @@ export default function ProjectDetailPage() {
         ) : (
           <>
             <PrintabilityRulesTooltip className="block">
-              <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Last Model Printability</p>
+              <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Last Model Printability</p>
                 <p
                   className={`mt-1.5 text-2xl font-bold ${
-                    latestVersion?.printabilityStatus ? PRINTABILITY_COLOR[latestVersion.printabilityStatus] : "text-neutral-500"
+                    latestVersion?.printabilityStatus ? PRINTABILITY_COLOR[latestVersion.printabilityStatus] : "text-ink-500"
                   }`}
                 >
                   {latestVersion?.printabilityStatus ? PRINTABILITY_LABEL[latestVersion.printabilityStatus] : "—"}
@@ -555,12 +555,12 @@ export default function ProjectDetailPage() {
       </div>
 
       {versions.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
+        <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 px-4 py-10 text-center text-sm text-ink-500">
           No models yet — drop a file or click "Upload" to get started.
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-neutral-800">
-          <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+        <div className="mt-6 overflow-hidden rounded-lg border border-ink-800">
+          <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
             <span>History</span>
             <span>Updated</span>
           </div>
@@ -586,22 +586,22 @@ export default function ProjectDetailPage() {
                       ? `/projects/${projectId}/versions/${comparison.toVersion.id}`
                       : `/projects/${projectId}/compare/${comparison.fromVersion!.id}/${comparison.toVersion.id}`
                   }
-                  className="flex items-stretch gap-3 border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-sm last:border-b-0 hover:bg-neutral-900"
+                  className="flex items-stretch gap-3 border-b border-ink-800 bg-ink-950 px-4 py-3 text-sm last:border-b-0 hover:bg-ink-900"
                 >
                   {/* Rail: a colored dot per row (status color, same
                       convention as ApprovalBadge) on a connecting line —
                       the git-commit-graph visual language the user asked
                       for, kept purely linear per CLAUDE.md. */}
                   <div className="flex w-3 shrink-0 flex-col items-center">
-                    <div className={`w-px flex-1 ${isFirstRow ? "bg-transparent" : "bg-neutral-800"}`} />
+                    <div className={`w-px flex-1 ${isFirstRow ? "bg-transparent" : "bg-ink-800"}`} />
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${APPROVAL_DOT_COLOR[comparison.toVersion.approvalStatus]}`} />
-                    <div className={`w-px flex-1 ${isLastRow ? "bg-transparent" : "bg-neutral-800"}`} />
+                    <div className={`w-px flex-1 ${isLastRow ? "bg-transparent" : "bg-ink-800"}`} />
                   </div>
 
                   <div className="flex min-w-0 flex-1 items-center gap-4 py-0.5">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-sm font-semibold text-white">
+                        <span className="font-mono text-sm font-semibold text-ink-50">
                           {isSynthetic
                             ? `v${comparison.toVersion.versionNumber}`
                             : `v${comparison.fromVersion!.versionNumber} → v${comparison.toVersion.versionNumber}`}
@@ -616,7 +616,7 @@ export default function ProjectDetailPage() {
                         )}
                       </div>
                       <span
-                        className="block truncate text-xs text-neutral-500"
+                        className="block truncate text-xs text-ink-500"
                         title={comparison.toVersion.changeSummary ?? undefined}
                       >
                         {isSynthetic ? "Initial upload" : comparison.toVersion.changeSummary ?? "Version uploaded"}
@@ -632,19 +632,19 @@ export default function ProjectDetailPage() {
                               <span className={diffColors.addedTextClass}>+{comparison.addedCount!.toLocaleString()}</span>{" "}
                               <span className={diffColors.removedTextClass}>-{comparison.removedCount!.toLocaleString()}</span>
                             </div>
-                            <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-neutral-800">
+                            <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-ink-800">
                               <div className={diffColors.addedBgClass} style={{ width: `${bar.addedPercent}%` }} />
                               <div className={diffColors.removedBgClass} style={{ width: `${bar.removedPercent}%` }} />
                             </div>
                           </>
                         ) : (
-                          <span className="whitespace-nowrap font-mono text-xs text-neutral-500">
+                          <span className="whitespace-nowrap font-mono text-xs text-ink-500">
                             {isSynthetic ? `${comparison.toVersion.triangleCount ?? "?"} tris` : "—"}
                           </span>
                         )}
                       </div>
                       <ApprovalBadge status={comparison.toVersion.approvalStatus} />
-                      <span className="whitespace-nowrap text-xs text-neutral-500">{timeAgo(comparison.toVersion.createdAt)}</span>
+                      <span className="whitespace-nowrap text-xs text-ink-500">{timeAgo(comparison.toVersion.createdAt)}</span>
                     </div>
                   </div>
                 </Link>
@@ -654,12 +654,12 @@ export default function ProjectDetailPage() {
       )}
 
       {versions.length > 1 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-xs">
-          <span className="font-semibold uppercase tracking-widest text-neutral-500">Compare any two</span>
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs">
+          <span className="font-semibold uppercase tracking-widest text-ink-500">Compare any two</span>
           <select
             value={compareAId}
             onChange={(event) => setCompareAId(event.target.value)}
-            className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-neutral-200"
+            className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
           >
             {versions.map((v) => (
               <option key={v.id} value={v.id}>
@@ -667,11 +667,11 @@ export default function ProjectDetailPage() {
               </option>
             ))}
           </select>
-          <span className="text-neutral-600">→</span>
+          <span className="text-ink-600">→</span>
           <select
             value={compareBId}
             onChange={(event) => setCompareBId(event.target.value)}
-            className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-neutral-200"
+            className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
           >
             {versions.map((v) => (
               <option key={v.id} value={v.id}>
@@ -688,8 +688,8 @@ export default function ProjectDetailPage() {
             aria-disabled={!compareAId || !compareBId || compareAId === compareBId}
             className={`ml-auto rounded px-3 py-1.5 font-medium ${
               compareAId && compareBId && compareAId !== compareBId
-                ? "bg-emerald-500 text-neutral-950 hover:bg-emerald-400"
-                : "cursor-not-allowed bg-neutral-800 text-neutral-600"
+                ? "bg-accent-500 text-chrome-950 hover:bg-accent-400"
+                : "cursor-not-allowed bg-ink-800 text-ink-600"
             }`}
           >
             Compare
@@ -700,7 +700,7 @@ export default function ProjectDetailPage() {
       {versions.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-500">
               All versions ({versions.length})
             </h2>
           </div>
@@ -711,22 +711,22 @@ export default function ProjectDetailPage() {
               .map((version) => (
                 <div
                   key={version.id}
-                  className="flex flex-col gap-1.5 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm"
+                  className="flex flex-col gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-4 py-2.5 text-sm"
                 >
                 <div className="flex items-center gap-3">
-                  <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[11px] font-semibold text-neutral-300">
+                  <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold text-ink-300">
                     v{version.versionNumber}
                   </span>
                   {version.id === stableVersionId && (
-                    <span className="shrink-0 rounded border border-emerald-800 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+                    <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400">
                       Stable
                     </span>
                   )}
                   {project?.teamId && version.approvalStatus !== "approved" && (
                     <ApprovalBadge status={version.approvalStatus} />
                   )}
-                  <span className="min-w-0 flex-1 truncate text-neutral-300">{version.fileName}</span>
-                  <span className="shrink-0 text-xs text-neutral-500">
+                  <span className="min-w-0 flex-1 truncate text-ink-300">{version.fileName}</span>
+                  <span className="shrink-0 text-xs text-ink-500">
                     {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}
                   </span>
                   {/* Both actions stay available after a decision, not just
@@ -739,7 +739,7 @@ export default function ProjectDetailPage() {
                     <button
                       type="button"
                       onClick={() => void handleApprove(version.id)}
-                      className="shrink-0 rounded border border-emerald-700 px-2.5 py-1 text-xs text-emerald-400 hover:border-emerald-500"
+                      className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-400 hover:border-accent-500"
                     >
                       Approve
                     </button>
@@ -755,7 +755,7 @@ export default function ProjectDetailPage() {
                   )}
                   <Link
                     to={`/projects/${projectId}/versions/${version.id}`}
-                    className="shrink-0 rounded border border-neutral-700 px-2.5 py-1 text-xs text-neutral-200 hover:border-neutral-500"
+                    className="shrink-0 rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
                   >
                     View
                   </Link>
@@ -763,7 +763,7 @@ export default function ProjectDetailPage() {
                     type="button"
                     onClick={() => void handleDownloadVersion(version.id)}
                     title="Download this version"
-                    className="shrink-0 rounded border border-neutral-700 p-1.5 text-neutral-200 hover:border-neutral-500"
+                    className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-200 hover:border-ink-500"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -775,7 +775,7 @@ export default function ProjectDetailPage() {
                     type="button"
                     onClick={() => setPendingDelete({ id: version.id, versionNumber: version.versionNumber })}
                     title="Delete this version"
-                    className="shrink-0 rounded border border-neutral-700 p-1.5 text-neutral-400 hover:border-red-700 hover:text-red-400"
+                    className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-400 hover:border-red-700 hover:text-red-400"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                       <polyline points="3 6 5 6 21 6" />

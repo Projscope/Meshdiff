@@ -148,14 +148,14 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden rounded-lg border bg-neutral-950 ${
+      className={`relative h-full w-full overflow-hidden rounded-lg border bg-ink-950 ${
         isDragOver
           ? "border-blue-500"
           : measure.isMeasuring && measure.measureMode === "radius"
             ? "border-sky-500"
             : measure.isMeasuring
               ? "border-amber-500"
-              : "border-neutral-800"
+              : "border-ink-800"
       }`}
       onDragOver={(event) => {
         event.preventDefault();
@@ -176,14 +176,14 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         }}
       />
       <div className="absolute left-3 top-2 z-10 flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
           {label}
         </span>
         <button
           type="button"
           onClick={() => setShowControls(!showControls)}
           title="Rotate/zoom speed"
-          className="rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+          className="rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
         >
           ⚙
         </button>
@@ -196,7 +196,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         )}
       </div>
       {showControls && geometry && (
-        <div className="absolute left-3 top-8 z-20 rounded border border-neutral-700 bg-neutral-900 p-2 text-xs text-neutral-300">
+        <div className="absolute left-3 top-8 z-20 rounded border border-ink-700 bg-ink-900 p-2 text-xs text-ink-300">
           <div className="flex flex-col gap-1.5 w-32">
             <label className="flex items-center justify-between gap-2">
               <span>Rotate:</span>
@@ -225,14 +225,14 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
-              className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Zoom to model
             </button>
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
-              className="mt-1 w-full rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-white"
+              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Reset view
             </button>
@@ -248,7 +248,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         </div>
       )}
       {!geometry && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-ink-500">
           <span>{error ?? "Drop STL / OBJ / 3MF here"}</span>
           <div className="pointer-events-auto flex items-center gap-2">
             <button
@@ -257,7 +257,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 event.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white"
+              className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
             >
               Browse files
             </button>
@@ -269,7 +269,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                   void handleLoadDemo();
                 }}
                 disabled={isLoadingDemo}
-                className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white disabled:opacity-50"
+                className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50 disabled:opacity-50"
               >
                 {isLoadingDemo ? "Loading…" : "or load demo"}
               </button>

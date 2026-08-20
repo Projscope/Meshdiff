@@ -73,11 +73,11 @@ export default function RadiusOverlay({ manualPoints, hoverPoint, fit, loopPoint
   const color = isDetected ? (isPreview ? "#86efac" : "#22c55e") : isPreview ? "#7dd3fc" : "#38bdf8";
   const badgeClass = isDetected
     ? isPreview
-      ? "border-emerald-300 bg-emerald-500/60 text-neutral-950"
-      : "border-emerald-400 bg-emerald-500 text-neutral-950"
+      ? "border-accent-300 bg-accent-500/60 text-chrome-950"
+      : "border-accent-400 bg-accent-500 text-chrome-950"
     : isPreview
-      ? "border-sky-300 bg-sky-500/60 text-neutral-950"
-      : "border-sky-400 bg-sky-500 text-neutral-950";
+      ? "border-sky-300 bg-sky-500/60 text-chrome-950"
+      : "border-sky-400 bg-sky-500 text-chrome-950";
 
   return (
     <>

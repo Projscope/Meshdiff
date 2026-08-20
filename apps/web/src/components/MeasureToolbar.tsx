@@ -13,7 +13,7 @@ interface MeasureToolbarProps {
  * tool, paired with MeasureSceneOverlay for the in-scene rendering. */
 export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: MeasureToolbarProps) {
   return (
-    <div className="flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-950/70 p-1">
+    <div className="flex items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-950/70 p-1">
       <button
         type="button"
         onClick={() => measure.toggleMeasuring("distance")}
@@ -25,7 +25,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
           measure.isToolActive("distance")
             ? "bg-amber-500/20 text-amber-400"
-            : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+            : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
         }`}
       >
         📏
@@ -39,17 +39,17 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
           measure.isToolActive("radius")
             ? "bg-sky-500/20 text-sky-400"
-            : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+            : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
         }`}
       >
         ⌀
       </button>
-      <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+      <div className="mx-0.5 h-5 w-px bg-ink-800" />
       <button
         type="button"
         onClick={onZoomToFit}
         title="Zoom to fit the model in view"
-        className="flex h-7 w-7 items-center justify-center rounded text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white"
+        className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
       >
         ⛶
       </button>
@@ -57,13 +57,13 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         type="button"
         onClick={onResetView}
         title="Reset camera to the loaded view"
-        className="flex h-7 w-7 items-center justify-center rounded text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white"
+        className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
       >
         ⟲
       </button>
-      <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+      <div className="mx-0.5 h-5 w-px bg-ink-800" />
       <ShadingModeToggle />
-      <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+      <div className="mx-0.5 h-5 w-px bg-ink-800" />
       <ControlSchemeSelect showLegend={false} />
     </div>
   );

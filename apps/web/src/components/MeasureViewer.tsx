@@ -174,14 +174,14 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
     <div className="flex flex-col md:flex-row h-full w-full gap-3 overflow-y-auto md:overflow-hidden">
       {/* 3D Viewport Pane — Takes 50vh or min 350px on mobile, full height flex-1 on desktop */}
       <div
-        className={`relative min-h-[350px] h-[50vh] md:h-full w-full md:flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${
+        className={`relative min-h-[350px] h-[50vh] md:h-full w-full md:flex-1 overflow-hidden rounded-lg border bg-ink-950 ${
           isDragOver
             ? "border-blue-500"
             : measure.isMeasuring && measure.measureMode === "radius"
               ? "border-sky-500"
               : measure.isMeasuring
                 ? "border-amber-500"
-                : "border-neutral-800"
+                : "border-ink-800"
         }`}
         onDragOver={(event) => {
           event.preventDefault();
@@ -203,7 +203,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
         />
 
         <div className="absolute left-3 top-2 z-10 flex items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">Model</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-ink-400">Model</span>
           {displayGeometry && (
             <MeasureToolbar
               measure={measure}
@@ -223,7 +223,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
         )}
 
         {!displayGeometry && !isLoading && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-neutral-500">
+          <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-center text-sm text-ink-500">
             <span>{error ?? "Drop STL / OBJ / 3MF here"}</span>
             <div className="pointer-events-auto flex items-center gap-2">
               <button
@@ -232,7 +232,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                   event.stopPropagation();
                   fileInputRef.current?.click();
                 }}
-                className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white"
+                className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
               >
                 Browse files
               </button>
@@ -243,7 +243,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                     event.stopPropagation();
                     void handleLoadDemo();
                   }}
-                  className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-500 hover:text-white"
+                  className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
                 >
                   or load demo
                 </button>
@@ -289,24 +289,24 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
         <AxisLegend />
 
         {isLoading && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-neutral-950/80">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-ink-950/80">
             <LoadingCube />
-            <p className="text-xs text-neutral-400">Loading model…</p>
+            <p className="text-xs text-ink-400">Loading model…</p>
           </div>
         )}
       </div>
 
       {/* Properties Sidebar Panel — Stacks underneath on mobile (w-full), side panel on desktop (md:w-72) */}
-      <div className="w-full md:w-72 shrink-0 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-sm">
+      <div className="w-full md:w-72 shrink-0 overflow-y-auto rounded-lg border border-ink-800 bg-ink-900 p-3 text-sm">
         {!fileName && (
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-ink-500">
             Drop a model to see its properties, printability, and stats here.
           </p>
         )}
 
         {fileName && (
           <>
-            <h1 className="truncate text-sm font-semibold text-white">{fileName}</h1>
+            <h1 className="truncate text-sm font-semibold text-ink-50">{fileName}</h1>
 
             <div className="mt-5">
               <CollapsibleSection title="Printability Gate">

@@ -31,12 +31,12 @@ function CommentEntry({
 }) {
   return (
     <div>
-      <span className="min-w-0 truncate text-[10px] text-neutral-500">
-        <span className="font-medium text-neutral-400">{comment.authorEmail ?? "Someone"}</span>
+      <span className="min-w-0 truncate text-[10px] text-ink-500">
+        <span className="font-medium text-ink-400">{comment.authorEmail ?? "Someone"}</span>
         {" · "}
         {formatDate(comment.createdAt)}
       </span>
-      <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-neutral-100">{comment.body}</p>
+      <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
       {canDelete && (
         <button
           type="button"
@@ -76,7 +76,7 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
       <div
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
-        className="relative flex w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border border-neutral-700 bg-neutral-900 p-2.5 shadow-xl"
+        className="relative flex w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border border-ink-700 bg-ink-900 p-2.5 shadow-xl"
       >
         {/* Close stays alone in the top-right corner, well clear of the
             per-comment Delete links below — those live next to Reply
@@ -85,18 +85,18 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
           type="button"
           onClick={onClose}
           title="Close"
-          className="absolute right-1.5 top-1.5 rounded px-1 text-xs leading-none text-neutral-500 hover:text-neutral-200"
+          className="absolute right-1.5 top-1.5 rounded px-1 text-xs leading-none text-ink-500 hover:text-ink-200"
         >
           ✕
         </button>
 
         <div className="pr-5">
-          <span className="min-w-0 truncate text-[10px] text-neutral-500">
-            <span className="font-medium text-neutral-400">{comment.authorEmail ?? "Someone"}</span>
+          <span className="min-w-0 truncate text-[10px] text-ink-500">
+            <span className="font-medium text-ink-400">{comment.authorEmail ?? "Someone"}</span>
             {" · "}
             {formatDate(comment.createdAt)}
           </span>
-          <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-neutral-100">{comment.body}</p>
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
         </div>
 
         {isReplying ? (
@@ -108,20 +108,20 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
               value={replyText}
               onChange={(event) => setReplyText(event.target.value)}
               placeholder="Write a reply…"
-              className="w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-600"
+              className="w-full rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-600"
             />
             <div className="mt-1.5 flex gap-1.5">
               <button
                 type="submit"
                 disabled={isSubmittingReply}
-                className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
               >
                 {isSubmittingReply ? "Posting…" : "Post"}
               </button>
               <button
                 type="button"
                 onClick={() => setIsReplying(false)}
-                className="rounded border border-neutral-700 px-2 py-1 text-[11px] text-neutral-300 hover:border-neutral-500"
+                className="rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
               >
                 Cancel
               </button>
@@ -143,7 +143,7 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
         {replies.length > 0 && (
           <div
             onWheel={(event) => event.stopPropagation()}
-            className={`flex flex-col gap-2 border-t border-neutral-800 pt-2 pl-2 ${
+            className={`flex flex-col gap-2 border-t border-ink-800 pt-2 pl-2 ${
               // Parent counts as one message — once the thread exceeds 4
               // total, the replies scroll instead of growing the card
               // indefinitely.

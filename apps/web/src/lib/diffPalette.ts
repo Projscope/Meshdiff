@@ -53,9 +53,9 @@ const PALETTES: Record<DiffPalette, DiffColors> = {
   classic: {
     addedHex: "#22c55e",
     removedHex: "#ef4444",
-    addedTextClass: "text-emerald-400",
+    addedTextClass: "text-green-400",
     removedTextClass: "text-red-400",
-    addedBgClass: "bg-emerald-500",
+    addedBgClass: "bg-green-500",
     removedBgClass: "bg-red-500",
   },
   colorblind: {

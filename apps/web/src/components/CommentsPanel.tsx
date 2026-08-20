@@ -41,8 +41,8 @@ export default function CommentsPanel({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          Comments <span className="text-neutral-600">({comments.length})</span>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+          Comments <span className="text-ink-600">({comments.length})</span>
         </h3>
         <button
           type="button"
@@ -50,7 +50,7 @@ export default function CommentsPanel({
           className={`rounded border px-2 py-0.5 text-[11px] ${
             isPlacingComment
               ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-              : "border-neutral-700 text-neutral-400 hover:border-neutral-500"
+              : "border-ink-700 text-ink-400 hover:border-ink-500"
           }`}
         >
           {isPlacingComment ? "Click the model…" : "+ Add Comment"}
@@ -59,11 +59,11 @@ export default function CommentsPanel({
 
       {pendingPosition && (
         <div className="mt-2 flex items-center justify-between gap-2 rounded border border-indigo-800 bg-indigo-950/30 px-2 py-1.5">
-          <p className="text-[11px] text-neutral-400">Type your comment in the box next to the pin.</p>
+          <p className="text-[11px] text-ink-400">Type your comment in the box next to the pin.</p>
           <button
             type="button"
             onClick={onCancelPending}
-            className="shrink-0 rounded border border-neutral-700 px-2 py-1 text-[11px] text-neutral-300 hover:border-neutral-500"
+            className="shrink-0 rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
           >
             Cancel
           </button>
@@ -72,7 +72,7 @@ export default function CommentsPanel({
 
       <div className="mt-2 flex flex-col gap-1.5">
         {comments.length === 0 && !pendingPosition && (
-          <p className="text-xs text-neutral-600">No comments yet.</p>
+          <p className="text-xs text-ink-600">No comments yet.</p>
         )}
         {comments.map((comment) => (
           <div
@@ -83,14 +83,14 @@ export default function CommentsPanel({
             className={`rounded border px-2 py-1.5 transition-colors ${onSelectComment ? "cursor-pointer" : ""} ${
               highlightedCommentId === comment.id
                 ? "border-indigo-500 bg-indigo-950/40"
-                : "border-neutral-800 bg-neutral-900"
+                : "border-ink-800 bg-ink-900"
             }`}
           >
             <div className="flex items-center justify-between gap-1">
-              <div className="flex min-w-0 items-center gap-1 text-[10px] text-neutral-500">
+              <div className="flex min-w-0 items-center gap-1 text-[10px] text-ink-500">
                 <span>📍</span>
                 <span className="min-w-0 truncate">
-                  <span className="font-medium text-neutral-400">{comment.authorEmail ?? "Someone"}</span>
+                  <span className="font-medium text-ink-400">{comment.authorEmail ?? "Someone"}</span>
                   {" · "}
                   {formatDate(comment.createdAt)}
                 </span>
@@ -103,13 +103,13 @@ export default function CommentsPanel({
                     onRequestDelete?.(comment);
                   }}
                   title="Delete comment"
-                  className="rounded px-1 text-[11px] text-neutral-600 hover:bg-red-500/10 hover:text-red-400"
+                  className="rounded px-1 text-[11px] text-ink-600 hover:bg-red-500/10 hover:text-red-400"
                 >
                   🗑
                 </button>
               )}
             </div>
-            <p className="mt-0.5 text-xs text-neutral-200">{comment.body}</p>
+            <p className="mt-0.5 text-xs text-ink-200">{comment.body}</p>
           </div>
         ))}
       </div>

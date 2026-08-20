@@ -26,7 +26,7 @@ export default function ControlSchemeSelect({ showLegend = true }: ControlScheme
         value={scheme}
         onChange={(event) => setScheme(event.target.value === "cad" ? "cad" : "meshdiff")}
         title="Camera controls: which mouse scheme to use for orbit/pan/zoom"
-        className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500"
+        className="rounded border border-ink-700 bg-ink-950 px-1.5 py-0.5 text-[11px] text-ink-300 hover:border-ink-500"
       >
         <option value="meshdiff">Controls: Meshdiff</option>
         <option value="cad">Controls: CAD (Fusion/AutoCAD)</option>
@@ -36,7 +36,7 @@ export default function ControlSchemeSelect({ showLegend = true }: ControlScheme
           <span
             key={label}
             title={combo}
-            className="cursor-default rounded border border-neutral-800 bg-neutral-900 px-1.5 py-0.5 text-[10px] text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+            className="cursor-default rounded border border-ink-800 bg-ink-900 px-1.5 py-0.5 text-[10px] text-ink-500 hover:border-ink-600 hover:text-ink-300"
           >
             {label}
           </span>
@@ -44,7 +44,7 @@ export default function ControlSchemeSelect({ showLegend = true }: ControlScheme
       ) : (
         <span
           title={CONTROL_SCHEME_LEGEND[scheme].map(({ label, combo }) => `${label}: ${combo}`).join("\n")}
-          className="flex h-5 w-5 cursor-default items-center justify-center rounded-full border border-neutral-700 text-[10px] text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+          className="flex h-5 w-5 cursor-default items-center justify-center rounded-full border border-ink-700 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-200"
         >
           ℹ
         </span>

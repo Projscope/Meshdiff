@@ -305,30 +305,30 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
   }, [diff, diffQuality, toleranceMm, onStatsChange]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-ink-800 bg-ink-950">
       <div className="absolute inset-x-3 top-2 z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
           {label}
         </span>
         {isComputing && !isPending && (
-          <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
-            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
+          <span className="flex items-center gap-1.5 text-[11px] text-ink-500">
+            <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-ink-700 border-t-ink-400" />
             {diffQuality === "coarse" ? "Refining…" : "Computing…"}
           </span>
         )}
         {!isPending && !hasError && (
-          <div className="flex overflow-hidden rounded border border-neutral-700 text-[11px]">
+          <div className="flex overflow-hidden rounded border border-ink-700 text-[11px]">
             <button
               type="button"
               onClick={() => onModeChange("voxel")}
-              className={`px-2 py-0.5 ${mode === "voxel" ? "bg-neutral-700 text-white" : "text-neutral-400"}`}
+              className={`px-2 py-0.5 ${mode === "voxel" ? "bg-ink-700 text-ink-50" : "text-ink-400"}`}
             >
               Voxels
             </button>
             <button
               type="button"
               onClick={() => onModeChange("surface")}
-              className={`px-2 py-0.5 ${mode === "surface" ? "bg-neutral-700 text-white" : "text-neutral-400"}`}
+              className={`px-2 py-0.5 ${mode === "surface" ? "bg-ink-700 text-ink-50" : "text-ink-400"}`}
             >
               Surface
             </button>
@@ -336,7 +336,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               type="button"
               onClick={() => onModeChange("overlay")}
               title="Both versions shown at once, semi-transparent with dashed edges — good for comparing silhouettes directly"
-              className={`px-2 py-0.5 ${mode === "overlay" ? "bg-neutral-700 text-white" : "text-neutral-400"}`}
+              className={`px-2 py-0.5 ${mode === "overlay" ? "bg-ink-700 text-ink-50" : "text-ink-400"}`}
             >
               Overlay
             </button>
@@ -347,7 +347,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             type="button"
             onClick={() => zoomToFitRef.current?.()}
             title="Zoom to fit the model in view"
-            className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+            className="rounded border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
           >
             Zoom to Model
           </button>
@@ -357,13 +357,13 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             type="button"
             onClick={() => resetViewRef.current?.()}
             title="Reset camera to the loaded view"
-            className="rounded border border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-300 hover:border-neutral-500 hover:text-white"
+            className="rounded border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
           >
             ⟲ Reset View
           </button>
         )}
         {!isPending && !hasError && (
-          <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+          <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
             Tolerance
             <input
               type="range"
@@ -372,7 +372,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               step={0.05}
               value={toleranceMm}
               onChange={(event) => onToleranceChange(Number(event.target.value))}
-              className="w-20 accent-neutral-400"
+              className="w-20 accent-ink-400"
             />
             <input
               type="number"
@@ -380,10 +380,10 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               step={0.05}
               value={toleranceMm}
               onChange={(event) => onToleranceChange(Math.max(0, Number(event.target.value)))}
-              className="w-12 rounded border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-neutral-200"
+              className="w-12 rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
             />
             mm
-            <div className="flex overflow-hidden rounded border border-neutral-700">
+            <div className="flex overflow-hidden rounded border border-ink-700">
               {SENSITIVITY_PRESETS.map((preset) => (
                 <button
                   key={preset.label}
@@ -392,8 +392,8 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
                   title={`${preset.label} sensitivity — sets tolerance to ${preset.toleranceMm}mm`}
                   className={`px-1.5 py-0.5 ${
                     toleranceMm === preset.toleranceMm
-                      ? "bg-neutral-700 text-white"
-                      : "text-neutral-400 hover:text-white"
+                      ? "bg-ink-700 text-ink-50"
+                      : "text-ink-400 hover:text-ink-50"
                   }`}
                 >
                   {preset.label}
@@ -403,20 +403,20 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           </div>
         )}
         {!isPending && !hasError && (
-          <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+          <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
             Align
             <select
               value={alignment}
               onChange={(event) => onAlignmentChange(event.target.value as DiffAlignment)}
               title="Manually reposition Version B before diffing — useful when the two files don't already share a CAD origin"
-              className="rounded border border-neutral-700 bg-neutral-900 px-1 py-0.5 text-neutral-200"
+              className="rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
             >
               <option value="none">None</option>
               <option value="floor">Floor</option>
               <option value="center">Center</option>
             </select>
             {alignmentOffsetMm && (
-              <span className="text-neutral-500">
+              <span className="text-ink-500">
                 Δ{alignment === "floor" ? "z" : "xyz"}{" "}
                 {alignment === "floor"
                   ? `${alignmentOffsetMm[2] >= 0 ? "+" : ""}${alignmentOffsetMm[2].toFixed(2)}mm`
@@ -430,10 +430,10 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           // w-full forces its own line below the controls (rather than
           // trailing far to the right with a big gap after them, which is
           // what ml-auto on a mostly-empty first line produced).
-          <div className="flex w-full gap-3 text-xs text-neutral-300">
+          <div className="flex w-full gap-3 text-xs text-ink-300">
             <span className={diffColors.addedTextClass}>+{diff.stats.addedCount}</span>
             <span className={diffColors.removedTextClass}>-{diff.stats.removedCount}</span>
-            <span className="text-neutral-500">
+            <span className="text-ink-500">
               {diff.stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
               {diff.stats.approxVolumeDeltaPercent.toFixed(1)}% volume
             </span>
@@ -442,7 +442,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
       </div>
 
       {isPending && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-center text-sm text-neutral-500">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-center text-sm text-ink-500">
           Load Version A and Version B to compute a diff
         </div>
       )}

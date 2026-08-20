@@ -2,9 +2,9 @@ import type { AdminStats } from "../lib/adminApi";
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold text-white">{value}</p>
+    <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
+      <p className="mt-1.5 text-2xl font-bold text-ink-50">{value}</p>
     </div>
   );
 }

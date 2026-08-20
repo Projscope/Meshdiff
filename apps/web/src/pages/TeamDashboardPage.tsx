@@ -38,9 +38,9 @@ function timeSince(iso: string): string {
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold text-white">{value}</p>
+    <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
+      <p className="mt-1.5 text-2xl font-bold text-ink-50">{value}</p>
     </div>
   );
 }
@@ -220,7 +220,7 @@ export default function TeamDashboardPage() {
   if (!team) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="text-sm text-neutral-500">Loading…</div>
+        <div className="text-sm text-ink-500">Loading…</div>
       </div>
     );
   }
@@ -232,14 +232,14 @@ export default function TeamDashboardPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">{team.name}</h1>
-          <p className="mt-1 text-sm text-neutral-400">Team dashboard</p>
+          <h1 className="text-2xl font-bold text-ink-50">{team.name}</h1>
+          <p className="mt-1 text-sm text-ink-400">Team dashboard</p>
         </div>
         {team.isOwner && (
           <button
             type="button"
             onClick={() => void handleManageBilling()}
-            className="shrink-0 rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-300 hover:border-neutral-500"
+            className="shrink-0 rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
           >
             Manage billing
           </button>
@@ -256,8 +256,8 @@ export default function TeamDashboardPage() {
         <StatCard label="Pending Approvals" value={pending === null ? "…" : pending.length} />
       </div>
 
-      <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Members</p>
+      <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Members</p>
         {roleChangeError && (
           <div className="mt-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
             {roleChangeError}
@@ -269,7 +269,7 @@ export default function TeamDashboardPage() {
             const canEditRole = canManageMembers && !isSelf && !member.isOwner;
             return (
               <li key={member.userId} className="flex items-center justify-between gap-2 text-sm">
-                <span className="min-w-0 truncate text-neutral-300">{member.email ?? member.userId}</span>
+                <span className="min-w-0 truncate text-ink-300">{member.email ?? member.userId}</span>
                 <span className="flex shrink-0 items-center gap-2">
                   {canEditRole ? (
                     <select
@@ -278,14 +278,14 @@ export default function TeamDashboardPage() {
                       onChange={(event) =>
                         void handleRoleChange(member.userId, event.target.value as "admin" | "approver" | "member")
                       }
-                      className="rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase text-neutral-300 disabled:opacity-50"
+                      className="rounded border border-ink-700 bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-300 disabled:opacity-50"
                     >
                       <option value="admin">Admin</option>
                       <option value="approver">Approver</option>
                       <option value="member">Member</option>
                     </select>
                   ) : (
-                    <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase text-neutral-400">
+                    <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-400">
                       {member.isOwner ? "Owner" : member.role}
                     </span>
                   )}
@@ -306,9 +306,9 @@ export default function TeamDashboardPage() {
         </ul>
 
         {canManageMembers && (
-          <form onSubmit={handleInvite} className="mt-4 flex flex-col gap-2 border-t border-neutral-800 pt-4 sm:flex-row sm:items-end">
+          <form onSubmit={handleInvite} className="mt-4 flex flex-col gap-2 border-t border-ink-800 pt-4 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Invite a member</label>
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Invite a member</label>
               <input
                 type="email"
                 required
@@ -318,13 +318,13 @@ export default function TeamDashboardPage() {
                   setInviteEmail(event.target.value);
                   if (event.target.value === "") setInviteError(null);
                 }}
-                className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600"
+                className="mt-1 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
               />
             </div>
             <select
               value={inviteRole}
               onChange={(event) => setInviteRole(event.target.value as "admin" | "approver" | "member")}
-              className="rounded border border-neutral-700 bg-neutral-950 px-2 py-2 text-sm text-neutral-200"
+              className="rounded border border-ink-700 bg-ink-950 px-2 py-2 text-sm text-ink-200"
             >
               <option value="member">Member</option>
               <option value="approver">Approver</option>
@@ -333,7 +333,7 @@ export default function TeamDashboardPage() {
             <button
               type="submit"
               disabled={isInviting}
-              className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
+              className="rounded bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
             >
               {isInviting ? "Inviting…" : "Invite"}
             </button>
@@ -342,12 +342,12 @@ export default function TeamDashboardPage() {
         {inviteError && <p className="mt-2 text-xs text-red-400">{inviteError}</p>}
       </div>
 
-      <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Pending Approvals</p>
+      <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Pending Approvals</p>
         {pending === null ? (
-          <p className="mt-3 text-sm text-neutral-500">Loading…</p>
+          <p className="mt-3 text-sm text-ink-500">Loading…</p>
         ) : pending.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-500">Nothing waiting on review.</p>
+          <p className="mt-3 text-sm text-ink-500">Nothing waiting on review.</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {pending.map((version) => (
@@ -355,17 +355,17 @@ export default function TeamDashboardPage() {
                 <ApprovalBadge status={version.approvalStatus} />
                 <Link
                   to={`/projects/${version.projectId}/versions/${version.id}`}
-                  className="min-w-0 flex-1 truncate text-neutral-300 hover:text-white"
+                  className="min-w-0 flex-1 truncate text-ink-300 hover:text-ink-50"
                 >
                   {version.projectName} — v{version.versionNumber} {version.fileName}
                 </Link>
-                <span className="shrink-0 text-xs text-neutral-500">{formatDate(version.createdAt)}</span>
+                <span className="shrink-0 text-xs text-ink-500">{formatDate(version.createdAt)}</span>
                 {canReview && (
                   <>
                     <button
                       type="button"
                       onClick={() => void handleApprove(version.projectId, version.id)}
-                      className="shrink-0 rounded border border-emerald-700 px-2.5 py-1 text-xs text-emerald-400 hover:border-emerald-500"
+                      className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-400 hover:border-accent-500"
                     >
                       Approve
                     </button>
@@ -388,11 +388,11 @@ export default function TeamDashboardPage() {
 
       <div className="mt-6">
         <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Activity</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Activity</p>
           {activity !== null && activity.length > 0 && (
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-widest text-neutral-500">From</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-500">From</span>
                 <input
                   type="date"
                   value={activityDateFrom}
@@ -400,11 +400,11 @@ export default function TeamDashboardPage() {
                     setActivityDateFrom(event.target.value);
                     setActivityPage(1);
                   }}
-                  className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+                  className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-widest text-neutral-500">To</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-500">To</span>
                 <input
                   type="date"
                   value={activityDateTo}
@@ -412,18 +412,18 @@ export default function TeamDashboardPage() {
                     setActivityDateTo(event.target.value);
                     setActivityPage(1);
                   }}
-                  className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+                  className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-widest text-neutral-500">Member</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-500">Member</span>
                 <select
                   value={activityMember}
                   onChange={(event) => {
                     setActivityMember(event.target.value);
                     setActivityPage(1);
                   }}
-                  className="rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-300"
+                  className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                 >
                   <option value="all">All members</option>
                   {activityActors.map((email) => (
@@ -437,7 +437,7 @@ export default function TeamDashboardPage() {
                 <button
                   type="button"
                   onClick={clearActivityFilters}
-                  className="rounded border border-neutral-700 px-2.5 py-1 text-xs text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+                  className="rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-400 hover:border-ink-500 hover:text-ink-200"
                 >
                   Clear filters
                 </button>
@@ -447,17 +447,17 @@ export default function TeamDashboardPage() {
         </div>
 
         {activity === null ? (
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
+          <div className="rounded-lg border border-ink-800 bg-ink-900 px-4 py-10 text-center text-sm text-ink-500">
             Loading…
           </div>
         ) : activity.length === 0 ? (
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
+          <div className="rounded-lg border border-ink-800 bg-ink-900 px-4 py-10 text-center text-sm text-ink-500">
             No activity yet.
           </div>
         ) : (
           <>
-            <div className="overflow-hidden rounded-lg border border-neutral-800">
-              <div className="grid grid-cols-[110px_1fr_200px_110px] gap-4 border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+            <div className="overflow-hidden rounded-lg border border-ink-800">
+              <div className="grid grid-cols-[110px_1fr_200px_110px] gap-4 border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 <span className="text-center">Date</span>
                 <span className="text-center">Action</span>
                 <span className="text-center">Member</span>
@@ -465,7 +465,7 @@ export default function TeamDashboardPage() {
               </div>
 
               {pagedActivity !== null && pagedActivity.length === 0 ? (
-                <div className="px-4 py-10 text-center text-sm text-neutral-500">
+                <div className="px-4 py-10 text-center text-sm text-ink-500">
                   No activity matches these filters.
                 </div>
               ) : (
@@ -476,18 +476,18 @@ export default function TeamDashboardPage() {
                   return (
                     <div
                       key={entry.id}
-                      className="grid grid-cols-[110px_1fr_200px_110px] items-center gap-4 border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-sm last:border-b-0"
+                      className="grid grid-cols-[110px_1fr_200px_110px] items-center gap-4 border-b border-ink-800 bg-ink-950 px-4 py-3 text-sm last:border-b-0"
                     >
-                      <span className="whitespace-nowrap text-xs text-neutral-500" title={formatDate(entry.createdAt)}>
+                      <span className="whitespace-nowrap text-xs text-ink-500" title={formatDate(entry.createdAt)}>
                         {timeSince(entry.createdAt)}
                       </span>
-                      <span className="min-w-0 truncate text-neutral-300" title={entry.summary}>
+                      <span className="min-w-0 truncate text-ink-300" title={entry.summary}>
                         {entry.summary}
                       </span>
-                      <span className="whitespace-nowrap text-right text-xs text-neutral-400">
+                      <span className="whitespace-nowrap text-right text-xs text-ink-400">
                         {entry.actorEmail ?? "Someone"}
                       </span>
-                      <span className="justify-self-end rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase text-neutral-400">
+                      <span className="justify-self-end rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-400">
                         {actor?.isOwner ? "Owner" : (actor?.role ?? "—")}
                       </span>
                     </div>
@@ -497,7 +497,7 @@ export default function TeamDashboardPage() {
             </div>
 
             {filteredActivity !== null && filteredActivity.length > 0 && (
-              <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
+              <div className="mt-3 flex items-center justify-between text-xs text-ink-500">
                 <span>
                   Showing {(activityPageClamped - 1) * ACTIVITY_PAGE_SIZE + 1}–
                   {Math.min(activityPageClamped * ACTIVITY_PAGE_SIZE, filteredActivity.length)} of{" "}
@@ -508,7 +508,7 @@ export default function TeamDashboardPage() {
                     type="button"
                     disabled={activityPageClamped <= 1}
                     onClick={() => setActivityPage(activityPageClamped - 1)}
-                    className="rounded border border-neutral-700 px-2.5 py-1 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-neutral-700"
+                    className="rounded border border-ink-700 px-2.5 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ink-700"
                   >
                     Previous
                   </button>
@@ -519,7 +519,7 @@ export default function TeamDashboardPage() {
                     type="button"
                     disabled={activityPageClamped >= activityTotalPages}
                     onClick={() => setActivityPage(activityPageClamped + 1)}
-                    className="rounded border border-neutral-700 px-2.5 py-1 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-neutral-700"
+                    className="rounded border border-ink-700 px-2.5 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ink-700"
                   >
                     Next
                   </button>

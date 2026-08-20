@@ -44,14 +44,14 @@ export default function SignupsChart({
               width={barWidth * 0.7}
               height={barHeight}
               rx={2}
-              className="fill-emerald-500/70"
+              className="fill-accent-500/70"
             />
             {bucket.count > 0 && (
-              <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" className="fill-neutral-400 text-[9px]">
+              <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" className="fill-ink-400 text-[9px]">
                 {bucket.count}
               </text>
             )}
-            <text x={x + barWidth / 2} y={HEIGHT - 4} textAnchor="middle" className="fill-neutral-600 text-[9px]">
+            <text x={x + barWidth / 2} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
               {formatPeriodLabel(bucket.periodStart, granularity)}
             </text>
           </g>

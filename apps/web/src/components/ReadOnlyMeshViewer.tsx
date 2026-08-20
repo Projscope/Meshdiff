@@ -62,15 +62,15 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
   }, [geometry]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-ink-800 bg-ink-950">
       <div className="absolute left-3 top-2 z-10 flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
           {geometry ? label : fallbackLabel}
         </span>
         {geometry && <MeasureToolbar measure={measure} onZoomToFit={() => zoomToFitRef.current?.()} onResetView={() => resetViewRef.current?.()} />}
       </div>
       {!geometry && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-neutral-600">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-ink-600">
           No model loaded
         </div>
       )}

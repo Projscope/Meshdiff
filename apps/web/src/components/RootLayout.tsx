@@ -32,7 +32,7 @@ export default function RootLayout() {
   const isDashboard = location.pathname.startsWith("/projects") || location.pathname.startsWith("/admin");
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-950">
+    <div className="flex min-h-screen flex-col bg-ink-950">
       {!isDashboard && <SiteHeader />}
       {/* flex-1 stretches to fill leftover vertical space regardless of
           how tall the page's own content is (e.g. a short page like

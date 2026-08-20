@@ -29,7 +29,7 @@ export default function PendingCommentPopover({ position, onSubmit, onCancel }: 
         onSubmit={handleSubmit}
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
-        className="w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 rounded-lg border border-indigo-700 bg-neutral-900 p-2.5 shadow-xl"
+        className="w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 rounded-lg border border-indigo-700 bg-ink-900 p-2.5 shadow-xl"
       >
         <textarea
           autoFocus
@@ -38,20 +38,20 @@ export default function PendingCommentPopover({ position, onSubmit, onCancel }: 
           value={text}
           onChange={(event) => setText(event.target.value)}
           placeholder="Leave a comment at this point…"
-          className="w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-600"
+          className="w-full rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-600"
         />
         <div className="mt-1.5 flex gap-1.5">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
           >
             {isSubmitting ? "Posting…" : "Post"}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-neutral-700 px-2 py-1 text-[11px] text-neutral-300 hover:border-neutral-500"
+            className="rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
           >
             Cancel
           </button>

@@ -43,8 +43,8 @@ export default function AdminUsersPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold text-white">Users</h1>
-        <p className="mt-1 text-sm text-neutral-400">All users and their subscription status</p>
+        <h1 className="text-2xl font-bold text-ink-50">Users</h1>
+        <p className="mt-1 text-sm text-ink-400">All users and their subscription status</p>
       </div>
 
       {error && (
@@ -53,7 +53,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {data === null && !error && <div className="mt-6 text-sm text-neutral-500">Loading…</div>}
+      {data === null && !error && <div className="mt-6 text-sm text-ink-500">Loading…</div>}
 
       {data && (
         <>
@@ -66,37 +66,37 @@ export default function AdminUsersPage() {
               the SAME grid, so splitting rows into separate grids made each
               row compute its own column widths independently, misaligning
               columns whenever content length differed row to row. */}
-          <div className="mt-6 overflow-hidden rounded-lg border border-neutral-800">
+          <div className="mt-6 overflow-hidden rounded-lg border border-ink-800">
             {/* No gap-x here — a real CSS Grid gap is transparent, so it
-                showed the page background through the header's bg-neutral-900
+                showed the page background through the header's bg-ink-900
                 as visible stripes. Column spacing comes from each cell's own
                 px-4 padding instead, so backgrounds/borders stay flush. */}
             <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center">
-              <span className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+              <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Email
               </span>
-              <span className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+              <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Tier
               </span>
-              <span className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+              <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Status
               </span>
-              <span className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+              <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Signed up
               </span>
-              <span className="border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+              <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Registered
               </span>
 
               {data.users.length === 0 && (
-                <div className="col-span-5 px-4 py-10 text-center text-sm text-neutral-500">No users yet.</div>
+                <div className="col-span-5 px-4 py-10 text-center text-sm text-ink-500">No users yet.</div>
               )}
 
               {data.users.map((user, i) => {
-                const rowBorder = i === data.users.length - 1 ? "" : "border-b border-neutral-900";
+                const rowBorder = i === data.users.length - 1 ? "" : "border-b border-ink-900";
                 return (
                   <Fragment key={user.id}>
-                    <span className={`truncate px-4 py-3 text-sm text-neutral-200 ${rowBorder}`}>
+                    <span className={`truncate px-4 py-3 text-sm text-ink-200 ${rowBorder}`}>
                       {user.email ?? "—"}
                     </span>
                     <span className={`px-4 py-3 text-sm ${rowBorder}`}>
@@ -105,18 +105,18 @@ export default function AdminUsersPage() {
                           user.tier === "team"
                             ? "bg-violet-500/15 text-violet-400"
                             : user.tier === "pro"
-                              ? "bg-emerald-500/15 text-emerald-400"
-                              : "bg-neutral-800 text-neutral-400"
+                              ? "bg-accent-500/15 text-accent-400"
+                              : "bg-ink-800 text-ink-400"
                         }`}
                       >
                         {user.tier}
                       </span>
                     </span>
-                    <span className={`px-4 py-3 text-sm text-neutral-500 ${rowBorder}`}>{user.status ?? "—"}</span>
-                    <span className={`px-4 py-3 text-sm text-neutral-500 ${rowBorder}`}>
+                    <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>{user.status ?? "—"}</span>
+                    <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
                       {formatDate(user.signupDate)}
                     </span>
-                    <span className={`px-4 py-3 text-sm text-neutral-500 ${rowBorder}`}>
+                    <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
                       {timeSince(user.signupDate)}
                     </span>
                   </Fragment>
@@ -131,18 +131,18 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 ← Prev
               </button>
-              <span className="text-neutral-500">
+              <span className="text-ink-500">
                 Page {page} of {totalPages}
               </span>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="rounded border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next →
               </button>

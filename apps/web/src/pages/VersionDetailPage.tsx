@@ -676,17 +676,17 @@ export default function VersionDetailPage() {
   return (
     <div className="flex h-[calc(100vh-2rem)] w-full gap-4 px-4 py-4">
       <div
-        className={`relative flex-1 overflow-hidden rounded-lg border bg-neutral-950 ${isPlacingComment
+        className={`relative flex-1 overflow-hidden rounded-lg border bg-ink-950 ${isPlacingComment
           ? "border-indigo-500"
           : isMeasuring && measureMode === "radius"
             ? "border-sky-500"
             : isMeasuring
               ? "border-amber-500"
-              : "border-neutral-800"
+              : "border-ink-800"
           }`}
       >
         {geometry && (
-          <div className="absolute left-3 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-950/70 p-1">
+          <div className="absolute left-3 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-950/70 p-1">
             <button
               type="button"
               onClick={() => toggleMeasuring("distance")}
@@ -698,7 +698,7 @@ export default function VersionDetailPage() {
               className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                 isToolActive("distance")
                   ? "bg-amber-500/20 text-amber-400"
-                  : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                  : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               }`}
             >
               📏
@@ -710,17 +710,17 @@ export default function VersionDetailPage() {
               className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                 isToolActive("radius")
                   ? "bg-sky-500/20 text-sky-400"
-                  : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                  : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               }`}
             >
               ⌀
             </button>
-            <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+            <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
               title="Zoom to fit the model in view"
-              className="flex h-7 w-7 items-center justify-center rounded text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⛶
             </button>
@@ -728,13 +728,13 @@ export default function VersionDetailPage() {
               type="button"
               onClick={() => resetViewRef.current?.()}
               title="Reset camera to the loaded view"
-              className="flex h-7 w-7 items-center justify-center rounded text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⟲
             </button>
-            <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+            <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <ShadingModeToggle />
-            <div className="mx-0.5 h-5 w-px bg-neutral-800" />
+            <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <ControlSchemeSelect showLegend={false} />
           </div>
         )}
@@ -881,15 +881,15 @@ export default function VersionDetailPage() {
         <AxisLegend />
 
         {isMeshLoading && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-950/80">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink-950/80">
             <LoadingCube />
-            <p className="text-xs text-neutral-400">Loading model…</p>
+            <p className="text-xs text-ink-400">Loading model…</p>
           </div>
         )}
       </div>
 
       <div className="w-80 shrink-0 overflow-y-auto pr-3">
-        <Link to={`/projects/${projectId}`} className="text-xs text-neutral-500 hover:text-neutral-300">
+        <Link to={`/projects/${projectId}`} className="text-xs text-ink-500 hover:text-ink-300">
           ← {version ? "Back to project" : "Back"}
         </Link>
 
@@ -902,15 +902,15 @@ export default function VersionDetailPage() {
         {version && (
           <>
             <div className="mt-2 flex items-center gap-2">
-              <span className="rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-xs font-semibold text-neutral-300">
+              <span className="rounded border border-ink-700 bg-ink-800 px-2 py-0.5 text-xs font-semibold text-ink-300">
                 v{version.versionNumber}
               </span>
-              <h1 className="truncate text-sm font-semibold text-white">{version.fileName}</h1>
+              <h1 className="truncate text-sm font-semibold text-ink-50">{version.fileName}</h1>
             </div>
 
             <div className="mt-5">
               <CollapsibleSection title="Summary">
-                <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs leading-relaxed text-neutral-300">
+                <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-xs leading-relaxed text-ink-300">
                   {version.changeSummary ?? "No summary available."}
                 </div>
               </CollapsibleSection>

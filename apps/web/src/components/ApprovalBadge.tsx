@@ -5,8 +5,8 @@ interface ApprovalBadgeProps {
 }
 
 const STYLES: Record<ApprovalStatus, string> = {
-  pending: "border-neutral-700 bg-neutral-800 text-neutral-400",
-  approved: "border-emerald-800 bg-emerald-500/10 text-emerald-400",
+  pending: "border-ink-700 bg-ink-800 text-ink-400",
+  approved: "border-accent-800 bg-accent-500/10 text-accent-400",
   rejected: "border-red-800 bg-red-500/10 text-red-400",
 };
 
@@ -15,8 +15,8 @@ const STYLES: Record<ApprovalStatus, string> = {
 // between the badge and anything else (e.g. a history timeline's rail dot)
 // that needs just the color, not the full badge.
 export const APPROVAL_DOT_COLOR: Record<ApprovalStatus, string> = {
-  pending: "bg-neutral-500",
-  approved: "bg-emerald-400",
+  pending: "bg-ink-500",
+  approved: "bg-accent-400",
   rejected: "bg-red-400",
 };
 

@@ -119,6 +119,63 @@ const HERO_STATS: HeroStat[] = [
   { target: 0, prefix: "$", suffix: "", label: "Free diff tool, no signup" },
 ];
 
+interface DemoHistoryRow {
+  title: string;
+  description: string;
+  added: number | null;
+  removed: number | null;
+  addedPercent: number;
+  removedPercent: number;
+  failed: boolean;
+  time: string;
+}
+
+// Illustrates the real Projects History view (ProjectDetailPage.tsx) with
+// made-up demo data — not tied to any account, purely decorative in the
+// hero.
+const DEMO_HISTORY_ROWS: DemoHistoryRow[] = [
+  {
+    title: "v3 → v4",
+    description: "Volume increased by 359,162 mm³ (294.2%). Bounding box changed by 100.1 × 80.6 × 70.2 mm.",
+    added: 3860,
+    removed: 886,
+    addedPercent: 81,
+    removedPercent: 19,
+    failed: true,
+    time: "4d ago",
+  },
+  {
+    title: "v2 → v3",
+    description: "Volume increased by 120,097 mm³ (1779.2%). Bounding box changed by 33.3 × 63.5 × 29.8 mm.",
+    added: 902,
+    removed: 48,
+    addedPercent: 95,
+    removedPercent: 5,
+    failed: true,
+    time: "4d ago",
+  },
+  {
+    title: "v1 → v2",
+    description: "Volume increased by 1,640 mm³ (42.9%). Bounding box changed by 0.0 × 4.0 × 0.0 mm. Printability: pass.",
+    added: 6264,
+    removed: 1218,
+    addedPercent: 84,
+    removedPercent: 16,
+    failed: false,
+    time: "5d ago",
+  },
+  {
+    title: "v1",
+    description: "Initial upload",
+    added: null,
+    removed: null,
+    addedPercent: 0,
+    removedPercent: 0,
+    failed: false,
+    time: "5d ago",
+  },
+];
+
 const PROCESS_STEPS = [
   {
     number: "01",
@@ -192,12 +249,12 @@ function HeroStatItem({ stat }: { stat: HeroStat }) {
   const { value, ref } = useCountUp(stat.target);
   return (
     <div className="text-center">
-      <span className="font-mono text-2xl font-bold text-white">
+      <span className="font-mono text-2xl font-bold text-ink-50">
         {stat.prefix}
         <span ref={ref}>{value}</span>
-        <span className="text-emerald-400">{stat.suffix}</span>
+        <span className="text-accent-400">{stat.suffix}</span>
       </span>
-      <span className="mt-1 block text-xs text-neutral-400">{stat.label}</span>
+      <span className="mt-1 block text-xs text-ink-400">{stat.label}</span>
     </div>
   );
 }
@@ -273,82 +330,174 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="min-h-screen bg-ink-950 text-ink-100">
       <main>
         
-        {/* Hero: eyebrow, accent-split headline, dual CTAs, animated stat row */}
-        <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-neutral-950">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
-              Diff &middot; Review &middot; Approve
-            </p>
-            <h1 className="mt-4 text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
-              See exactly what changed
-              <br />
-              between two meshes.
-            </h1>
-            <p className="mx-auto mt-5 max-w-lg text-[15px] leading-relaxed text-neutral-400">
-              Compare STL files, OBJ, and 3MF models with a real 3D diff — not
-              a guess. Meshdiff lets you compare two 3D models side by side:
-              a true STL diff and STL compare, with added geometry in green
-              and removed in red, reviewed in seconds.
-            </p>
+        {/* Hero: eyebrow pill, accent-split headline, dual CTAs, HUD demo panel */}
+        <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-ink-950">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-ink-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent-400" />
+                3D_Model_Diff &middot; Client-Side
+              </span>
+              <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-tight text-ink-50 md:text-5xl">
+                See exactly what <span className="text-accent-400">changed</span> between two model versions.
+              </h1>
+              <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-ink-400">
+                Meshdiff computes voxel and surface-heatmap diffs of STL, 3MF, and OBJ files —
+                added material, removed material, and dimensional drift, down to the millimetre.
+                Everything runs in your browser. Nothing is uploaded.
+              </p>
 
-            {/* <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                to="/live"
-                className="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
-              >
-                Open the diff tool
-              </Link>
-              <button
-                type="button"
-                onClick={scrollToEarlyAccess}
-                className="rounded-lg border border-neutral-700 px-5 py-2.5 text-sm font-medium text-neutral-200 transition hover:border-neutral-500 active:scale-[0.98]"
-              >
-                Join early access
-              </button>
-            </div> */}
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Link
+                  to="/live"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
+                >
+                  Try it in your browser
+                  <ArrowRight size={16} weight="bold" />
+                </Link>
+                <a
+                  href="#process"
+                  className="rounded-lg border border-ink-700 px-5 py-2.5 text-sm font-medium text-ink-200 transition hover:border-ink-500 active:scale-[0.98]"
+                >
+                  How it works
+                </a>
+              </div>
 
-          </div>
+              <p className="mt-5 flex items-center gap-1.5 text-xs text-ink-500">
+                <ShieldCheck size={14} weight="fill" className="text-accent-400" />
+                No account &middot; No install &middot; Files never leave your machine
+              </p>
+            </div>
 
-          {isDemoActive ? (
-            <Suspense
-              fallback={
-                <div className="mx-auto mt-12 flex h-[320px] max-w-6xl items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900 text-sm text-neutral-400 shadow-2xl sm:h-[380px]">
-                  Loading the live demo…
+            {/* Static decorative panel — no click/link. Illustrates the real
+                Projects History view (see ProjectDetailPage.tsx) with demo
+                data; not wired to any account. */}
+            <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
+                <span>History</span>
+                <span>Updated</span>
+              </div>
+
+              {DEMO_HISTORY_ROWS.map((row, index) => (
+                <div
+                  key={row.title}
+                  className="flex items-stretch gap-3 border-b border-ink-800 px-4 py-3 text-sm last:border-b-0"
+                >
+                  <div className="flex w-3 shrink-0 flex-col items-center">
+                    <div className={`w-px flex-1 ${index === 0 ? "bg-transparent" : "bg-ink-800"}`} />
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent-400" />
+                    <div className={`w-px flex-1 ${index === DEMO_HISTORY_ROWS.length - 1 ? "bg-transparent" : "bg-ink-800"}`} />
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 items-center gap-4 py-0.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-sm font-semibold text-ink-50">{row.title}</span>
+                        {row.failed && (
+                          <span title="Printability check failed" className="text-red-400">
+                            &#10005;
+                          </span>
+                        )}
+                      </div>
+                      <span className="block truncate text-xs text-ink-500">{row.description}</span>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-3">
+                      <div className="text-right">
+                        {row.added !== null ? (
+                          <>
+                            <div className="whitespace-nowrap font-mono text-xs">
+                              <span className="text-accent-400">+{row.added.toLocaleString()}</span>{" "}
+                              <span className="text-red-400">-{row.removed!.toLocaleString()}</span>
+                            </div>
+                            <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-ink-800">
+                              <div className="bg-accent-500" style={{ width: `${row.addedPercent}%` }} />
+                              <div className="bg-red-500" style={{ width: `${row.removedPercent}%` }} />
+                            </div>
+                          </>
+                        ) : (
+                          <span className="whitespace-nowrap font-mono text-xs text-ink-500">12 tris</span>
+                        )}
+                      </div>
+                      <span className="rounded border border-accent-800 bg-accent-500/10 px-2 py-0.5 text-[11px] font-medium text-accent-400">
+                        Approved
+                      </span>
+                      <span className="whitespace-nowrap text-xs text-ink-500">{row.time}</span>
+                    </div>
+                  </div>
                 </div>
-              }
-            >
-              <LandingLiveDemo />
-            </Suspense>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsDemoActive(true)}
-              aria-label="Try the live diff demo"
-              className="group relative mx-auto mt-12 block w-full max-w-6xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl transition hover:border-neutral-600"
-            >
-              <picture>
-                <source srcSet={liveDiffPreviewWebp} type="image/webp" />
-                <img
-                  src={liveDiffPreview}
-                  alt="Meshdiff Live Diff tool: side-by-side 3D viewers for Version A and Version B, with a voxel diff panel showing added and removed geometry"
-                  className="block w-full"
-                  fetchPriority="high"
-                  width={1200}
-                  height={801}
-                />
-              </picture>
-              <div className="absolute inset-0 flex items-center justify-center bg-neutral-950/0 opacity-0 transition group-hover:bg-neutral-950/60 group-hover:opacity-100">
-                <span className="rounded-full bg-neutral-900/90 px-4 py-2 text-xs font-medium text-emerald-400 shadow-lg">
-                  ▶ Try it live, right here
+              ))}
+
+              <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 text-xs">
+                <span className="font-semibold uppercase tracking-widest text-ink-500">Compare any two</span>
+                <span className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200">
+                  v4 — Planter_Hearth_60mm.3mf
+                </span>
+                <span className="text-ink-600">&rarr;</span>
+                <span className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200">
+                  v5 — bracket-v2.stl
+                </span>
+                <span className="ml-auto rounded bg-accent-500 px-3 py-1.5 font-medium text-chrome-950">
+                  Compare
                 </span>
               </div>
-            </button>
-          )}
+            </div>
+          </div>
 
-          <div className="mx-auto mt-12 grid max-w-lg grid-cols-4 gap-4 border-t border-neutral-900 pt-8">
+          {/* Live tool preview, restored in its original click-to-activate
+              form: static screenshot until clicked, then the real tool
+              lazy-loads in (see LandingLiveDemo.tsx's own comment for why
+              this stays deferred rather than always-embedded). */}
+          <div className="mx-auto mt-12 max-w-6xl">
+            {isDemoActive ? (
+              <Suspense
+                fallback={
+                  <div className="flex h-[320px] items-center justify-center rounded-xl border border-ink-800 bg-ink-900 text-sm text-ink-400 shadow-2xl sm:h-[380px]">
+                    Loading the live demo…
+                  </div>
+                }
+              >
+                <LandingLiveDemo />
+              </Suspense>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsDemoActive(true)}
+                aria-label="Try the live diff demo"
+                className="group relative block w-full overflow-hidden rounded-xl border border-ink-800 shadow-2xl transition hover:border-ink-600"
+              >
+                <picture>
+                  <source srcSet={liveDiffPreviewWebp} type="image/webp" />
+                  <img
+                    src={liveDiffPreview}
+                    alt="Meshdiff Live Diff tool: side-by-side 3D viewers for Version A and Version B, with a voxel diff panel showing added and removed geometry"
+                    className="block w-full"
+                    fetchPriority="high"
+                    width={1200}
+                    height={801}
+                  />
+                </picture>
+                <div className="absolute inset-0 flex items-center justify-center bg-ink-950/0 opacity-0 transition group-hover:bg-ink-950/60 group-hover:opacity-100">
+                  <span className="rounded-full bg-ink-900/90 px-4 py-2 text-xs font-medium text-accent-400 shadow-lg">
+                    &#9654; Try it live, right here
+                  </span>
+                </div>
+              </button>
+            )}
+          </div>
+
+          <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-ink-900 pt-8 text-xs text-ink-500">
+            <span className="font-mono uppercase tracking-widest text-ink-500">Reads_Natively</span>
+            <span className="rounded border border-ink-700 px-2 py-1 font-mono text-ink-300">.stl</span>
+            <span className="rounded border border-ink-700 px-2 py-1 font-mono text-ink-300">.3mf</span>
+            <span className="rounded border border-ink-700 px-2 py-1 font-mono text-ink-300">.obj</span>
+            <span>Binary or ASCII &middot; WebAssembly + WebGL</span>
+          </div>
+
+          <div className="mx-auto mt-8 grid max-w-lg grid-cols-4 gap-4 border-t border-ink-900 pt-8">
             {HERO_STATS.map((stat) => (
               <HeroStatItem key={stat.label} stat={stat} />
             ))}
@@ -358,22 +507,22 @@ export default function LandingPage() {
 
         {/* Personas: asymmetric 1+2 grid, not three identical cards */}
         <section className="mx-auto max-w-6xl px-6 py-14">
-          <h2 className="max-w-lg text-2xl font-semibold text-white">
+          <h2 className="max-w-lg text-2xl font-semibold text-ink-50">
             Built for anyone who exports a mesh.
           </h2>
           <div className="mt-8 grid gap-4 md:grid-cols-12">
             {/* Hardware teams (Top-Left Aligned Text) */}
             <div
-              className="relative flex flex-col justify-start items-start min-h-[480px] rounded-xl border border-neutral-700 bg-neutral-900 p-6 md:col-span-8 bg-cover bg-center bg-no-repeat overflow-hidden group"
+              className="relative flex flex-col justify-start items-start min-h-[480px] rounded-xl border border-ink-700 bg-ink-900 p-6 md:col-span-8 bg-cover bg-center bg-no-repeat overflow-hidden group"
               style={{ backgroundImage: `url(${teamsImg})` }}
             >
               {/* Top-down gradient overlay for top text contrast */}
-              <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-neutral-950/60 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-b from-ink-950 via-ink-950/60 to-transparent pointer-events-none" />
 
               <div className="relative z-10">
-                <UsersThree size={28} weight="light" className="text-neutral-400" />
-                <h3 className="mt-4 text-base font-semibold text-white">Hardware teams</h3>
-                <p className="mt-2 max-w-sm text-sm text-neutral-400">
+                <UsersThree size={28} weight="light" className="text-ink-400" />
+                <h3 className="mt-4 text-base font-semibold text-ink-50">Hardware teams</h3>
+                <p className="mt-2 max-w-sm text-sm text-ink-400">
                   Review revisions together, approve changes, and keep a
                   traceable history across every version anyone ships.
                 </p>
@@ -384,15 +533,15 @@ export default function LandingPage() {
             <div className="flex flex-col gap-4 md:col-span-4">
               {/* Solo makers */}
               <div
-                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
+                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-ink-800 bg-ink-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
                 style={{ backgroundImage: `url(${soloImg})` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/60 to-transparent pointer-events-none" />
 
                 <div className="relative z-10">
-                  <User size={24} weight="light" className="text-neutral-400" />
-                  <h3 className="mt-3 text-sm font-semibold text-white">Solo makers</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
+                  <User size={24} weight="light" className="text-ink-400" />
+                  <h3 className="mt-3 text-sm font-semibold text-ink-50">Solo makers</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-400">
                     Grabbed a remix off Thingiverse? See exactly what changed
                     before you commit filament.
                   </p>
@@ -401,15 +550,15 @@ export default function LandingPage() {
 
               {/* CAD and print engineers */}
               <div
-                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
+                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-ink-800 bg-ink-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
                 style={{ backgroundImage: `url(${proImg})` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/60 to-transparent pointer-events-none" />
 
                 <div className="relative z-10">
-                  <Users size={24} weight="light" className="text-neutral-400" />
-                  <h3 className="mt-3 text-sm font-semibold text-white">CAD and print engineers</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
+                  <Users size={24} weight="light" className="text-ink-400" />
+                  <h3 className="mt-3 text-sm font-semibold text-ink-50">CAD and print engineers</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-400">
                     Catch dimensional drift, thin walls, and unintended scaling
                     before a part fails on the bed.
                   </p>
@@ -420,7 +569,7 @@ export default function LandingPage() {
         </section>
 
         {/* Services: what Meshdiff actually does, shipped today */}
-        <section id="features" className="border-t border-neutral-900 px-6 py-16">
+        <section id="features" className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto max-w-6xl">
             <SectionHeader
               tag="What It Does"
@@ -434,16 +583,16 @@ export default function LandingPage() {
                   <div
                     key={feature.title}
                     data-animate
-                    className="reveal rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition hover:-translate-y-0.5 hover:border-neutral-700"
+                    className="reveal rounded-xl border border-ink-800 bg-ink-900 p-6 transition hover:-translate-y-0.5 hover:border-ink-700"
                   >
-                    <Icon size={28} weight="light" className="text-neutral-400" />
-                    <h3 className="mt-4 text-base font-semibold text-white">{feature.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-neutral-400">{feature.description}</p>
+                    <Icon size={28} weight="light" className="text-ink-400" />
+                    <h3 className="mt-4 text-base font-semibold text-ink-50">{feature.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-ink-400">{feature.description}</p>
                     <ul className="mt-4 flex flex-wrap gap-2">
                       {feature.tags.map((tag) => (
                         <li
                           key={tag}
-                          className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-[11px] text-neutral-400"
+                          className="rounded-full border border-ink-800 bg-ink-950 px-2.5 py-1 text-[11px] text-ink-400"
                         >
                           {tag}
                         </li>
@@ -457,7 +606,7 @@ export default function LandingPage() {
         </section>
 
         {/* Process: how a comparison actually flows, start to finish */}
-        <section id="process" className="border-t border-neutral-900 px-6 py-16">
+        <section id="process" className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto max-w-3xl">
             <SectionHeader
               tag="How It Works"
@@ -467,17 +616,17 @@ export default function LandingPage() {
             <div ref={processRef} className="relative">
               <div
                 aria-hidden="true"
-                className="absolute bottom-0 left-6 top-0 w-px bg-gradient-to-b from-neutral-700 to-neutral-900"
+                className="absolute bottom-0 left-6 top-0 w-px bg-gradient-to-b from-ink-700 to-ink-900"
               />
               <div className="flex flex-col gap-10">
                 {PROCESS_STEPS.map((step) => (
                   <div key={step.number} data-animate className="reveal relative flex gap-6">
-                    <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-neutral-700 bg-neutral-900 font-mono text-sm font-bold text-neutral-300">
+                    <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-ink-700 bg-ink-900 font-mono text-sm font-bold text-ink-300">
                       {step.number}
                     </div>
                     <div className="pt-1.5">
-                      <h3 className="text-base font-semibold text-white">{step.title}</h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{step.description}</p>
+                      <h3 className="text-base font-semibold text-ink-50">{step.title}</h3>
+                      <p className="mt-1.5 text-sm leading-relaxed text-ink-400">{step.description}</p>
                     </div>
                   </div>
                 ))}
@@ -487,13 +636,13 @@ export default function LandingPage() {
         </section>
 
         {/* Sharing feature: vertical stack, no fake screenshot mockup */}
-        <section className="border-t border-neutral-900 px-6 py-14">
+        <section className="border-t border-ink-900 px-6 py-14">
           <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
             <div>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-ink-50">
                 Send a diff, not a 40 MB attachment
               </h2>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-400">
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-400">
                 Hit Share in the viewer toolbar and Meshdiff generates a link
                 to the exact comparison, same alignment, tolerance, and view.
                 Recipients open it in any browser, no account or software
@@ -508,14 +657,14 @@ export default function LandingPage() {
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3"
+                  className="flex items-center gap-3 rounded-lg border border-ink-800 bg-ink-900 px-4 py-3"
                 >
-                  <LinkSimple size={18} weight="light" className="shrink-0 text-neutral-400" />
-                  <span className="w-14 shrink-0 text-sm font-semibold text-white">{item.label}</span>
-                  <span className="text-xs text-neutral-400">{item.detail}</span>
+                  <LinkSimple size={18} weight="light" className="shrink-0 text-ink-400" />
+                  <span className="w-14 shrink-0 text-sm font-semibold text-ink-50">{item.label}</span>
+                  <span className="text-xs text-ink-400">{item.detail}</span>
                 </div>
               ))}
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-xs text-ink-400">
                 Links expire automatically. Free on the Community plan.
               </p>
             </div>
@@ -524,7 +673,7 @@ export default function LandingPage() {
 
         {/* Team workflow: compact proof block for what Team actually buys, right before pricing */}
         {SHOW_MONETIZATION && (
-          <section className="border-t border-neutral-900 px-6 py-14">
+          <section className="border-t border-ink-900 px-6 py-14">
             <div className="mx-auto max-w-5xl">
               <SectionHeader
                 tag="For Teams"
@@ -535,15 +684,15 @@ export default function LandingPage() {
                 {TEAM_WORKFLOW.map((step, i) => {
                   const Icon = step.icon;
                   return (
-                    <div key={step.label} className="relative rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-                      <Icon size={22} weight="light" className="text-neutral-400" />
-                      <h3 className="mt-3 text-sm font-semibold text-white">{step.label}</h3>
-                      <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{step.detail}</p>
+                    <div key={step.label} className="relative rounded-xl border border-ink-800 bg-ink-900 p-5">
+                      <Icon size={22} weight="light" className="text-ink-400" />
+                      <h3 className="mt-3 text-sm font-semibold text-ink-50">{step.label}</h3>
+                      <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{step.detail}</p>
                       {i < TEAM_WORKFLOW.length - 1 && (
                         <ArrowRight
                           size={16}
                           weight="bold"
-                          className="absolute -right-2.5 top-1/2 hidden -translate-y-1/2 text-neutral-700 md:block"
+                          className="absolute -right-2.5 top-1/2 hidden -translate-y-1/2 text-ink-700 md:block"
                         />
                       )}
                     </div>
@@ -556,7 +705,7 @@ export default function LandingPage() {
 
         {/* Pricing (hidden until Stripe billing is wired up) */}
         {SHOW_MONETIZATION && (
-          <section id="pricing" className="border-t border-neutral-900 px-6 py-14">
+          <section id="pricing" className="border-t border-ink-900 px-6 py-14">
             <div className="mx-auto max-w-5xl">
               <SectionHeader
                 tag="Pricing"
@@ -568,26 +717,26 @@ export default function LandingPage() {
                   <div
                     key={tier.name}
                     className={`relative rounded-xl border p-6 ${tier.highlighted
-                      ? "border-emerald-500 bg-neutral-900"
-                      : "border-neutral-800 bg-neutral-900"
+                      ? "border-accent-500 bg-ink-900"
+                      : "border-ink-800 bg-ink-900"
                       }`}
                   >
                     {tier.badge && (
-                      <span className="absolute -top-3 left-6 rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-950">
+                      <span className="absolute -top-3 left-6 rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-chrome-950">
                         {tier.badge}
                       </span>
                     )}
-                    <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-emerald-400" : "text-neutral-300"}`}>
+                    <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-accent-400" : "text-ink-300"}`}>
                       {tier.name}
                     </h3>
                     <div className="mt-2 flex items-baseline gap-1.5">
-                      <span className="text-3xl font-bold text-white">{tier.price}</span>
+                      <span className="text-3xl font-bold text-ink-50">{tier.price}</span>
                       {tier.originalPrice && (
-                        <span className="text-sm text-neutral-400 line-through">{tier.originalPrice}</span>
+                        <span className="text-sm text-ink-400 line-through">{tier.originalPrice}</span>
                       )}
-                      {tier.period && <span className="text-xs text-neutral-400">{tier.period}</span>}
+                      {tier.period && <span className="text-xs text-ink-400">{tier.period}</span>}
                     </div>
-                    <p className="mt-1 text-xs text-neutral-400">{tier.audience}</p>
+                    <p className="mt-1 text-xs text-ink-400">{tier.audience}</p>
                     {tier.urgency && (
                       <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-purple-400">
                         <span className="rounded-full bg-purple-400" />
@@ -599,7 +748,7 @@ export default function LandingPage() {
                     {"to" in tier.cta ? (
                       <Link
                         to={tier.cta.to}
-                        className="mt-4 block w-full rounded-lg bg-emerald-500 py-2 text-center text-sm font-medium text-neutral-950 transition hover:bg-emerald-400"
+                        className="mt-4 block w-full rounded-lg bg-accent-500 py-2 text-center text-sm font-medium text-chrome-950 transition hover:bg-accent-400"
                       >
                         {tier.cta.label}
                       </Link>
@@ -608,7 +757,7 @@ export default function LandingPage() {
                         type="button"
                         onClick={() => void handleProCheckout()}
                         disabled={isCheckingOut}
-                        className="mt-4 w-full rounded-lg border border-emerald-500/40 bg-emerald-500/10 py-2 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/15 disabled:opacity-50"
+                        className="mt-4 w-full rounded-lg border border-accent-500/40 bg-accent-500/10 py-2 text-sm font-medium text-accent-400 transition hover:bg-accent-500/15 disabled:opacity-50"
                       >
                         {isCheckingOut ? "Redirecting…" : tier.cta.label}
                       </button>
@@ -617,17 +766,17 @@ export default function LandingPage() {
                         type="button"
                         onClick={scrollToEarlyAccess}
                         className={`mt-4 w-full rounded-lg py-2 text-sm font-medium transition ${tier.highlighted
-                          ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15"
-                          : "border border-neutral-700 text-neutral-300 hover:border-neutral-500"
+                          ? "border border-accent-500/40 bg-accent-500/10 text-accent-400 hover:bg-accent-500/15"
+                          : "border border-ink-700 text-ink-300 hover:border-ink-500"
                           }`}
                       >
                         {tier.cta.label}
                       </button>
                     )}
-                    <ul className="mt-5 flex flex-col gap-2 text-xs text-neutral-400">
+                    <ul className="mt-5 flex flex-col gap-2 text-xs text-ink-400">
                       {tier.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-2">
-                          <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-emerald-400" />
+                          <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-accent-400" />
                           <span>{feature}</span>
                         </li>
                       ))}
@@ -640,9 +789,9 @@ export default function LandingPage() {
         )}
 
         {/* Testimonial */}
-        <section className="border-t border-neutral-900 px-6 py-14">
+        <section className="border-t border-ink-900 px-6 py-14">
           <div className="mx-auto max-w-2xl">
-            <p className="text-lg leading-relaxed text-neutral-200">
+            <p className="text-lg leading-relaxed text-ink-200">
               "Version control for 3D models has always been awkward, since a
               diff of two binary STLs tells you nothing useful. Meshdiff does
               the job properly."
@@ -668,22 +817,22 @@ export default function LandingPage() {
         {/* <section id="early-access" className="px-6 py-20">
           <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2">
             <div>
-              <span className="mb-3 block text-xs font-semibold uppercase tracking-widest text-emerald-500">
+              <span className="mb-3 block text-xs font-semibold uppercase tracking-widest text-accent-500">
                 Get Started
               </span>
-              <h2 className="text-3xl font-bold leading-tight text-white md:text-4xl">
+              <h2 className="text-3xl font-bold leading-tight text-ink-50 md:text-4xl">
                 Save projects, track versions, and review with your team.
               </h2>
-              <p className="mt-3 max-w-md text-sm text-neutral-400">
+              <p className="mt-3 max-w-md text-sm text-ink-400">
                 The diff engine ships today. Pro and Team are launching soon,
                 built in the open with early-access members shaping what
                 lands next.
               </p>
-              <ul className="mt-6 flex flex-col gap-3 text-sm text-neutral-300">
+              <ul className="mt-6 flex flex-col gap-3 text-sm text-ink-300">
                 {PLANNED_FEATURES.map((item) => (
                   <li key={item} className="flex items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-emerald-500/40 bg-emerald-500/10">
-                      <Check size={12} weight="bold" className="text-emerald-400" />
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-accent-500/40 bg-accent-500/10">
+                      <Check size={12} weight="bold" className="text-accent-400" />
                     </span>
                     <span>{item}</span>
                   </li>
@@ -691,15 +840,15 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            <div className="rounded-xl border border-emerald-500/20 bg-neutral-900 p-8">
-              <p className="text-sm font-semibold text-white">Claim your founding spot</p>
-              <p className="mt-1 text-xs text-neutral-400">
+            <div className="rounded-xl border border-accent-500/20 bg-ink-900 p-8">
+              <p className="text-sm font-semibold text-ink-50">Claim your founding spot</p>
+              <p className="mt-1 text-xs text-ink-400">
                 50% off Pro and Team for 3 months, before public launch.
               </p>
               <div className="mt-4">
                 <WaitlistForm />
               </div>
-              <p className="mt-4 text-center text-xs text-neutral-400">
+              <p className="mt-4 text-center text-xs text-ink-400">
                 No spam. One launch email, then you decide.
               </p>
             </div>
@@ -715,14 +864,14 @@ export default function LandingPage() {
           <div className="mt-8 flex justify-center gap-3">
             <a
               href="/live"
-              className="rounded border border-neutral-700 px-4 py-2 text-xs font-medium text-neutral-300 hover:border-neutral-500 hover:text-white transition-colors"
+              className="rounded border border-ink-700 px-4 py-2 text-xs font-medium text-ink-300 hover:border-ink-500 hover:text-ink-50 transition-colors"
             >
               Try free tool
             </a>
             <button
               type="button"
               onClick={scrollToPricing}
-              className="rounded bg-emerald-700 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-800 transition-colors"
+              className="rounded bg-accent-700 px-4 py-2 text-xs font-medium text-ink-50 hover:bg-accent-800 transition-colors"
             >
               View pricing
             </button>

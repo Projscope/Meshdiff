@@ -53,17 +53,17 @@ export default function CommentPin({
             highlighted ? "h-6 w-6 ring-2 ring-white" : "h-5 w-5"
           } ${pending && onDragStart ? "cursor-grab active:cursor-grabbing" : !pending && onSelect ? "cursor-pointer" : ""} ${
             pending
-              ? "border-indigo-400 bg-indigo-500 text-white"
+              ? "border-indigo-400 bg-indigo-500 text-ink-50"
               : highlighted
-                ? "border-red-300 bg-red-400 text-white"
-                : "border-red-400 bg-red-500 text-white"
+                ? "border-red-300 bg-red-400 text-ink-50"
+                : "border-red-400 bg-red-500 text-ink-50"
           }`}
           title={pending ? "Drag to reposition" : label}
         >
           📍
         </div>
         {!pending && messageCount !== undefined && messageCount > 1 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-neutral-950 bg-white px-1 text-[9px] font-bold leading-none text-red-600">
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-ink-950 bg-white px-1 text-[9px] font-bold leading-none text-red-600">
             {messageCount}
           </span>
         )}

@@ -31,12 +31,12 @@ export default function LandingLiveDemo() {
   }, []);
 
   return (
-    <div className="mx-auto mt-12 max-w-6xl overflow-hidden rounded-xl border border-neutral-800 shadow-2xl">
-      <div className="grid h-[320px] grid-cols-2 gap-2 bg-neutral-950 p-2 sm:h-[380px]">
+    <div className="mx-auto mt-12 max-w-6xl overflow-hidden rounded-xl border border-ink-800 shadow-2xl">
+      <div className="grid h-[320px] grid-cols-2 gap-2 bg-ink-950 p-2 sm:h-[380px]">
         <Viewer ref={viewerARef} label="Version A" demoUrl={DEMO_A} onGeometryLoaded={(geometry) => setGeometryA(geometry)} />
         <Viewer ref={viewerBRef} label="Version B" demoUrl={DEMO_B} onGeometryLoaded={(geometry) => setGeometryB(geometry)} />
       </div>
-      <div className="h-[280px] border-t border-neutral-800 p-2 sm:h-[320px]">
+      <div className="h-[280px] border-t border-ink-800 p-2 sm:h-[320px]">
         <DiffView
           geometryA={geometryA}
           geometryB={geometryB}
@@ -48,10 +48,10 @@ export default function LandingLiveDemo() {
           onAlignmentChange={setAlignment}
         />
       </div>
-      <div className="flex items-center justify-center border-t border-neutral-800 bg-neutral-900/60 px-4 py-3">
+      <div className="flex items-center justify-center border-t border-ink-800 bg-ink-900/60 px-4 py-3">
         <Link
           to="/live"
-          className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 active:scale-[0.98]"
+          className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
         >
           Drop your own files →
         </Link>

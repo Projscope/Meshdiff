@@ -28,7 +28,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
       {hasComparison && (
         <CollapsibleSection title="Geometric Delta">
           {!stats ? (
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-center text-xs text-neutral-500">
+            <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-center text-xs text-ink-500">
               No comparison available
             </div>
           ) : (
@@ -47,17 +47,17 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                 <PropertyRow
                   label="Size Δ X"
                   value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
-                  valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-neutral-500"}
+                  valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-ink-500"}
                 />
                 <PropertyRow
                   label="Size Δ Y"
                   value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
-                  valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-neutral-500"}
+                  valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-ink-500"}
                 />
                 <PropertyRow
                   label="Size Δ Z"
                   value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
-                  valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-neutral-500"}
+                  valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-ink-500"}
                 />
                 <PropertyRow
                   label="Triangles"
@@ -67,7 +67,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                       ? diffColors.addedTextClass
                       : stats.triangleDelta < 0
                         ? diffColors.removedTextClass
-                        : "text-neutral-500"
+                        : "text-ink-500"
                   }
                 />
                 <PropertyRow
@@ -115,7 +115,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
       {stats && (
         <CollapsibleSection title="Printability Details">
           {stats.printabilityIssues.length > 0 && (
-            <div className="space-y-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2">
+            <div className="space-y-1 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
               {stats.printabilityIssues.map((issue, i) => (
                 <div key={i} className="text-xs text-amber-300">
                   • {issue}
@@ -145,17 +145,17 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                 <PropertyRow
                   label="Added"
                   value={stats.holesAdded > 0 ? `+${stats.holesAdded}` : "0"}
-                  valueClassName={stats.holesAdded > 0 ? diffColors.addedTextClass : "text-neutral-500"}
+                  valueClassName={stats.holesAdded > 0 ? diffColors.addedTextClass : "text-ink-500"}
                 />
                 <PropertyRow
                   label="Removed"
                   value={stats.holesRemoved > 0 ? `-${stats.holesRemoved}` : "0"}
-                  valueClassName={stats.holesRemoved > 0 ? diffColors.removedTextClass : "text-neutral-500"}
+                  valueClassName={stats.holesRemoved > 0 ? diffColors.removedTextClass : "text-ink-500"}
                 />
                 <PropertyRow
                   label="Diameter Changed"
                   value={stats.holesDiameterChanged}
-                  valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-400" : "text-neutral-500"}
+                  valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-400" : "text-ink-500"}
                 />
               </>
             )}

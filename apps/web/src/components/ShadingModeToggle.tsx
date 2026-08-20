@@ -34,7 +34,7 @@ export default function ShadingModeToggle() {
       onClick={() => setMode(NEXT[mode])}
       title={`${LABEL[mode]} — click for ${LABEL[NEXT[mode]].toLowerCase()}`}
       className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
-        mode === "smooth" ? "text-neutral-300 hover:bg-neutral-800 hover:text-white" : "bg-sky-500/20 text-sky-400"
+        mode === "smooth" ? "text-ink-300 hover:bg-ink-800 hover:text-ink-50" : "bg-sky-500/20 text-sky-400"
       }`}
     >
       {ICON[mode]}

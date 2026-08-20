@@ -60,7 +60,7 @@ export default function MeasurementOverlay({ pointA, pointB, hoverPoint }: Measu
       <MeasurePoint position={pointB} />
       <Line points={[pointA, pointB]} color="#facc15" dashed dashSize={0.8} gapSize={0.5} lineWidth={1.5} />
       <Html position={midpoint} center distanceFactor={40} occlude={false}>
-        <div className="whitespace-nowrap rounded-full border border-amber-400 bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-neutral-950 shadow">
+        <div className="whitespace-nowrap rounded-full border border-amber-400 bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-chrome-950 shadow">
           {distance.toFixed(2)} mm
         </div>
       </Html>
