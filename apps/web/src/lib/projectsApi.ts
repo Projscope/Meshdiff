@@ -34,6 +34,7 @@ export interface VersionSummary {
   approvalStatus: "pending" | "approved" | "rejected";
   rejectionReason: string | null;
   createdAt: string;
+  uploaderEmail: string | null;
 }
 
 export interface VersionDetail extends VersionSummary {

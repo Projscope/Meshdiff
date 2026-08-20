@@ -47,9 +47,10 @@ export interface VersionRow {
   approval_status: string;
   rejection_reason: string | null;
   created_at: string;
+  uploaded_by_user_id: string | null;
 }
 
-export function toVersionSummary(row: VersionRow) {
+export function toVersionSummary(row: VersionRow, uploaderEmail: string | null = null) {
   return {
     id: row.id,
     versionNumber: row.version_number,
@@ -62,6 +63,7 @@ export function toVersionSummary(row: VersionRow) {
     approvalStatus: row.approval_status,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
+    uploaderEmail,
   };
 }
 
@@ -432,7 +434,26 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Failed to load versions" };
         }
 
-        return { success: true, data: (rows as VersionRow[]).map(toVersionSummary) };
+        const versionRows = rows as VersionRow[];
+        const uploaderIds = [...new Set(versionRows.map((row) => row.uploaded_by_user_id).filter((id): id is string => !!id))];
+        let emailByUserId = new Map<string, string>();
+        if (uploaderIds.length > 0) {
+          const { data: emailRows, error: emailError } = await supabase.rpc("get_user_emails_by_ids", {
+            p_ids: uploaderIds,
+          });
+          if (emailError) {
+            app.log.warn(emailError, "Failed to resolve uploader emails");
+          } else {
+            emailByUserId = new Map((emailRows ?? []).map((r: { id: string; email: string }) => [r.id, r.email]));
+          }
+        }
+
+        return {
+          success: true,
+          data: versionRows.map((row) =>
+            toVersionSummary(row, row.uploaded_by_user_id ? (emailByUserId.get(row.uploaded_by_user_id) ?? null) : null),
+          ),
+        };
       } catch (err) {
         app.log.error(err, "Version list threw");
         reply.code(502);

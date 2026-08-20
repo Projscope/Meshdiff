@@ -19,7 +19,7 @@ import {
   type ProjectDetail,
 } from "../lib/projectsApi";
 import { uploadVersion } from "../lib/uploadVersion";
-import ApprovalBadge from "../components/ApprovalBadge";
+import ApprovalBadge, { APPROVAL_DOT_COLOR } from "../components/ApprovalBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
 import LoadingModal from "../components/LoadingModal";
@@ -40,9 +40,21 @@ const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 interface Comparison {
-  fromVersion: VersionSummary;
+  fromVersion: VersionSummary | null;
   toVersion: VersionSummary;
   volumeDeltaPercent: number | null;
+  addedCount: number | null;
+  removedCount: number | null;
+}
+
+// Widths (%) for the two-segment insertions/deletions bar on a history row —
+// same idea as GitHub's PR file-list diff bar, sized by each count's share
+// of the total rather than an absolute scale, so a huge and a tiny change
+// both read clearly at the same fixed bar width.
+function changeBarWidths(added: number, removed: number): { addedPercent: number; removedPercent: number } {
+  const total = added + removed;
+  if (total <= 0) return { addedPercent: 0, removedPercent: 0 };
+  return { addedPercent: (added / total) * 100, removedPercent: (removed / total) * 100 };
 }
 
 function timeAgo(iso: string): string {
@@ -127,14 +139,31 @@ export default function ProjectDetailPage() {
     for (const { fromVersion, toVersion } of pairs) {
       diffs.push(await getDiff(fromVersion.id, toVersion.id));
     }
+    const diffRows: Comparison[] = pairs.map((pair, index) => {
+      const diffResult = diffs[index];
+      return {
+        ...pair,
+        volumeDeltaPercent: diffResult.success ? diffResult.data.approxVolumeDeltaPercent : null,
+        addedCount: diffResult.success ? diffResult.data.addedCount : null,
+        removedCount: diffResult.success ? diffResult.data.removedCount : null,
+      };
+    });
+    // v1 has no predecessor to diff against — represented as its own
+    // leading history entry (no +/- stat) rather than omitted, so the
+    // timeline shows the project's full history down to the initial upload.
     setComparisons(
-      pairs.map((pair, index) => {
-        const diffResult = diffs[index];
-        return {
-          ...pair,
-          volumeDeltaPercent: diffResult.success ? diffResult.data.approxVolumeDeltaPercent : null,
-        };
-      }),
+      sorted.length > 0
+        ? [
+            {
+              fromVersion: null,
+              toVersion: sorted[0],
+              volumeDeltaPercent: null,
+              addedCount: null,
+              removedCount: null,
+            },
+            ...diffRows,
+          ]
+        : [],
     );
     return sorted;
   }, [projectId, refreshSidebar]);
@@ -483,7 +512,7 @@ export default function ProjectDetailPage() {
         <div className="flex-1 space-y-3">
         {isTeam ? (
           <>
-            <StatCard label="Comparisons" value={comparisons.length} />
+            <StatCard label="Comparisons" value={Math.max(0, versions.length - 1)} />
             <StatCard label="Open Reviews" value={openReviews} accent={openReviews > 0 ? "amber" : undefined} />
             <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Approval Rate</p>
@@ -523,71 +552,104 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {isTeam ? (
+      {versions.length === 0 ? (
+        <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
+          No models yet — drop a file or click "Upload" to get started.
+        </div>
+      ) : (
         <div className="mt-6 overflow-hidden rounded-lg border border-neutral-800">
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
-            <span>Comparison</span>
-            <span className="text-right">Volume Δ</span>
-            <span>Status</span>
+          <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+            <span>History</span>
             <span>Updated</span>
           </div>
-
-          {comparisons.length === 0 && versions.length <= 1 && (
-            <div className="px-4 py-10 text-center text-sm text-neutral-500">
-              {versions.length === 0
-                ? "No versions yet — drop a file or click \"Upload\" to get started."
-                : "Upload a second version to see your first comparison here."}
-            </div>
-          )}
 
           {comparisons
             .slice()
             .reverse()
-            .map((comparison) => (
-              <Link
-                key={comparison.toVersion.id}
-                to={`/projects/${projectId}/compare/${comparison.fromVersion.id}/${comparison.toVersion.id}`}
-                className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-sm last:border-b-0 hover:bg-neutral-900"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-neutral-800 text-[10px] text-neutral-400">
-                    ◈
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-mono text-sm font-semibold text-white">
-                      v{comparison.fromVersion.versionNumber} → v{comparison.toVersion.versionNumber}
-                    </span>
-                    <span
-                      className="block truncate text-xs text-neutral-500"
-                      title={comparison.toVersion.changeSummary ?? undefined}
-                    >
-                      {comparison.toVersion.changeSummary ?? "Version uploaded"}
-                    </span>
-                  </span>
-                </span>
-                <span
-                  className={`whitespace-nowrap text-right font-mono text-xs ${
-                    comparison.volumeDeltaPercent === null
-                      ? "text-neutral-600"
-                      : comparison.volumeDeltaPercent >= 0
-                        ? "text-emerald-400"
-                        : "text-red-400"
-                  }`}
+            .map((comparison, index, rows) => {
+              const isSynthetic = comparison.fromVersion === null;
+              const isFirstRow = index === 0;
+              const isLastRow = index === rows.length - 1;
+              const bar =
+                comparison.addedCount !== null && comparison.removedCount !== null
+                  ? changeBarWidths(comparison.addedCount, comparison.removedCount)
+                  : null;
+              const printability = comparison.toVersion.printabilityStatus;
+
+              return (
+                <Link
+                  key={comparison.toVersion.id}
+                  to={
+                    isSynthetic
+                      ? `/projects/${projectId}/versions/${comparison.toVersion.id}`
+                      : `/projects/${projectId}/compare/${comparison.fromVersion!.id}/${comparison.toVersion.id}`
+                  }
+                  className="flex items-stretch gap-3 border-b border-neutral-800 bg-neutral-950 px-4 py-3 text-sm last:border-b-0 hover:bg-neutral-900"
                 >
-                  {comparison.volumeDeltaPercent === null
-                    ? "—"
-                    : `${comparison.volumeDeltaPercent >= 0 ? "+" : ""}${comparison.volumeDeltaPercent.toFixed(1)}%`}
-                </span>
-                <ApprovalBadge status={comparison.toVersion.approvalStatus} />
-                <span className="whitespace-nowrap text-xs text-neutral-500">{timeAgo(comparison.toVersion.createdAt)}</span>
-              </Link>
-            ))}
+                  {/* Rail: a colored dot per row (status color, same
+                      convention as ApprovalBadge) on a connecting line —
+                      the git-commit-graph visual language the user asked
+                      for, kept purely linear per CLAUDE.md. */}
+                  <div className="flex w-3 shrink-0 flex-col items-center">
+                    <div className={`w-px flex-1 ${isFirstRow ? "bg-transparent" : "bg-neutral-800"}`} />
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${APPROVAL_DOT_COLOR[comparison.toVersion.approvalStatus]}`} />
+                    <div className={`w-px flex-1 ${isLastRow ? "bg-transparent" : "bg-neutral-800"}`} />
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 items-center gap-4 py-0.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-sm font-semibold text-white">
+                          {isSynthetic
+                            ? `v${comparison.toVersion.versionNumber}`
+                            : `v${comparison.fromVersion!.versionNumber} → v${comparison.toVersion.versionNumber}`}
+                        </span>
+                        {(printability === "warn" || printability === "fail") && (
+                          <span
+                            title={printability === "fail" ? "Printability check failed" : "Printability warning"}
+                            className={printability === "fail" ? "text-red-400" : "text-amber-400"}
+                          >
+                            {printability === "fail" ? "✕" : "⚠"}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className="block truncate text-xs text-neutral-500"
+                        title={comparison.toVersion.changeSummary ?? undefined}
+                      >
+                        {isSynthetic ? "Initial upload" : comparison.toVersion.changeSummary ?? "Version uploaded"}
+                        {comparison.toVersion.uploaderEmail && ` · ${comparison.toVersion.uploaderEmail}`}
+                      </span>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-3">
+                      <div className="text-right">
+                        {bar ? (
+                          <>
+                            <div className="whitespace-nowrap font-mono text-xs">
+                              <span className="text-emerald-400">+{comparison.addedCount!.toLocaleString()}</span>{" "}
+                              <span className="text-red-400">-{comparison.removedCount!.toLocaleString()}</span>
+                            </div>
+                            <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-neutral-800">
+                              <div className="bg-emerald-500" style={{ width: `${bar.addedPercent}%` }} />
+                              <div className="bg-red-500" style={{ width: `${bar.removedPercent}%` }} />
+                            </div>
+                          </>
+                        ) : (
+                          <span className="whitespace-nowrap font-mono text-xs text-neutral-500">
+                            {isSynthetic ? `${comparison.toVersion.triangleCount ?? "?"} tris` : "—"}
+                          </span>
+                        )}
+                      </div>
+                      <ApprovalBadge status={comparison.toVersion.approvalStatus} />
+                      <span className="whitespace-nowrap text-xs text-neutral-500">{timeAgo(comparison.toVersion.createdAt)}</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
         </div>
-      ) : versions.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-10 text-center text-sm text-neutral-500">
-          No models yet — drop a file or click "Upload" to get started.
-        </div>
-      ) : null}
+      )}
 
       {versions.length > 1 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-xs">
