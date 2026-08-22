@@ -119,12 +119,12 @@ export default function FeaturesPage() {
             >
               Open the diff tool
             </Link>
-            <a
-              href="/#pricing"
+            <Link
+              to="/pricing"
               className="rounded-lg border border-ink-700 px-5 py-2.5 text-sm font-medium text-ink-200 transition hover:border-ink-500 active:scale-[0.98]"
             >
               See pricing
-            </a>
+            </Link>
           </div>
         </section>
 

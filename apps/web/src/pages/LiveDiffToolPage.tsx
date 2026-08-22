@@ -557,7 +557,7 @@ export default function LiveDiffToolPage({
 
               <div className="mt-8 flex justify-center">
                 <Link
-                  to="/#pricing"
+                  to="/pricing"
                   className="rounded-lg bg-accent-500 px-6 py-3 text-center font-medium text-chrome-950 transition hover:bg-accent-400"
                 >
                   View Pricing

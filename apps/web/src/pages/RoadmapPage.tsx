@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 
 export const META_TITLE = "Roadmap & Changelog | Meshdiff";
@@ -8,10 +9,6 @@ export const META_DESCRIPTION =
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
   const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.3.0");
-
-  const handleScrollToPricing = () => {
-    window.location.href = "/#pricing";
-  };
 
   const roadmapItems = {
     planned: [
@@ -304,12 +301,12 @@ export default function RoadmapPage() {
             >
               Free Diff Tool
             </a>
-            <button
-              onClick={handleScrollToPricing}
+            <Link
+              to="/pricing"
               className="rounded bg-accent-700 px-6 py-3 text-sm font-medium text-ink-50 hover:bg-accent-800 transition-colors cursor-pointer"
             >
               View Pricing
-            </button>
+            </Link>
           </div>
         </div>
       </section>

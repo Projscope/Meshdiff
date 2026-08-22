@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 
-const FAQS = [
+const FAQS: { q: string; a: ReactNode }[] = [
   {
     q: "Are my files uploaded to a server?",
     a: "In Community, files stay on your machine when comparing or measuring — they never leave your browser. Files are uploaded only when you create a share link. Pro and Team upload all files to storage (for saved projects, history, and versioning).",
@@ -20,6 +21,20 @@ const FAQS = [
   {
     q: "Is there a free tier without a time limit?",
     a: "Yes — the Community diff tool is free forever for solo use. Pro and Team add saved projects, version history, and team review.",
+  },
+  {
+    q: "What's the difference between Free, Pro, and Team?",
+    a: (
+      <>
+        Free is the diff engine itself, permanently — no account, no time limit. Pro adds saved project workspaces,
+        version history, and PDF reports. Team adds comment pins, an approvals workflow, and print-log tracking. See
+        the full{" "}
+        <Link to="/pricing" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+          feature comparison
+        </Link>
+        .
+      </>
+    ),
   },
   {
     q: "Where do I go for support?",

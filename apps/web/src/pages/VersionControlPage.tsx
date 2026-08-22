@@ -19,6 +19,7 @@ export default function VersionControlPage() {
         { to: "/stl-diff", label: "Compare STL Files" },
         { to: "/vs-manual-comparison", label: "Meshdiff vs. Manual Comparison" },
         { to: "/docs", label: "Docs & FAQ" },
+        { to: "/pricing", label: "Pricing" },
       ]}
     >
       <h2 className="text-2xl font-bold text-ink-50">Text version control doesn't work for meshes</h2>
@@ -78,8 +79,11 @@ export default function VersionControlPage() {
         <Link to="/stl-diff" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
           STL diff guide
         </Link>{" "}
-        for how the underlying voxel diff works. Saved project history and team approvals are part of the Pro and
-        Team plans.
+        for how the underlying voxel diff works. Saved project history and team approvals are part of the{" "}
+        <Link to="/pricing" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+          Pro and Team plans
+        </Link>
+        .
       </p>
     </ContentPageLayout>
   );

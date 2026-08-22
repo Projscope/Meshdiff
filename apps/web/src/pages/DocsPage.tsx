@@ -9,6 +9,9 @@ export const META_DESCRIPTION =
 interface Faq {
   q: string;
   a: string;
+  /** Rendered as a link appended after `a` — kept separate from `a` so the
+   * FAQPage JSON-LD text (below) stays plain text for structured data. */
+  link?: { to: string; label: string };
 }
 
 const FAQS: Faq[] = [
@@ -32,6 +35,11 @@ const FAQS: Faq[] = [
     q: "What does dimensional drift mean?",
     a: "Dimensional drift is how far a surface has moved between two versions, measured point by point rather than as a single bounding-box number. Meshdiff computes it with a per-vertex signed-distance field: for each point on one surface, it finds the nearest point on the other and records the signed distance — positive where the surface pushed outward, negative where it pulled inward — then renders that as a color gradient (heatmap) over the model.",
   },
+  {
+    q: "What do the Free, Pro, and Team plans include?",
+    a: "The comparison engine — voxel diff, surface-heatmap drift, measuring, and shareable links — is free forever on the Free (Community) plan, no account required. Pro adds saved project workspaces, version history for every model, and PDF diff reports. Team adds comment pins on 3D models, a team approvals workflow, and print-log tracking (slicer profile snapshots, print-result photos) per version.",
+    link: { to: "/pricing", label: "See the full feature comparison" },
+  },
 ];
 
 const faqJsonLd = {
@@ -42,7 +50,7 @@ const faqJsonLd = {
     name: faq.q,
     acceptedAnswer: {
       "@type": "Answer",
-      text: faq.a,
+      text: faq.link ? `${faq.a} See https://meshdiff.com${faq.link.to}.` : faq.a,
     },
   })),
 };
@@ -61,6 +69,7 @@ export default function DocsPage() {
         { to: "/3mf-diff", label: "Compare 3MF Files" },
         { to: "/obj-diff", label: "Compare OBJ Files" },
         { to: "/3d-print-version-control", label: "3D Print Version Control" },
+        { to: "/pricing", label: "Pricing" },
       ]}
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
@@ -69,7 +78,21 @@ export default function DocsPage() {
         {FAQS.map((faq) => (
           <div key={faq.q}>
             <h2 className="text-xl font-bold text-ink-50">{faq.q}</h2>
-            <p className="mt-3">{faq.a}</p>
+            <p className="mt-3">
+              {faq.a}
+              {faq.link && (
+                <>
+                  {" "}
+                  <Link
+                    to={faq.link.to}
+                    className="text-accent-400 underline underline-offset-2 hover:text-accent-300"
+                  >
+                    {faq.link.label}
+                  </Link>
+                  .
+                </>
+              )}
+            </p>
           </div>
         ))}
       </div>

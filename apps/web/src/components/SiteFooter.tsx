@@ -33,9 +33,9 @@ export default function SiteFooter() {
               Roadmap
             </Link>
             {SHOW_MONETIZATION && (
-              <a href="/#pricing" className="hover:text-ink-300">
+              <Link to="/pricing" className="hover:text-ink-300">
                 Pricing
-              </a>
+              </Link>
             )}
             <Link to="/live" className="hover:text-ink-300">
               Free Diff tool
