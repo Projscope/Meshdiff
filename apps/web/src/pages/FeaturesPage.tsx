@@ -1,7 +1,12 @@
 import { Link } from "react-router-dom";
 import { Check } from "@phosphor-icons/react";
 import { useScrollReveal } from "../hooks/useScrollReveal";
+import { useDocumentMeta } from "../lib/useDocumentMeta";
 import liveDiffPreview from "../assets/live-diff-preview.png";
+
+export const META_TITLE = "Features — Voxel Diff, Heatmap, Printability | Meshdiff";
+export const META_DESCRIPTION =
+  "Everything Meshdiff does: voxel diffing, surface-heatmap dimensional drift, printability checks, shareable links, and version history for STL, 3MF, and OBJ files.";
 
 interface FeatureSection {
   tag: string;
@@ -88,6 +93,7 @@ const OTHER_FEATURES: FeatureSection[] = [
 ];
 
 export default function FeaturesPage() {
+  useDocumentMeta(META_TITLE, META_DESCRIPTION);
   const gridRef = useScrollReveal<HTMLDivElement>();
 
   return (

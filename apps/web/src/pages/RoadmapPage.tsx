@@ -1,6 +1,12 @@
 import { useState } from "react";
+import { useDocumentMeta } from "../lib/useDocumentMeta";
+
+export const META_TITLE = "Roadmap & Changelog | Meshdiff";
+export const META_DESCRIPTION =
+  "What's shipped so far and what's next for Meshdiff's 3D model diff engine — version history, new features, and fixes.";
 
 export default function RoadmapPage() {
+  useDocumentMeta(META_TITLE, META_DESCRIPTION);
   const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.2.0");
 
   const handleScrollToPricing = () => {

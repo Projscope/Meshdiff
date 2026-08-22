@@ -190,6 +190,7 @@ export default function CompareVersionsPage() {
             alignment={alignment}
             onAlignmentChange={setAlignment}
             onStatsChange={setStats}
+            holeChanges={stats?.holeChanges}
           />
         </div>
 

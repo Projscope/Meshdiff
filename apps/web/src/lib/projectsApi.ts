@@ -37,9 +37,22 @@ export interface VersionSummary {
   uploaderEmail: string | null;
 }
 
+export interface SlicerProfileAttachment {
+  fileName: string;
+  downloadUrl: string;
+}
+
+export interface PrintPhotoAttachment {
+  fileName: string;
+  caption: string | null;
+  downloadUrl: string;
+}
+
 export interface VersionDetail extends VersionSummary {
   downloadUrl: string;
   previousVersionId: string | null;
+  slicerProfile: SlicerProfileAttachment | null;
+  printPhoto: PrintPhotoAttachment | null;
 }
 
 export interface ProjectDetail {
@@ -358,6 +371,37 @@ export function createVersion(
     method: "POST",
     body: JSON.stringify({ fileName: file.name, fileSize: file.size }),
   });
+}
+
+export function getSlicerProfileUploadUrl(
+  projectId: string,
+  versionId: string,
+  file: File,
+): Promise<Result<{ uploadUrl: string }>> {
+  return request(`/projects/${projectId}/versions/${versionId}/slicer-profile`, {
+    method: "POST",
+    body: JSON.stringify({ fileName: file.name, fileSize: file.size }),
+  });
+}
+
+export function deleteSlicerProfile(projectId: string, versionId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}/versions/${versionId}/slicer-profile`, { method: "DELETE" });
+}
+
+export function getPrintPhotoUploadUrl(
+  projectId: string,
+  versionId: string,
+  file: File,
+  caption?: string,
+): Promise<Result<{ uploadUrl: string }>> {
+  return request(`/projects/${projectId}/versions/${versionId}/print-photo`, {
+    method: "POST",
+    body: JSON.stringify({ fileName: file.name, fileSize: file.size, caption }),
+  });
+}
+
+export function deletePrintPhoto(projectId: string, versionId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}/versions/${versionId}/print-photo`, { method: "DELETE" });
 }
 
 export async function uploadVersionBytes(uploadUrl: string, file: File): Promise<Result<true>> {

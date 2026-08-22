@@ -6,9 +6,19 @@ import EmbedBadgePage from "./pages/EmbedBadgePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import RoadmapPage from "./pages/RoadmapPage";
+import StlDiffPage from "./pages/StlDiffPage";
+import ThreeMfDiffPage from "./pages/ThreeMfDiffPage";
+import ObjDiffPage from "./pages/ObjDiffPage";
+import VersionControlPage from "./pages/VersionControlPage";
+import VsManualComparisonPage from "./pages/VsManualComparisonPage";
+import DocsPage from "./pages/DocsPage";
+import BlogIndexPage from "./pages/BlogIndexPage";
+import BlogPostPage from "./pages/BlogPostPage";
 import ProjectsListPage from "./pages/ProjectsListPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminBlogPage from "./pages/AdminBlogPage";
+import AdminBlogEditorPage from "./pages/AdminBlogEditorPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
 import RootLayout from "./components/RootLayout";
@@ -54,6 +64,17 @@ export const router = createBrowserRouter([
       { path: "/compare-stl-files", element: <CompareStlFilesPage /> },
       { path: "/stl-diff-tool", element: <StlDiffToolPage /> },
       { path: "/compare-3mf-files", element: <Compare3mfFilesPage /> },
+      // Long-form content/SEO pages (500-800 words each, internal-linked,
+      // one CTA back to the tool) — distinct from the thin tool-variant
+      // pages above, which open straight into the Compare UI.
+      { path: "/stl-diff", element: <StlDiffPage /> },
+      { path: "/3mf-diff", element: <ThreeMfDiffPage /> },
+      { path: "/obj-diff", element: <ObjDiffPage /> },
+      { path: "/3d-print-version-control", element: <VersionControlPage /> },
+      { path: "/vs-manual-comparison", element: <VsManualComparisonPage /> },
+      { path: "/docs", element: <DocsPage /> },
+      { path: "/blog", element: <BlogIndexPage /> },
+      { path: "/blog/:slug", element: <BlogPostPage /> },
       { path: "/embed", element: <EmbedBadgePage /> },
       { path: "/login", element: <LoginPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
@@ -126,6 +147,26 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ProjectsLayout>
               <AdminUsersPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin/blog",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <AdminBlogPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin/blog/:id",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <AdminBlogEditorPage />
             </ProjectsLayout>
           </ProtectedRoute>
         ),

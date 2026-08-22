@@ -1,5 +1,7 @@
 import { Html, Line } from "@react-three/drei";
 import { sampleCircle, type CircleFit } from "../lib/circleFit";
+import type { HoleChange } from "@meshdiff/shared/types/diff";
+import { useDiffColors } from "../lib/diffPalette";
 
 interface RadiusOverlayProps {
   /** 0–2 manually-clicked points (before a 3rd point completes a manual fit,
@@ -20,6 +22,11 @@ interface RadiusOverlayProps {
   loopPoints: Array<[number, number, number]> | null;
   /** Dashed + dimmer while previewing, solid once committed. */
   isPreview: boolean;
+  /** When the detected loop matches a hole the diff engine already flagged
+   * as added/removed/resized (see DiffView.tsx's proximity match against
+   * VoxelDiffStats.holeChanges), shows the before/after diameter instead of
+   * just the current one — the point of measuring in a diff view. */
+  holeChange?: HoleChange | null;
 }
 
 function RadiusPoint({ position }: { position: [number, number, number] }) {
@@ -50,7 +57,15 @@ function HoverPreviewPoint({ position }: { position: [number, number, number] })
  * backing it) falls back to `sampleCircle`'s resampled outline. The
  * "3-point radius" and "hover-detected hole" counterparts to
  * MeasurementOverlay's 2-point distance tool. */
-export default function RadiusOverlay({ manualPoints, hoverPoint, fit, loopPoints, isPreview }: RadiusOverlayProps) {
+export default function RadiusOverlay({
+  manualPoints,
+  hoverPoint,
+  fit,
+  loopPoints,
+  isPreview,
+  holeChange,
+}: RadiusOverlayProps) {
+  const diffColors = useDiffColors();
   if (!fit) {
     return (
       <>
@@ -67,17 +82,37 @@ export default function RadiusOverlay({ manualPoints, hoverPoint, fit, loopPoint
     ? [...loopPoints, loopPoints[0]]
     : sampleCircle(fit).map((v): [number, number, number] => [v.x, v.y, v.z]);
   const centerPosition: [number, number, number] = [fit.center.x, fit.center.y, fit.center.z];
-  // Detected loops get a distinct green "found it" color (echoes the
-  // diff viewer's added/changed convention); the manual-fit path keeps the
+  // A hole the diff engine already flagged gets its own semantic color —
+  // grew/added reads as "material removed" (removedTextClass), shrank
+  // reads as "material added" (addedTextClass), same green/red convention
+  // as every other diff number in the app. Otherwise: detected loops get a
+  // distinct green "found it" color; the manual-fit path keeps the
   // original sky-blue treatment since it isn't a detection at all.
-  const color = isDetected ? (isPreview ? "#86efac" : "#22c55e") : isPreview ? "#7dd3fc" : "#38bdf8";
-  const badgeClass = isDetected
-    ? isPreview
-      ? "border-accent-300 bg-accent-500/60 text-chrome-950"
+  const holeGrew =
+    holeChange?.kind === "added" ||
+    (holeChange?.kind === "diameter-changed" && holeChange.diameterAfterMm! > holeChange.diameterBeforeMm!);
+  const color = holeChange
+    ? holeGrew
+      ? diffColors.removedHex
+      : diffColors.addedHex
+    : isDetected
+      ? isPreview
+        ? "#86efac"
+        : "#22c55e"
+      : isPreview
+        ? "#7dd3fc"
+        : "#38bdf8";
+  const badgeClass = holeChange
+    ? holeGrew
+      ? "border-red-400 bg-red-500 text-chrome-950"
       : "border-accent-400 bg-accent-500 text-chrome-950"
-    : isPreview
-      ? "border-sky-300 bg-sky-500/60 text-chrome-950"
-      : "border-sky-400 bg-sky-500 text-chrome-950";
+    : isDetected
+      ? isPreview
+        ? "border-accent-300 bg-accent-500/60 text-chrome-950"
+        : "border-accent-400 bg-accent-500 text-chrome-950"
+      : isPreview
+        ? "border-sky-300 bg-sky-500/60 text-chrome-950"
+        : "border-sky-400 bg-sky-500 text-chrome-950";
 
   return (
     <>
@@ -100,8 +135,24 @@ export default function RadiusOverlay({ manualPoints, hoverPoint, fit, loopPoint
       />
       <Html position={centerPosition} center distanceFactor={40} occlude={false}>
         <div className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow ${badgeClass}`}>
-          {isDetected ? "Detected rim · " : ""}
-          R {fit.radius.toFixed(2)} mm · ⌀ {(fit.radius * 2).toFixed(2)} mm
+          {holeChange ? (
+            holeChange.kind === "added" ? (
+              <>New hole · ⌀ {holeChange.diameterAfterMm!.toFixed(2)} mm</>
+            ) : holeChange.kind === "removed" ? (
+              <>Removed hole · was ⌀ {holeChange.diameterBeforeMm!.toFixed(2)} mm</>
+            ) : (
+              <>
+                ⌀ {holeChange.diameterBeforeMm!.toFixed(2)} → {holeChange.diameterAfterMm!.toFixed(2)} mm (
+                {holeChange.diameterAfterMm! >= holeChange.diameterBeforeMm! ? "+" : ""}
+                {(holeChange.diameterAfterMm! - holeChange.diameterBeforeMm!).toFixed(2)} mm)
+              </>
+            )
+          ) : (
+            <>
+              {isDetected ? "Detected rim · " : ""}
+              R {fit.radius.toFixed(2)} mm · ⌀ {(fit.radius * 2).toFixed(2)} mm
+            </>
+          )}
           {isPreview ? " (click to confirm)" : ""}
         </div>
       </Html>

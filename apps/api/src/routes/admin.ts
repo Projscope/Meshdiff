@@ -118,6 +118,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
             id: u.id,
             email: u.email ?? null,
             signupDate: u.created_at,
+            lastSignInAt: u.last_sign_in_at ?? null,
             tier: isActive ? sub!.tier : "free",
             status: sub?.status ?? null,
             currentPeriodEnd: isActive ? sub!.current_period_end : null,

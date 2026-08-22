@@ -770,6 +770,7 @@ export default function LiveDiffToolPage({
                       syncedCameraState={isSyncEnabled ? syncedCameraState ?? undefined : undefined}
                       onCameraChange={handleCameraChange}
                       isSyncEnabled={isSyncEnabled}
+                      holeChanges={stats?.holeChanges}
                     />
                   </div>
 

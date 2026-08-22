@@ -4,6 +4,7 @@ export interface AdminUserRow {
   id: string;
   email: string | null;
   signupDate: string;
+  lastSignInAt: string | null;
   tier: "free" | "pro" | "team";
   status: string | null;
   currentPeriodEnd: string | null;

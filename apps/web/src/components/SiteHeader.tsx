@@ -107,6 +107,9 @@ export default function SiteHeader() {
             <Link to="/roadmap" className="hover:text-ink-200 transition-colors">
               Roadmap
             </Link>
+            <Link to="/blog" className="hover:text-ink-200 transition-colors">
+              Blog
+            </Link>
             {SHOW_MONETIZATION && (
               <a href="/#pricing" className="hover:text-ink-200 transition-colors">
                 Pricing
@@ -159,6 +162,13 @@ export default function SiteHeader() {
                 className="rounded-lg px-3 py-2 hover:bg-ink-800 hover:text-ink-50"
               >
                 Roadmap
+              </Link>
+              <Link
+                to="/blog"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 hover:bg-ink-800 hover:text-ink-50"
+              >
+                Blog
               </Link>
               {SHOW_MONETIZATION && (
                 <a
