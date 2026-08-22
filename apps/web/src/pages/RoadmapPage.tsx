@@ -7,7 +7,7 @@ export const META_DESCRIPTION =
 
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.2.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.3.0");
 
   const handleScrollToPricing = () => {
     window.location.href = "/#pricing";
@@ -34,6 +34,29 @@ export default function RoadmapPage() {
   };
 
   const changelog = [
+    {
+      version: "v1.3.0",
+      date: "2026-08-22",
+      title: "Blog CMS, print log, and SEO landing pages",
+      items: {
+        new: [
+          "Admin-authored blog with Markdown, images, and embedded video — draft/publish workflow, paginated public index at /blog",
+          "Slicer profile and print-result photo attachments per version, shown in a new Print Log section",
+          "New SEO content pages: Docs, STL/3MF/OBJ diff, 3D print version control, and vs. manual comparison",
+          "Server-rendered, prerendered marketing pages for faster first paint and better search indexing",
+        ],
+        improved: [
+          "Radius/hole auto-detect on the version Details page now matches the reliable detection already on Compare — both share the same raw-surface-point search",
+          "Distance tool shows dimension arrows with consistent, fixed sizing across every viewer",
+          "Radius measurement on the Compare/Overlay view shows before → after diameter and delta for a matched hole change",
+          "Header and footer link to the new Blog",
+        ],
+        fixed: [
+          "Google Consent Mode default wasn't set, so GA4 undercounted real visitors",
+          "Canonical/OG/sitemap URLs for prerendered routes' trailing-slash redirect",
+        ],
+      },
+    },
     {
       version: "v1.2.0",
       date: "2026-08-20",
