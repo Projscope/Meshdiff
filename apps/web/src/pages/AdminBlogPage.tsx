@@ -1,26 +1,34 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listAdminBlogPosts, deleteBlogPost, type BlogPost } from "../lib/blogApi";
+import { listAdminBlogPosts, deleteBlogPost, updateBlogPost, type BlogPost } from "../lib/blogApi";
+import BlogPostCard from "../components/BlogPostCard";
 import ConfirmDialog from "../components/ConfirmDialog";
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-}
+const PAGE_SIZE = 10;
 
 export default function AdminBlogPage() {
   const [posts, setPosts] = useState<BlogPost[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BlogPost | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   function refresh() {
-    listAdminBlogPosts().then((result) => {
-      if (result.success) setPosts(result.data.posts);
-      else setError(result.error);
+    listAdminBlogPosts(page).then((result) => {
+      if (result.success) {
+        setPosts(result.data.posts);
+        setTotal(result.data.total);
+      } else {
+        setError(result.error);
+      }
     });
   }
 
-  useEffect(refresh, []);
+  useEffect(refresh, [page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   async function handleConfirmDelete() {
     if (!pendingDelete) return;
@@ -28,6 +36,14 @@ export default function AdminBlogPage() {
     const result = await deleteBlogPost(pendingDelete.id);
     setIsDeleting(false);
     setPendingDelete(null);
+    if (result.success) refresh();
+    else setError(result.error);
+  }
+
+  async function handleTogglePublish(post: BlogPost) {
+    setTogglingId(post.id);
+    const result = await updateBlogPost(post.id, { status: post.status === "published" ? "draft" : "published" });
+    setTogglingId(null);
     if (result.success) refresh();
     else setError(result.error);
   }
@@ -46,56 +62,82 @@ export default function AdminBlogPage() {
 
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-ink-800">
-        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center">
-          <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
-            Title
-          </span>
-          <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
-            Status
-          </span>
-          <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
-            Updated
-          </span>
-          <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500" />
+      <div className="mt-6 flex flex-col gap-4">
+        {posts && posts.length === 0 && (
+          <p className="rounded-lg border border-ink-800 bg-ink-900 px-4 py-10 text-center text-sm text-ink-500">
+            No posts yet — click "+ New post" to write one.
+          </p>
+        )}
 
-          {posts && posts.length === 0 && (
-            <div className="col-span-4 px-4 py-10 text-center text-sm text-ink-500">
-              No posts yet — click "+ New post" to write one.
-            </div>
-          )}
-
-          {posts?.map((post, i) => {
-            const rowBorder = i === posts.length - 1 ? "" : "border-b border-ink-900";
-            return (
-              <div key={post.id} className="contents">
-                <Link to={`/admin/blog/${post.id}`} className={`truncate px-4 py-3 text-sm text-ink-200 hover:text-ink-50 ${rowBorder}`}>
-                  {post.title}
+        {posts?.map((post) => (
+          <BlogPostCard
+            key={post.id}
+            post={post}
+            to={`/admin/blog/${post.id}`}
+            badge={
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                  post.status === "published" ? "bg-accent-500/15 text-accent-400" : "bg-ink-800 text-ink-400"
+                }`}
+              >
+                {post.status}
+              </span>
+            }
+            actions={
+              <div className="flex items-center gap-3 text-[11px]">
+                <Link to={`/admin/blog/${post.id}`} className="text-ink-400 hover:text-ink-100">
+                  Edit
                 </Link>
-                <span className={`px-4 py-3 text-sm ${rowBorder}`}>
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                      post.status === "published" ? "bg-accent-500/15 text-accent-400" : "bg-ink-800 text-ink-400"
-                    }`}
+                {post.status === "published" && (
+                  <a
+                    href={`/blog/${post.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-ink-400 hover:text-ink-100"
                   >
-                    {post.status}
-                  </span>
-                </span>
-                <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>{formatDate(post.updatedAt)}</span>
-                <span className={`px-4 py-3 text-right text-sm ${rowBorder}`}>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(post)}
-                    className="text-[11px] text-ink-500 hover:text-red-400"
-                  >
-                    Delete
-                  </button>
-                </span>
+                    View
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleTogglePublish(post)}
+                  disabled={togglingId === post.id}
+                  className="text-ink-400 hover:text-ink-100 disabled:opacity-50"
+                >
+                  {togglingId === post.id ? "…" : post.status === "published" ? "Unpublish" : "Publish"}
+                </button>
+                <button type="button" onClick={() => setPendingDelete(post)} className="text-ink-500 hover:text-red-400">
+                  Delete
+                </button>
               </div>
-            );
-          })}
-        </div>
+            }
+          />
+        ))}
       </div>
+
+      {posts && total > PAGE_SIZE && (
+        <div className="mt-6 flex items-center justify-center gap-3 text-sm">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ← Prev
+          </button>
+          <span className="text-ink-500">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next →
+          </button>
+        </div>
+      )}
 
       {pendingDelete && (
         <ConfirmDialog

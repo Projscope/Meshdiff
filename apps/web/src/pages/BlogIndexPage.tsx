@@ -1,30 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Image } from "@phosphor-icons/react";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 import { listBlogPosts, type BlogPost } from "../lib/blogApi";
+import BlogPostCard from "../components/BlogPostCard";
 
 export const META_TITLE = "Blog | Meshdiff";
 export const META_DESCRIPTION = "Updates, write-ups, and behind-the-scenes notes on building Meshdiff's diff engine.";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-}
-
-/** Falls back to a plain-text snippet of the post body when no excerpt is
- * set, so the card never shows an empty gap under the title/date. */
-function previewText(post: BlogPost): string | null {
-  if (post.excerpt) return post.excerpt;
-  const plain = post.contentMarkdown
-    .replace(/\{\{video:[^}]*\}\}/g, "")
-    .replace(/[#>*_`~-]/g, "")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!plain) return null;
-  return plain.length > 180 ? `${plain.slice(0, 180)}…` : plain;
-}
 
 const PAGE_SIZE = 10;
 
@@ -67,33 +47,9 @@ export default function BlogIndexPage() {
           <div className="mx-auto flex max-w-3xl flex-col gap-4">
             {error && <p className="text-sm text-red-400">{error}</p>}
             {posts && posts.length === 0 && <p className="text-sm text-ink-500">No posts yet — check back soon.</p>}
-            {posts?.map((post) => {
-              const preview = previewText(post);
-              return (
-                <Link
-                  key={post.id}
-                  to={`/blog/${post.slug}`}
-                  className="flex min-h-[168px] gap-5 rounded-xl border border-ink-800 bg-ink-900 p-6 transition hover:border-ink-700"
-                >
-                  {post.coverImageUrl ? (
-                    <img
-                      src={post.coverImageUrl}
-                      alt=""
-                      className="hidden h-32 w-44 shrink-0 rounded-lg object-cover sm:block"
-                    />
-                  ) : (
-                    <div className="hidden h-32 w-44 shrink-0 items-center justify-center rounded-lg bg-ink-800 sm:flex">
-                      <Image size={32} className="text-ink-600" />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-ink-50">{post.title}</h2>
-                    <p className="mt-1 text-xs text-ink-500">{post.publishedAt && formatDate(post.publishedAt)}</p>
-                    {preview && <p className="mt-3 text-sm leading-relaxed text-ink-400">{preview}</p>}
-                  </div>
-                </Link>
-              );
-            })}
+            {posts?.map((post) => (
+              <BlogPostCard key={post.id} post={post} to={`/blog/${post.slug}`} />
+            ))}
           </div>
 
           {posts && total > PAGE_SIZE && (
