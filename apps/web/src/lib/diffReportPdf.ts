@@ -15,6 +15,26 @@ const NEUTRAL_950 = "#15181e";
 const NEUTRAL_400 = "#7c879e";
 const NEUTRAL_700 = "#333b4a";
 
+/** Large, low-opacity diagonal text across the whole page — the Free tier's
+ * watermark gate (see CLAUDE.md pricing table: Free = "watermark", Pro/Team
+ * = "no watermark"). Drawn first so the page's actual content layers on top
+ * of it. */
+function drawWatermark(doc: jsPDF) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  doc.saveGraphicsState();
+  doc.setGState(doc.GState({ opacity: 0.08 }));
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(40);
+  doc.setTextColor(NEUTRAL_950);
+  doc.text("GENERATED WITH COMMUNITY VERSION", pageWidth / 2, pageHeight / 2, {
+    align: "center",
+    angle: 45,
+  });
+  doc.restoreGraphicsState();
+}
+
 /** Draws the "^" logomark + Meshdiff wordmark, linked to meshdiff.com. */
 function drawLetterhead(doc: jsPDF) {
   doc.setFillColor(ACCENT);
@@ -83,14 +103,17 @@ function drawScreenshots(doc: jsPDF, screenshots: DiffReportScreenshots | undefi
 /** Builds and triggers a browser download of a Meshdiff diff-report PDF —
  * Meshdiff letterhead/link, the voxel diff stats, an optional row of viewport
  * screenshots, and a footer noting the Free tier unless `isProOrTeam` is set.
- * Shared by the public /live tool and the authenticated Projects compare view
- * so the report stays identical. */
+ * Free-tier reports also get a diagonal "GENERATED WITH COMMUNITY VERSION"
+ * watermark across the page (see CLAUDE.md pricing table: watermark is a
+ * Free-tier gate, removed on Pro/Team). Shared by the public /live tool and
+ * the authenticated Projects compare view so the report stays identical. */
 export function downloadDiffReportPdf(
   stats: DiffReportStats,
   isProOrTeam: boolean,
   screenshots?: DiffReportScreenshots,
 ) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
+  if (!isProOrTeam) drawWatermark(doc);
   drawLetterhead(doc);
 
   let y = 42;
