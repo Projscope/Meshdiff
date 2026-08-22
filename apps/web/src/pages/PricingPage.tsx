@@ -33,9 +33,10 @@ export default function PricingPage() {
           <div className="mx-auto max-w-3xl">
             <h2 className="text-2xl font-bold text-ink-50">A note on privacy</h2>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-300">
-              Diffing itself always happens client-side, in your browser — that doesn't change on Pro or Team.
-              Versioning history and comments on paid plans are stored so they can persist across sessions and be
-              shared with teammates; your model files are never sent to a third party.
+              Diffing normally happens client-side, in your browser, on Free, Pro, and Team alike. Saved versions'
+              diffs are cached once computed, and are only recomputed on our server as a fallback if that cache is
+              ever missing. Versioning history and comments on paid plans are stored so they can persist across
+              sessions and be shared with teammates; your model files are never sent to a third party.
             </p>
           </div>
         </section>
