@@ -40,6 +40,10 @@ const FAQS: Faq[] = [
     a: "The comparison engine — voxel diff, surface-heatmap drift, measuring, and shareable links — is free forever on the Free (Community) plan, no account required. Pro adds saved project workspaces, version history for every model, and PDF diff reports. Team adds comment pins on 3D models, a team approvals workflow, and print-log tracking (slicer profile snapshots, print-result photos) per version.",
     link: { to: "/pricing", label: "See the full feature comparison" },
   },
+  {
+    q: "What happens to my saved comparisons if I downgrade from Pro?",
+    a: "Your existing projects, versions, and comments are retained — nothing is deleted. You keep read access to all of it: viewing a project, its version history, its diffs, and its comments still works. Adding anything new — uploading a version, commenting, approving/rejecting, deleting a version, or attaching a slicer profile or print photo — requires resubscribing to Pro or Team.",
+  },
 ];
 
 const faqJsonLd = {

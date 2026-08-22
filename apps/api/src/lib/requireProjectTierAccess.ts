@@ -4,14 +4,22 @@ import type { ProjectAccess } from "./ownership.js";
 import { getAccountAccess } from "./subscription.js";
 
 /**
- * Free users get full read/write on their own auto-seeded Sample Project
- * (see seedSampleProject.ts) — compare, delete, share, report, measure —
- * so they can see what Pro looks like before upgrading, but nothing else.
- * Pro/Team users are unrestricted — this uses getAccountAccess() (not a
- * raw tier === "pro" check) specifically so a Team owner (own tier
- * "team") and a team member with no subscription of their own (riding the
- * owner's seats, own tier "free" but viaTeamMembership) both count as
- * unrestricted, same as requireActiveAccess.ts does for its own gate.
+ * Gates a *mutation* on a project that isn't the auto-seeded Sample
+ * Project (see seedSampleProject.ts) — comment, approve/reject, delete a
+ * version, upload a slicer profile or print photo, etc. Pro/Team users are
+ * unrestricted — this uses getAccountAccess() (not a raw tier === "pro"
+ * check) specifically so a Team owner (own tier "team") and a team member
+ * with no subscription of their own (riding the owner's seats, own tier
+ * "free" but viaTeamMembership) both count as unrestricted, same as
+ * requireActiveAccess.ts does for its own gate.
+ *
+ * A downgraded former-Pro user hits this too (their own projects aren't
+ * exempt just because they used to be Pro) — per the pricing FAQ, existing
+ * history is retained and stays *readable* after a downgrade, but creating
+ * or changing anything on it requires resubscribing. Read routes (list/get
+ * a project, its versions, its comments, its diff) don't call this at all
+ * — see requireProjectReadAccess below.
+ *
  * Call after getProjectAccess() has already confirmed access.role is
  * non-null (404 case handled by the caller); this only decides the
  * 403-vs-allow question.
@@ -20,7 +28,7 @@ import { getAccountAccess } from "./subscription.js";
  * Sample Project ships with its two versions pre-seeded (see
  * seedSampleProject.ts); free users explore those, they don't add more.
  */
-export async function requireProjectTierAccess(
+export async function requireProjectWriteAccess(
   supabase: SupabaseClient,
   userId: string,
   access: ProjectAccess,

@@ -7,7 +7,7 @@ import { generateChangeSummary } from "../lib/generateSummary.js";
 import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
-import { requireProjectTierAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
+import { requireProjectWriteAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES } from "../lib/fileSizeLimit.js";
 import { logTeamAudit } from "../lib/teamAuditLog.js";
@@ -309,7 +309,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
         if (!canReviewVersions(access)) {
           reply.code(403);
           return { success: false, error: "Only a team admin can approve versions" };
@@ -372,7 +372,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
         if (!canReviewVersions(access)) {
           reply.code(403);
           return { success: false, error: "Only a team admin can reject versions" };
@@ -432,7 +432,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        // Listing versions is a read — unrestricted for anyone with
+        // project access, including a downgraded former-Pro user.
 
         const { data: rows, error } = await supabase
           .from("versions")
@@ -486,7 +487,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        // Viewing a version's own detail is a read — unrestricted for
+        // anyone with project access, including a downgraded former-Pro user.
 
         const { data: row, error } = await supabase
           .from("versions")
@@ -578,7 +580,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: row, error: lookupError } = await supabase
           .from("versions")
@@ -677,7 +679,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: existing, error: lookupError } = await supabase
           .from("versions")
@@ -747,7 +749,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: row, error: lookupError } = await supabase
           .from("versions")
@@ -828,7 +830,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: existing, error: lookupError } = await supabase
           .from("versions")
@@ -900,7 +902,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: row, error: lookupError } = await supabase
           .from("versions")
@@ -955,7 +957,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         reply.code(404);
         return { success: false, error: "Project not found" };
       }
-      if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+      // Downloading the existing versions as a zip is a read — unrestricted
+      // for anyone with project access, including a downgraded former-Pro user.
 
       const { data: rows, error } = await supabase
         .from("versions")
@@ -1021,7 +1024,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        // Resolving the stable version is a read — unrestricted for anyone
+        // with project access, including a downgraded former-Pro user.
 
         const stable = await getStableVersion(supabase, projectId);
         if (!stable) {

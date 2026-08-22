@@ -4,7 +4,7 @@ import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { getUserTier } from "../lib/subscription.js";
-import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
+import { requireProjectWriteAccess } from "../lib/requireProjectTierAccess.js";
 
 const BUCKET = "project-meshes";
 const THUMBNAIL_URL_TTL_SECONDS = 3600;
@@ -192,7 +192,8 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        // Viewing a project's own detail is a read — unrestricted for
+        // anyone with access, including a downgraded former-Pro user.
 
         const { data: row, error } = await supabase
           .from("projects")
@@ -270,7 +271,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         // Moving a project between teams is owner-only (it changes who has
         // access at all); renaming/describing is fine for a team admin too.
@@ -346,7 +347,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
         // auto-fallback effect in ProjectDetailPage.tsx) isn't uploading a
         // new version — it's cosmetic, so it follows the same sample-project
         // exemption as viewing/comparing, not the stricter upload gate.
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: upload, error } = await supabase.storage
           .from(BUCKET)
@@ -434,7 +435,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { error } = await supabase.storage.from(BUCKET).remove([thumbnailPath(projectId)]);
         if (error) {

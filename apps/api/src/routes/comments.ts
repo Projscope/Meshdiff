@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { getProjectAccess } from "../lib/ownership.js";
-import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
+import { requireProjectWriteAccess } from "../lib/requireProjectTierAccess.js";
 
 interface CommentRow {
   id: string;
@@ -74,7 +74,9 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        // Reading comments is unrestricted for anyone with project access —
+        // a downgraded former-Pro user can still see their history, they
+        // just can't add to it (see the POST/DELETE handlers below).
 
         const { data: rows, error } = await supabase
           .from("comments")
@@ -144,7 +146,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: version, error: versionError } = await supabase
           .from("versions")
@@ -232,7 +234,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
 
         const { data: version, error: versionError } = await supabase
           .from("versions")
