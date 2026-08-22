@@ -44,6 +44,10 @@ const FAQS: Faq[] = [
     q: "What happens to my saved comparisons if I downgrade from Pro?",
     a: "Your existing projects, versions, and comments are retained — nothing is deleted. You keep read access to all of it: viewing a project, its version history, its diffs, and its comments still works. Adding anything new — uploading a version, commenting, approving/rejecting, deleting a version, or attaching a slicer profile or print photo — requires resubscribing to Pro or Team.",
   },
+  {
+    q: "Is there a limit to file size or number of comparisons on Free?",
+    a: "No comparison limit — compare as many files as you want, as often as you want. File size isn't capped by us either: parsing and voxelizing happen entirely in your browser, so the practical ceiling is whatever memory your browser tab has available, not a number we impose. (Saved projects on Pro and Team are a separate case: uploads there go to server storage, which is capped at 50MB per file.)",
+  },
 ];
 
 const faqJsonLd = {
