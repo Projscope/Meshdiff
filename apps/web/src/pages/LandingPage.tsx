@@ -1,8 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  Check,
   CheckCircle,
   ChatCircle,
   ClockCounterClockwise,
@@ -17,16 +16,12 @@ import {
 } from "@phosphor-icons/react";
 import FaqAccordion from "../components/FaqAccordion";
 import SectionHeader from "../components/SectionHeader";
+import PricingCards from "../components/PricingCards";
 import { useCountUp } from "../hooks/useCountUp";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import liveDiffPreview from "../assets/live-diff-preview.png";
 import liveDiffPreviewWebp from "../assets/live-diff-preview.webp";
-import { SHOW_MONETIZATION, LAUNCH_OFFER_DEADLINE } from "../lib/featureFlags";
-import { useCountdown } from "../hooks/useCountdown";
-import { supabase } from "../lib/supabaseClient";
-import { getSubscription } from "../lib/projectsApi";
-import { markPendingProCheckout } from "../lib/pendingCheckout";
-import AlreadyProModal from "../components/AlreadyProModal";
+import { SHOW_MONETIZATION } from "../lib/featureFlags";
 
 // R3F/Three.js/the voxel-diff worker only download once someone actually
 // clicks to try the demo (see the click-to-activate state below) — an
@@ -38,72 +33,6 @@ const LandingLiveDemo = lazy(() => import("../components/LandingLiveDemo"));
 import teamsImg from '../assets/teams.webp';
 import proImg from '../assets/pro.jpeg';
 import soloImg from '../assets/solo.webp';
-
-interface PricingTier {
-  name: string;
-  price: string;
-  /** Struck through next to price when set — e.g. the pre-discount price. */
-  originalPrice?: string;
-  period: string | null;
-  audience: string;
-  cta: { label: string; to: string } | { label: string; scroll: true } | { label: string; checkout: true };
-  highlighted: boolean;
-  features: string[];
-  /** Small promo pill shown above the tier name, e.g. a launch discount. */
-  badge?: string;
-  /** Small urgency line shown under the price, e.g. a launch-offer deadline. */
-  urgency?: string;
-}
-
-const PRICING_TIERS: PricingTier[] = [
-  {
-    name: "Community",
-    price: "Free",
-    period: null,
-    audience: "Compare any two models, right now.",
-    cta: { label: "Open the diff tool", to: "/live" },
-    highlighted: false,
-    features: [
-      "Compare OBJ, STL, and 3MF files",
-      "Measure distances and radiuses tools",
-      "Voxel diff, added and removed",
-      "Adjustable tolerance and cross-section",
-      "Shareable links, 1, 3, or 7 days",
-    ],
-  },
-  {
-    name: "Pro",
-    price: "$7.50",
-    originalPrice: "$15.00",
-    period: "/mo",
-    audience: "CAD and print engineers",
-    cta: { label: "Subscribe to Pro", checkout: true },
-    highlighted: true,
-    badge: "Early Subscriber Offer (50% OFF × 1 months)",
-    urgency: "Launch offer: 50% off first month. Ends Sunday at midnight.",
-    features: [
-      "Everything in Community",
-      "Project workspaces",
-      "Version history for every model",
-      "PDF diff reports for client review",
-    ],
-  },
-  {
-    name: "Team",
-    price: "$17.50",
-    period: "/seat/mo",
-    audience: "Hardware teams",
-    cta: { label: "Will be available soon", scroll: true },
-    highlighted: false,
-    features: [
-      "Everything in Pro",
-      "Team approvals workflow",
-      "Comment pins on 3D models",
-      "Slicer profile snapshots and print logs",
-      "Centralized billing and roles",
-    ],
-  },
-];
 
 interface HeroStat {
   target: number;
@@ -262,9 +191,6 @@ function HeroStatItem({ stat }: { stat: HeroStat }) {
 export default function LandingPage() {
   const servicesRef = useScrollReveal<HTMLDivElement>();
   const processRef = useScrollReveal<HTMLDivElement>();
-  const navigate = useNavigate();
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [showAlreadyPro, setShowAlreadyPro] = useState(false);
   // ?demo=open auto-activates the hero demo on load — a testing/sharing
   // convenience (e.g. re-running a Lighthouse pass against the "always
   // embedded" case), not something surfaced to real visitors. Default
@@ -274,11 +200,6 @@ export default function LandingPage() {
     // the build-time prerender pass (see scripts/prerender.mjs).
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "open",
   );
-  const proOfferCountdown = useCountdown(LAUNCH_OFFER_DEADLINE);
-
-  function scrollToEarlyAccess() {
-    document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
-  }
 
   function scrollToPricing() {
     const pricingSection = document.getElementById("pricing");
@@ -297,39 +218,6 @@ export default function LandingPage() {
       }, 300);
     }
   }, []);
-
-  // Three outcomes depending on who's clicking:
-  //  - Signed out: nowhere to check out into yet — send to sign-up (not
-  //    sign-in; someone clicking "Subscribe" is very likely a new visitor)
-  //    and remember the intent so the dashboard can resume checkout
-  //    automatically once a session exists (see ProjectsLayout.tsx —
-  //    handles both the immediate-session and confirm-email-first cases,
-  //    since the flag survives that whole round trip in localStorage).
-  //  - Signed in, already Pro: nothing to sell them — a plain "you're
-  //    already subscribed" modal instead of a pointless second Checkout
-  //    session.
-  //  - Signed in, not Pro: same "resume on the dashboard" flag, then
-  //    straight to /projects — ProjectsLayout raises the real Checkout
-  //    redirect from there once it's confirmed the tier itself.
-  async function handleProCheckout() {
-    setIsCheckingOut(true);
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      markPendingProCheckout();
-      navigate("/login?mode=signup");
-      return;
-    }
-
-    const subscriptionResult = await getSubscription();
-    if (subscriptionResult.success && subscriptionResult.data.tier === "pro") {
-      setIsCheckingOut(false);
-      setShowAlreadyPro(true);
-      return;
-    }
-
-    markPendingProCheckout();
-    navigate("/projects");
-  }
 
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100">
@@ -705,7 +593,8 @@ export default function LandingPage() {
           </section>
         )}
 
-        {/* Pricing (hidden until Stripe billing is wired up) */}
+        {/* Pricing (hidden until Stripe billing is wired up) — card grid is
+            shared with the standalone /pricing page, see PricingCards.tsx */}
         {SHOW_MONETIZATION && (
           <section id="pricing" className="border-t border-ink-900 px-6 py-14">
             <div className="mx-auto max-w-5xl">
@@ -714,78 +603,7 @@ export default function LandingPage() {
                 title="Diff for free. Upgrade to save, review, and share."
                 description="The comparison tool is free forever. Founding members get 50% off Pro and Team for 3 months."
               />
-              <div className="grid gap-4 md:grid-cols-3">
-                {PRICING_TIERS.map((tier) => (
-                  <div
-                    key={tier.name}
-                    className={`relative rounded-xl border p-6 ${tier.highlighted
-                      ? "border-accent-500 bg-ink-900"
-                      : "border-ink-800 bg-ink-900"
-                      }`}
-                  >
-                    {tier.badge && (
-                      <span className="absolute -top-3 left-6 rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-chrome-950">
-                        {tier.badge}
-                      </span>
-                    )}
-                    <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-accent-400" : "text-ink-300"}`}>
-                      {tier.name}
-                    </h3>
-                    <div className="mt-2 flex items-baseline gap-1.5">
-                      <span className="text-3xl font-bold text-ink-50">{tier.price}</span>
-                      {tier.originalPrice && (
-                        <span className="text-sm text-ink-400 line-through">{tier.originalPrice}</span>
-                      )}
-                      {tier.period && <span className="text-xs text-ink-400">{tier.period}</span>}
-                    </div>
-                    <p className="mt-1 text-xs text-ink-400">{tier.audience}</p>
-                    {tier.urgency && (
-                      <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-purple-400">
-                        <span className="rounded-full bg-purple-400" />
-                        *{tier.urgency}
-                        <span className="font-mono tabular-nums">{proOfferCountdown}</span>
-                      </p>
-                    )}
-
-                    {"to" in tier.cta ? (
-                      <Link
-                        to={tier.cta.to}
-                        className="mt-4 block w-full rounded-lg bg-accent-500 py-2 text-center text-sm font-medium text-chrome-950 transition hover:bg-accent-400"
-                      >
-                        {tier.cta.label}
-                      </Link>
-                    ) : "checkout" in tier.cta ? (
-                      <button
-                        type="button"
-                        onClick={() => void handleProCheckout()}
-                        disabled={isCheckingOut}
-                        className="mt-4 w-full rounded-lg border border-accent-500/40 bg-accent-500/10 py-2 text-sm font-medium text-accent-400 transition hover:bg-accent-500/15 disabled:opacity-50"
-                      >
-                        {isCheckingOut ? "Redirecting…" : tier.cta.label}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={scrollToEarlyAccess}
-                        className={`mt-4 w-full rounded-lg py-2 text-sm font-medium transition ${tier.highlighted
-                          ? "border border-accent-500/40 bg-accent-500/10 text-accent-400 hover:bg-accent-500/15"
-                          : "border border-ink-700 text-ink-300 hover:border-ink-500"
-                          }`}
-                      >
-                        {tier.cta.label}
-                      </button>
-                    )}
-                    <ul className="mt-5 flex flex-col gap-2 text-xs text-ink-400">
-                      {tier.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-accent-400" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+              <PricingCards />
             </div>
           </section>
         )}
@@ -880,8 +698,6 @@ export default function LandingPage() {
           </div>
         </section>
       </main>
-
-      {showAlreadyPro && <AlreadyProModal onClose={() => setShowAlreadyPro(false)} />}
     </div>
   );
 }
