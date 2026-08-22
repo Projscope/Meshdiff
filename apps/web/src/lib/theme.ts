@@ -11,7 +11,16 @@ const STORAGE_KEY = "meshdiff_theme";
 const CHANGE_EVENT = "meshdiff:theme-change";
 
 function readStored(): Theme {
-  return localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
+  // Guarded for the build-time SSR/prerender pass (see scripts/prerender.mjs):
+  // modern Node ships a partial/non-functional global `localStorage` stub
+  // in some configurations, so `typeof localStorage === "undefined"` alone
+  // isn't a reliable check — wrap in try/catch instead. The inline script
+  // in index.html sets the real theme before hydration in the browser.
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
 }
 
 function apply(theme: Theme) {

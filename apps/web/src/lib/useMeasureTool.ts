@@ -271,20 +271,27 @@ export function useMeasureTool(): MeasureTool {
     if (!isMeasuring) return;
     event.stopPropagation();
 
-    // Hole/boss auto-detect searches off the true vertex/edge snap (not the
-    // freeform surface point) — a different question ("is there a circular
-    // feature near this specific edge") than "where's the cursor."
-    if (measureMode === "radius") {
-      const snappedForHoleSearch = nearestSnapPoint(event);
-      if (snappedForHoleSearch) {
-        const loop = findNearestLoop(boundaryLoopsRef.current, snappedForHoleSearch, 1e-3);
-        if (loop) {
-          setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
-          setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
-          setMeasureHover(null);
-          clearHighlights();
-          return;
-        }
+    // Hole/boss auto-detect searches off the true cursor position on the
+    // surface, not a vertex/edge snap — nearestSnapPoint() only considers
+    // the 3 corners of whichever single triangle the raycast happens to
+    // hit, so if that triangle's nearest corner is a cap-interior vertex
+    // rather than one actually on the hole's rim (extremely common: most
+    // triangles touching a hole have at most 1-2 of their 3 corners on the
+    // boundary), it returns a point that's genuinely ~1mm+ from the real
+    // rim — no amount of tolerance on an exact-vertex match fixes that,
+    // since it's not floating-point noise, it's the wrong vertex entirely.
+    // Searching from the raw surface point against the loop's own points
+    // (like a snap magnet, not an exact-match) finds the real rim
+    // regardless of which triangle got hit.
+    if (measureMode === "radius" && event.face) {
+      const surfacePoint = event.point.clone().applyMatrix4(GROUP_ROTATION_INVERSE);
+      const loop = findNearestLoop(boundaryLoopsRef.current, surfacePoint, snapHighlightRadius());
+      if (loop) {
+        setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
+        setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
+        setMeasureHover(null);
+        clearHighlights();
+        return;
       }
       setRadiusPreviewFit(null);
       setRadiusPreviewLoopPoints(null);

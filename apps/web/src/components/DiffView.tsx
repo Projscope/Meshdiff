@@ -8,6 +8,7 @@ import {
   useMemo,
 } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Canvas } from "@react-three/fiber";
 import { Bounds } from "@react-three/drei";
 import {
@@ -17,6 +18,7 @@ import {
   type VoxelDiffResult,
   type VoxelDiffStats,
 } from "@meshdiff/shared/engine/diffVoxels";
+import type { HoleChange } from "@meshdiff/shared/types/diff";
 import { computeVoxelDiffOffThread } from "../lib/voxelDiffWorkerClient";
 import SurfaceHeatmap from "./SurfaceHeatmap";
 import AxisLegend from "./AxisLegend";
@@ -26,6 +28,8 @@ import ZoomToFitBridge from "./ZoomToFitBridge";
 import CameraSync from "./CameraSync";
 import DiffPaletteSelect from "./DiffPaletteSelect";
 import EdgeOverlay from "./EdgeOverlay";
+import MeasureSceneOverlay from "./MeasureSceneOverlay";
+import { useMeasureTool } from "../lib/useMeasureTool";
 import { useDiffColors } from "../lib/diffPalette";
 
 export type DiffMode = "voxel" | "surface" | "overlay";
@@ -68,6 +72,11 @@ interface DiffViewProps {
   onCameraChange?: (state: { position: [number, number, number]; target: [number, number, number] }) => void;
   /** Whether sync is currently enabled. */
   isSyncEnabled?: boolean;
+  /** The same diff's per-hole added/removed/resized breakdown (see
+   * DetailedStatsPanel's aggregate counts of this same data) — lets the
+   * Radius tool show a hole's before/after diameter instead of just its
+   * current one, in Overlay mode. */
+  holeChanges?: HoleChange[];
 }
 
 export interface DiffViewHandle {
@@ -152,6 +161,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     syncedCameraState,
     onCameraChange,
     isSyncEnabled = false,
+    holeChanges = [],
   },
   ref,
 ) {
@@ -159,6 +169,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const diffColors = useDiffColors();
+  const measure = useMeasureTool();
 
   // Neither engine (diffVoxels.ts, surfaceDeviation.ts) aligns meshes on its
   // own — both assume a shared coordinate frame and say so in their own
@@ -195,6 +206,50 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     clone.translate(...offset);
     return { alignedGeometryB: clone, alignmentOffsetMm: offset };
   }, [geometryA, geometryB, alignment]);
+
+  // Radius-tool wiring for Overlay mode only — it's the mode with both
+  // meshes rendered as plain <mesh> elements already (Voxels has no
+  // continuous surface to raycast against; Surface's heatmap mesh doesn't
+  // forward pointer events yet). Detecting rims off both meshes merged
+  // together means either version's hole answers a hover, regardless of
+  // which one the raycast actually hit.
+  useEffect(() => {
+    if (mode !== "overlay" || !geometryA || !alignedGeometryB) return;
+    measure.clearMeasurement();
+    const merged = mergeGeometries([geometryA, alignedGeometryB], false);
+    const box = merged.boundingBox ?? (merged.computeBoundingBox(), merged.boundingBox);
+    const size = box ? box.getSize(new THREE.Vector3()) : new THREE.Vector3(1, 1, 1);
+    measure.setGeometry(merged, [size.x, size.y, size.z]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, geometryA, alignedGeometryB]);
+
+  // Once a rim is detected, look up whether it's one the diff engine
+  // already flagged (see DetailedStatsPanel's holesAdded/Removed/
+  // DiameterChanged counts, computed from this same array) — matched by
+  // proximity to its recorded location, same idea as matchHoles() itself
+  // uses server/worker-side. A generous-ish radius since the loop centroid
+  // and the recorded hole center come from independent computations
+  // (this one from the raw mesh, that one from detectCylindricalHoles on
+  // the pre-alignment geometry) rather than needing to agree to sub-mm.
+  const HOLE_CHANGE_MATCH_RADIUS_MM = 2;
+  const activeLoopPoints = measure.radiusCommittedLoopPoints ?? measure.radiusPreviewLoopPoints;
+  const matchedHoleChange = useMemo<HoleChange | null>(() => {
+    if (!activeLoopPoints || holeChanges.length === 0) return null;
+    const centroid = activeLoopPoints
+      .reduce((acc, [x, y, z]) => [acc[0] + x, acc[1] + y, acc[2] + z], [0, 0, 0])
+      .map((v) => v / activeLoopPoints.length) as [number, number, number];
+    let best: HoleChange | null = null;
+    let bestDist = HOLE_CHANGE_MATCH_RADIUS_MM;
+    for (const change of holeChanges) {
+      const [hx, hy, hz] = change.locationMm;
+      const d = Math.hypot(centroid[0] - hx, centroid[1] - hy, centroid[2] - hz);
+      if (d < bestDist) {
+        bestDist = d;
+        best = change;
+      }
+    }
+    return best;
+  }, [activeLoopPoints, holeChanges]);
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
@@ -339,6 +394,37 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               className={`px-2 py-0.5 ${mode === "overlay" ? "bg-ink-700 text-ink-50" : "text-ink-400"}`}
             >
               Overlay
+            </button>
+          </div>
+        )}
+        {!isPending && !hasError && mode === "overlay" && (
+          // Radius/distance measuring — Overlay only for now (see the
+          // wiring effect above for why): it's the mode with both meshes
+          // rendered as plain, raycastable <mesh> elements already.
+          <div className="flex overflow-hidden rounded border border-ink-700 text-[11px]">
+            <button
+              type="button"
+              onClick={() => measure.toggleMeasuring("distance")}
+              title={
+                measure.isToolActive("distance")
+                  ? "Click to clear this distance measurement"
+                  : "Measure distance between two points"
+              }
+              className={`px-2 py-0.5 ${measure.isToolActive("distance") ? "bg-amber-500 text-chrome-950" : "text-ink-400 hover:text-ink-50"}`}
+            >
+              📏
+            </button>
+            <button
+              type="button"
+              onClick={() => measure.toggleMeasuring("radius")}
+              title={
+                measure.isToolActive("radius")
+                  ? "Click to clear this radius measurement"
+                  : "Measure a hole/boss radius — hovering a hole that changed between versions shows its before/after diameter"
+              }
+              className={`px-2 py-0.5 ${measure.isToolActive("radius") ? "bg-sky-500 text-chrome-950" : "text-ink-400 hover:text-ink-50"}`}
+            >
+              ⌀
             </button>
           </div>
         )}
@@ -523,7 +609,12 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             <Bounds key={`overlay-${geometryA.uuid}-${alignedGeometryB.uuid}`} fit clip observe margin={1.2}>
               <BoundsResetBridge resetRef={resetViewRef} />
               <ZoomToFitBridge zoomRef={zoomToFitRef} />
-              <mesh geometry={geometryA}>
+              <mesh
+                geometry={geometryA}
+                onPointerMove={measure.onPointerMove}
+                onClick={(event) => measure.onClick(event)}
+                onPointerOut={measure.onPointerOut}
+              >
                 <meshStandardMaterial
                   color={diffColors.removedHex}
                   transparent
@@ -533,7 +624,12 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
                 />
               </mesh>
               <EdgeOverlay geometry={geometryA} />
-              <mesh geometry={alignedGeometryB}>
+              <mesh
+                geometry={alignedGeometryB}
+                onPointerMove={measure.onPointerMove}
+                onClick={(event) => measure.onClick(event)}
+                onPointerOut={measure.onPointerOut}
+              >
                 <meshStandardMaterial
                   color={diffColors.addedHex}
                   transparent
@@ -543,6 +639,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
                 />
               </mesh>
               <EdgeOverlay geometry={alignedGeometryB} />
+              <MeasureSceneOverlay measure={measure} holeChange={matchedHoleChange} />
             </Bounds>
           )}
         </ModelScene>

@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ulid } from "ulid";
 import archiver from "archiver";
 import { requireSupabase } from "../lib/requireSupabase.js";
-import { extensionOf } from "../lib/filename.js";
+import { extensionOf, sanitizeFilename } from "../lib/filename.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
 import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
@@ -23,6 +23,12 @@ import { logTeamAudit } from "../lib/teamAuditLog.js";
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
 const DOWNLOAD_URL_TTL_SECONDS = 60;
 const BUCKET = "project-meshes";
+// Slicer profile is a settings snapshot, not G-code toolpath data (out of
+// scope per CLAUDE.md) — capped small since it's meant to be a small text
+// export, not an arbitrary file.
+const MAX_SLICER_PROFILE_BYTES = 2 * 1024 * 1024;
+const MAX_PRINT_PHOTO_BYTES = 10 * 1024 * 1024;
+const PRINT_PHOTO_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
 
 interface CreateVersionBody {
   fileName?: string;
@@ -48,6 +54,11 @@ export interface VersionRow {
   rejection_reason: string | null;
   created_at: string;
   uploaded_by_user_id: string | null;
+  slicer_profile_path?: string | null;
+  slicer_profile_file_name?: string | null;
+  print_photo_path?: string | null;
+  print_photo_file_name?: string | null;
+  print_photo_caption?: string | null;
 }
 
 export function toVersionSummary(row: VersionRow, uploaderEmail: string | null = null) {
@@ -514,12 +525,36 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           previousVersionId = (prev as { id: string } | null)?.id ?? null;
         }
 
+        let slicerProfile: { fileName: string; downloadUrl: string } | null = null;
+        if (versionRow.slicer_profile_path && versionRow.slicer_profile_file_name) {
+          const { data: signed } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(versionRow.slicer_profile_path, DOWNLOAD_URL_TTL_SECONDS);
+          if (signed) slicerProfile = { fileName: versionRow.slicer_profile_file_name, downloadUrl: signed.signedUrl };
+        }
+
+        let printPhoto: { fileName: string; caption: string | null; downloadUrl: string } | null = null;
+        if (versionRow.print_photo_path && versionRow.print_photo_file_name) {
+          const { data: signed } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(versionRow.print_photo_path, DOWNLOAD_URL_TTL_SECONDS);
+          if (signed) {
+            printPhoto = {
+              fileName: versionRow.print_photo_file_name,
+              caption: versionRow.print_photo_caption ?? null,
+              downloadUrl: signed.signedUrl,
+            };
+          }
+        }
+
         return {
           success: true,
           data: {
             ...toVersionSummary(versionRow),
             downloadUrl: download.signedUrl,
             previousVersionId,
+            slicerProfile,
+            printPhoto,
           },
         };
       } catch (err) {
@@ -547,7 +582,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
 
         const { data: row, error: lookupError } = await supabase
           .from("versions")
-          .select("file_path, uploaded_by_user_id, triangle_count")
+          .select("file_path, uploaded_by_user_id, triangle_count, slicer_profile_path, print_photo_path")
           .eq("id", versionId)
           .eq("project_id", projectId)
           .maybeSingle();
@@ -560,7 +595,13 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Version not found" };
         }
-        const versionRow = row as { file_path: string; uploaded_by_user_id: string | null; triangle_count: number | null };
+        const versionRow = row as {
+          file_path: string;
+          uploaded_by_user_id: string | null;
+          triangle_count: number | null;
+          slicer_profile_path: string | null;
+          print_photo_path: string | null;
+        };
 
         // Normally only an owner/admin can delete a version — but diffing
         // now happens client-side (see uploadVersion() in projectsApi.ts),
@@ -589,9 +630,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Failed to delete version" };
         }
 
-        const { error: storageError } = await supabase.storage
-          .from(BUCKET)
-          .remove([versionRow.file_path]);
+        const pathsToRemove = [
+          versionRow.file_path,
+          versionRow.slicer_profile_path,
+          versionRow.print_photo_path,
+        ].filter((p): p is string => !!p);
+        const { error: storageError } = await supabase.storage.from(BUCKET).remove(pathsToRemove);
         if (storageError) {
           app.log.warn(storageError, "Failed to remove version file from storage");
         }
@@ -601,6 +645,300 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         app.log.error(err, "Version delete threw");
         reply.code(502);
         return { success: false, error: "Failed to delete version" };
+      }
+    },
+  );
+
+  interface SlicerProfileUploadBody {
+    fileName?: string;
+    fileSize?: number;
+  }
+
+  app.post<{ Params: { projectId: string; versionId: string }; Body: SlicerProfileUploadBody }>(
+    "/projects/:projectId/versions/:versionId/slicer-profile",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const { fileName, fileSize } = request.body ?? {};
+      const supabase = request.supabase!;
+
+      if (typeof fileName !== "string" || !fileName) {
+        reply.code(400);
+        return { success: false, error: "fileName is required" };
+      }
+      if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_SLICER_PROFILE_BYTES) {
+        reply.code(400);
+        return { success: false, error: "Slicer profile must be under 2MB" };
+      }
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+
+        const { data: existing, error: lookupError } = await supabase
+          .from("versions")
+          .select("id, slicer_profile_path")
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .maybeSingle();
+        if (lookupError) {
+          app.log.error(lookupError, "Failed to look up version for slicer profile upload");
+          reply.code(502);
+          return { success: false, error: "Failed to attach slicer profile" };
+        }
+        if (!existing) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+        const previousPath = (existing as { slicer_profile_path: string | null }).slicer_profile_path;
+
+        const safeName = sanitizeFilename(fileName);
+        const filePath = `${projectId}/${versionId}.slicer-profile.${Date.now()}`;
+
+        const { data: upload, error: uploadError } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUploadUrl(filePath);
+        if (uploadError) {
+          app.log.error(uploadError, "Failed to create signed upload URL for slicer profile");
+          reply.code(502);
+          return { success: false, error: "Failed to attach slicer profile" };
+        }
+
+        const { error: updateError } = await supabase
+          .from("versions")
+          .update({ slicer_profile_path: filePath, slicer_profile_file_name: safeName })
+          .eq("id", versionId);
+        if (updateError) {
+          app.log.error(updateError, "Failed to record slicer profile");
+          reply.code(502);
+          return { success: false, error: "Failed to attach slicer profile" };
+        }
+
+        // Best-effort cleanup of whatever was there before — a failure here
+        // just leaves an orphaned object, not a broken version.
+        if (previousPath) {
+          const { error: removeError } = await supabase.storage.from(BUCKET).remove([previousPath]);
+          if (removeError) app.log.warn(removeError, "Failed to remove previous slicer profile");
+        }
+
+        return { success: true, data: { uploadUrl: upload.signedUrl } };
+      } catch (err) {
+        app.log.error(err, "Slicer profile upload threw");
+        reply.code(502);
+        return { success: false, error: "Failed to attach slicer profile" };
+      }
+    },
+  );
+
+  app.delete<{ Params: { projectId: string; versionId: string } }>(
+    "/projects/:projectId/versions/:versionId/slicer-profile",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const supabase = request.supabase!;
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+
+        const { data: row, error: lookupError } = await supabase
+          .from("versions")
+          .select("slicer_profile_path")
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .maybeSingle();
+        if (lookupError) {
+          app.log.error(lookupError, "Failed to look up version for slicer profile removal");
+          reply.code(502);
+          return { success: false, error: "Failed to remove slicer profile" };
+        }
+        if (!row) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+        const path = (row as { slicer_profile_path: string | null }).slicer_profile_path;
+
+        const { error: updateError } = await supabase
+          .from("versions")
+          .update({ slicer_profile_path: null, slicer_profile_file_name: null })
+          .eq("id", versionId);
+        if (updateError) {
+          app.log.error(updateError, "Failed to clear slicer profile");
+          reply.code(502);
+          return { success: false, error: "Failed to remove slicer profile" };
+        }
+
+        if (path) {
+          const { error: removeError } = await supabase.storage.from(BUCKET).remove([path]);
+          if (removeError) app.log.warn(removeError, "Failed to remove slicer profile from storage");
+        }
+
+        return { success: true, data: true };
+      } catch (err) {
+        app.log.error(err, "Slicer profile removal threw");
+        reply.code(502);
+        return { success: false, error: "Failed to remove slicer profile" };
+      }
+    },
+  );
+
+  interface PrintPhotoUploadBody {
+    fileName?: string;
+    fileSize?: number;
+    caption?: string;
+  }
+
+  app.post<{ Params: { projectId: string; versionId: string }; Body: PrintPhotoUploadBody }>(
+    "/projects/:projectId/versions/:versionId/print-photo",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const { fileName, fileSize, caption } = request.body ?? {};
+      const supabase = request.supabase!;
+
+      if (typeof fileName !== "string" || !fileName) {
+        reply.code(400);
+        return { success: false, error: "fileName is required" };
+      }
+      const extension = extensionOf(fileName);
+      if (!PRINT_PHOTO_EXTENSIONS.has(extension)) {
+        reply.code(400);
+        return { success: false, error: "Photo must be a JPG, PNG, WEBP, or HEIC image" };
+      }
+      if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_PRINT_PHOTO_BYTES) {
+        reply.code(400);
+        return { success: false, error: "Photo must be under 10MB" };
+      }
+      if (caption !== undefined && typeof caption !== "string") {
+        reply.code(400);
+        return { success: false, error: "caption must be a string" };
+      }
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+
+        const { data: existing, error: lookupError } = await supabase
+          .from("versions")
+          .select("id, print_photo_path")
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .maybeSingle();
+        if (lookupError) {
+          app.log.error(lookupError, "Failed to look up version for print photo upload");
+          reply.code(502);
+          return { success: false, error: "Failed to attach print photo" };
+        }
+        if (!existing) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+        const previousPath = (existing as { print_photo_path: string | null }).print_photo_path;
+
+        const safeName = sanitizeFilename(fileName);
+        const filePath = `${projectId}/${versionId}.print-photo.${Date.now()}.${extension}`;
+
+        const { data: upload, error: uploadError } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUploadUrl(filePath);
+        if (uploadError) {
+          app.log.error(uploadError, "Failed to create signed upload URL for print photo");
+          reply.code(502);
+          return { success: false, error: "Failed to attach print photo" };
+        }
+
+        const { error: updateError } = await supabase
+          .from("versions")
+          .update({
+            print_photo_path: filePath,
+            print_photo_file_name: safeName,
+            print_photo_caption: caption?.trim() || null,
+          })
+          .eq("id", versionId);
+        if (updateError) {
+          app.log.error(updateError, "Failed to record print photo");
+          reply.code(502);
+          return { success: false, error: "Failed to attach print photo" };
+        }
+
+        if (previousPath) {
+          const { error: removeError } = await supabase.storage.from(BUCKET).remove([previousPath]);
+          if (removeError) app.log.warn(removeError, "Failed to remove previous print photo");
+        }
+
+        return { success: true, data: { uploadUrl: upload.signedUrl } };
+      } catch (err) {
+        app.log.error(err, "Print photo upload threw");
+        reply.code(502);
+        return { success: false, error: "Failed to attach print photo" };
+      }
+    },
+  );
+
+  app.delete<{ Params: { projectId: string; versionId: string } }>(
+    "/projects/:projectId/versions/:versionId/print-photo",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const supabase = request.supabase!;
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+
+        const { data: row, error: lookupError } = await supabase
+          .from("versions")
+          .select("print_photo_path")
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .maybeSingle();
+        if (lookupError) {
+          app.log.error(lookupError, "Failed to look up version for print photo removal");
+          reply.code(502);
+          return { success: false, error: "Failed to remove print photo" };
+        }
+        if (!row) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+        const path = (row as { print_photo_path: string | null }).print_photo_path;
+
+        const { error: updateError } = await supabase
+          .from("versions")
+          .update({ print_photo_path: null, print_photo_file_name: null, print_photo_caption: null })
+          .eq("id", versionId);
+        if (updateError) {
+          app.log.error(updateError, "Failed to clear print photo");
+          reply.code(502);
+          return { success: false, error: "Failed to remove print photo" };
+        }
+
+        if (path) {
+          const { error: removeError } = await supabase.storage.from(BUCKET).remove([path]);
+          if (removeError) app.log.warn(removeError, "Failed to remove print photo from storage");
+        }
+
+        return { success: true, data: true };
+      } catch (err) {
+        app.log.error(err, "Print photo removal threw");
+        reply.code(502);
+        return { success: false, error: "Failed to remove print photo" };
       }
     },
   );

@@ -136,3 +136,109 @@ body {
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgb(115 115 115);
 }
+
+/* Blog post body — react-markdown emits plain, unstyled semantic HTML
+   (BlogMarkdown.tsx), so it needs real typographic rules rather than
+   relying on a Tailwind plugin for what's a single, bounded use case. */
+.prose-blog {
+  color: rgb(var(--ink-200));
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.prose-blog > * + * {
+  margin-top: 1.25em;
+}
+.prose-blog h1,
+.prose-blog h2,
+.prose-blog h3 {
+  font-family: "Space Grotesk", ui-sans-serif, sans-serif;
+  font-weight: 700;
+  color: rgb(var(--ink-50));
+  line-height: 1.25;
+}
+.prose-blog h1 {
+  font-size: 1.75em;
+  margin-top: 1.75em;
+}
+.prose-blog h2 {
+  font-size: 1.4em;
+  margin-top: 1.75em;
+}
+.prose-blog h3 {
+  font-size: 1.15em;
+  margin-top: 1.5em;
+}
+.prose-blog a {
+  color: rgb(var(--ink-50));
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--ink-500));
+  text-underline-offset: 2px;
+}
+.prose-blog a:hover {
+  color: theme("colors.accent.400");
+}
+.prose-blog strong {
+  color: rgb(var(--ink-50));
+  font-weight: 600;
+}
+.prose-blog ul,
+.prose-blog ol {
+  padding-left: 1.4em;
+}
+.prose-blog ul {
+  list-style: disc;
+}
+.prose-blog ol {
+  list-style: decimal;
+}
+.prose-blog li + li {
+  margin-top: 0.4em;
+}
+.prose-blog blockquote {
+  border-left: 3px solid rgb(var(--ink-700));
+  padding-left: 1em;
+  color: rgb(var(--ink-400));
+  font-style: italic;
+}
+.prose-blog code {
+  background: rgb(var(--ink-900));
+  border: 1px solid rgb(var(--ink-800));
+  border-radius: 0.25em;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+}
+.prose-blog pre {
+  background: rgb(var(--ink-900));
+  border: 1px solid rgb(var(--ink-800));
+  border-radius: 0.5em;
+  padding: 1em;
+  overflow-x: auto;
+}
+.prose-blog pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.prose-blog img {
+  border-radius: 0.5em;
+  max-width: 100%;
+}
+.prose-blog hr {
+  border: none;
+  border-top: 1px solid rgb(var(--ink-800));
+}
+.prose-blog table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.prose-blog th,
+.prose-blog td {
+  border: 1px solid rgb(var(--ink-800));
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.prose-blog th {
+  color: rgb(var(--ink-50));
+  background: rgb(var(--ink-900));
+}

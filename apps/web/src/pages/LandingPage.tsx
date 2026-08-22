@@ -270,7 +270,9 @@ export default function LandingPage() {
   // embedded" case), not something surfaced to real visitors. Default
   // behavior (click-to-activate) is unchanged for everyone else.
   const [isDemoActive, setIsDemoActive] = useState(
-    () => new URLSearchParams(window.location.search).get("demo") === "open",
+    // typeof window guard: this component is also rendered in Node during
+    // the build-time prerender pass (see scripts/prerender.mjs).
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "open",
   );
   const proOfferCountdown = useCountdown(LAUNCH_OFFER_DEADLINE);
 

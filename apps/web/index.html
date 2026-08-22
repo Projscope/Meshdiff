@@ -22,10 +22,6 @@
       name="description"
       content="Meshdiff compares two versions of a 3D model and shows exactly what changed: added material, removed material, and dimensional drift. Free, in-browser voxel and surface-heatmap diffing for STL, 3MF, and OBJ files — nothing is uploaded."
     />
-    <meta
-      name="keywords"
-      content="3D model diff, 3D diff, STL compare, STL diff, STL diff tool, compare STL files, 3MF diff, OBJ diff, objdiff, compare 3D models, compare two 3D models, mesh diff, 3D printing version control, CAD version comparison, voxel diff"
-    />
     <meta name="author" content="Meshdiff" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#15181e" />
@@ -94,7 +90,70 @@
   </head>
   <body>
     <div id="root"></div>
-    <noscript>Meshdiff requires JavaScript to run — it's a browser-based 3D diff tool.</noscript>
+    <!-- Pure HTML/CSS fallback — no JS, no client-side framework, so it
+         renders even with scripting fully disabled. Only shown when
+         JavaScript is off; on the marketing/content routes it sits below
+         the prerendered content already in #root (see scripts/prerender.mjs)
+         but the diff tool itself (/live) genuinely needs JS/WASM/WebGL to
+         run, so this is the only thing a no-JS visitor to that route sees. -->
+    <noscript>
+      <style>
+        .nojs-fallback {
+          max-width: 640px;
+          margin: 0 auto;
+          padding: 64px 24px;
+          font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+          color: #e6e9ef;
+          text-align: center;
+        }
+        .nojs-fallback h1 {
+          font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+          font-size: 28px;
+          font-weight: 700;
+          margin: 0 0 12px;
+        }
+        .nojs-fallback p {
+          font-size: 15px;
+          line-height: 1.6;
+          color: #aab1c0;
+          margin: 0 0 24px;
+        }
+        .nojs-fallback img {
+          display: block;
+          width: 100%;
+          max-width: 560px;
+          margin: 0 auto 24px;
+          border-radius: 12px;
+          border: 1px solid #2a2f3a;
+        }
+        .nojs-fallback a {
+          display: inline-block;
+          padding: 10px 20px;
+          border-radius: 8px;
+          background: #10b981;
+          color: #022c22;
+          font-weight: 600;
+          text-decoration: none;
+          margin: 0 6px;
+        }
+        .nojs-fallback a.secondary {
+          background: transparent;
+          border: 1px solid #3a4150;
+          color: #e6e9ef;
+        }
+      </style>
+      <div class="nojs-fallback">
+        <img src="/og-image.png" alt="Meshdiff's diff viewer showing added and removed geometry between two 3D model versions" width="1200" height="630" />
+        <h1>Meshdiff compares two 3D model versions and shows what changed</h1>
+        <p>
+          Added material, removed material, and dimensional drift between two STL, 3MF, or OBJ files — computed as
+          a voxel and surface-heatmap diff, entirely in your browser. The comparison tool itself needs JavaScript
+          (it runs via WebAssembly and WebGL) to actually render a diff, so enable JavaScript to use it.
+        </p>
+        <a href="/docs">Read the docs</a>
+        <a class="secondary" href="/stl-diff">See how it works</a>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

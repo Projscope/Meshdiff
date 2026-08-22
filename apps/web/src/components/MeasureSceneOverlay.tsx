@@ -2,15 +2,18 @@ import { Line } from "@react-three/drei";
 import MeasurementOverlay from "./MeasurementOverlay";
 import RadiusOverlay from "./RadiusOverlay";
 import type { MeasureTool } from "../lib/useMeasureTool";
+import type { HoleChange } from "@meshdiff/shared/types/diff";
 
 interface MeasureSceneOverlayProps {
   measure: MeasureTool;
+  /** Only meaningful in a diff view — see DiffView.tsx. */
+  holeChange?: HoleChange | null;
 }
 
 /** The in-scene half of a measure tool — the two overlay types plus the
  * "close area" vertex/edge highlight shown while hovering. Goes inside
  * <ModelScene>; pair with MeasureToolbar for the on-screen controls. */
-export default function MeasureSceneOverlay({ measure }: MeasureSceneOverlayProps) {
+export default function MeasureSceneOverlay({ measure, holeChange }: MeasureSceneOverlayProps) {
   return (
     <>
       {measure.measureMode === "distance" ? (
@@ -22,6 +25,7 @@ export default function MeasureSceneOverlay({ measure }: MeasureSceneOverlayProp
           fit={measure.radiusCommittedFit ?? measure.radiusPreviewFit}
           loopPoints={measure.radiusCommittedLoopPoints ?? measure.radiusPreviewLoopPoints}
           isPreview={!measure.radiusCommittedFit && measure.radiusPreviewFit !== null}
+          holeChange={holeChange}
         />
       )}
       {measure.isMeasuring &&

@@ -6,20 +6,74 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://meshdiff.com/compare-stl-files</loc>
+    <loc>https://meshdiff.com/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/live</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/stl-diff</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/3mf-diff</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/obj-diff</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/3d-print-version-control</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/vs-manual-comparison</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/compare-stl-files</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://meshdiff.com/stl-diff-tool</loc>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://meshdiff.com/compare-3mf-files</loc>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://meshdiff.com/docs</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/roadmap</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meshdiff.com/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <!-- Individual /blog/:slug posts are stored in the database (see
+       apps/api/src/routes/blog.ts) — add them here once that CMS exposes
+       a way to list published slugs, or generate this file dynamically
+       from the same source instead of hand-maintaining entries. -->
   <url>
     <loc>https://meshdiff.com/embed</loc>
     <changefreq>monthly</changefreq>

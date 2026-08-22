@@ -71,7 +71,7 @@ export default function AdminUsersPage() {
                 showed the page background through the header's bg-ink-900
                 as visible stripes. Column spacing comes from each cell's own
                 px-4 padding instead, so backgrounds/borders stay flush. */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center">
               <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Email
               </span>
@@ -87,9 +87,12 @@ export default function AdminUsersPage() {
               <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Registered
               </span>
+              <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
+                Last sign in
+              </span>
 
               {data.users.length === 0 && (
-                <div className="col-span-5 px-4 py-10 text-center text-sm text-ink-500">No users yet.</div>
+                <div className="col-span-6 px-4 py-10 text-center text-sm text-ink-500">No users yet.</div>
               )}
 
               {data.users.map((user, i) => {
@@ -118,6 +121,9 @@ export default function AdminUsersPage() {
                     </span>
                     <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
                       {timeSince(user.signupDate)}
+                    </span>
+                    <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
+                      {user.lastSignInAt ? timeSince(user.lastSignInAt) : "Never"}
                     </span>
                   </Fragment>
                 );

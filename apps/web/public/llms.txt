@@ -12,6 +12,16 @@
 
 ## Comparison guides
 
-- [Compare STL Files](https://meshdiff.com/compare-stl-files): how to diff two STL versions and what changes to look for.
+- [Compare STL Files](https://meshdiff.com/stl-diff): what makes STL files hard to diff, and how to compare two versions.
+- [Compare 3MF Files](https://meshdiff.com/3mf-diff): comparing 3MF files, including multi-object and color/material metadata.
+- [Compare OBJ Files](https://meshdiff.com/obj-diff): comparing OBJ files despite inconsistent per-tool exports.
+- [3D Print Version Control](https://meshdiff.com/3d-print-version-control): using Meshdiff as version control for iterative print workflows.
+- [Meshdiff vs. Manually Comparing 3D Models](https://meshdiff.com/vs-manual-comparison): where eyeballing two models breaks down and what a geometric diff adds.
+- [Docs & FAQ](https://meshdiff.com/docs): how voxel diffing works, supported formats, and whether files are ever uploaded.
+- [Blog](https://meshdiff.com/blog): updates and write-ups, including outside coverage on Hacker News and Adafruit's blog.
+
+## Tool-specific landing pages
+
+- [Compare STL Files (tool)](https://meshdiff.com/compare-stl-files): opens the diff tool directly for STL comparison.
 - [STL Diff Tool](https://meshdiff.com/stl-diff-tool): using Meshdiff specifically as an STL diff tool.
-- [Compare 3MF Files](https://meshdiff.com/compare-3mf-files): comparing 3MF files, including multi-object and color/material metadata.
+- [Compare 3MF Files (tool)](https://meshdiff.com/compare-3mf-files): opens the diff tool directly for 3MF comparison.

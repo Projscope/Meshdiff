@@ -49,6 +49,9 @@ export default function SiteFooter() {
             <a href="/#faq" className="hover:text-ink-300">
               FAQ
             </a>
+            <Link to="/blog" className="hover:text-ink-300">
+              Blog
+            </Link>
             <Link to="/embed" className="hover:text-ink-300">
               Embed Badge
             </Link>

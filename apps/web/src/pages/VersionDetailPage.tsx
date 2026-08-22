@@ -38,6 +38,7 @@ import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import LoadingCube from "../components/LoadingCube";
 import ThreeMFPropertiesPanel from "../components/ThreeMFPropertiesPanel";
 import CollapsibleSection, { PropertyList, PropertyRow } from "../components/CollapsibleSection";
+import PrintLogSection from "../components/PrintLogSection";
 import MeasurementOverlay from "../components/MeasurementOverlay";
 import RadiusOverlay from "../components/RadiusOverlay";
 import { fitCircleThroughThreePoints, type CircleFit } from "../lib/circleFit";
@@ -148,6 +149,15 @@ export default function VersionDetailPage() {
   const [shadingMode] = useShadingMode();
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [threeMFProperties, setThreeMFProperties] = useState<ThreeMFProperties | null>(null);
+
+  // Re-fetches just the version's metadata (fresh signed URLs for the
+  // print-log attachments) without re-running the full mesh-load pipeline
+  // the main effect below does — the mesh itself hasn't changed.
+  async function refreshVersion() {
+    if (!projectId || !versionId) return;
+    const result = await getVersion(projectId, versionId);
+    if (result.success) setVersion(result.data);
+  }
   const [boundingBox, setBoundingBox] = useState<[number, number, number]>([0, 0, 0]);
   const [gridPosition, setGridPosition] = useState<[number, number, number]>([0, 0, 0]);
   const [gridFadeDistance, setGridFadeDistance] = useState(100);
@@ -347,23 +357,23 @@ export default function VersionDetailPage() {
     if (!isMeasuring) return;
     event.stopPropagation();
 
-    // Hole/boss auto-detect still searches off the true vertex/edge snap
-    // (not the freeform surface point) — it's asking "is there a circular
-    // feature near this specific edge", a different question from "where's
-    // the cursor," and forcing it through the magnet threshold would make
-    // holes much harder to detect near their center.
+    // Hole/boss auto-detect searches off the raw surface point (not a
+    // single-triangle vertex/edge snap) against a generous magnet radius —
+    // matching useMeasureTool.ts's radius branch. Snapping to one
+    // triangle's 3 corners misses most of a hole's rim, since most
+    // triangles touching a hole have only 1-2 corners actually on it; see
+    // the shared circleDetect.ts module both this page and DiffView.tsx
+    // (via useMeasureTool.ts) rely on for the same detection.
     if (measureMode === "radius") {
-      const snappedForHoleSearch = nearestMeasurePoint(event);
-      if (snappedForHoleSearch) {
-        const loop = findNearestLoop(boundaryLoops, snappedForHoleSearch, 1e-3);
-        if (loop) {
-          setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
-          setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
-          setMeasureHover(null);
-          setNearbyVertices([]);
-          setNearbyEdges([]);
-          return;
-        }
+      const surfacePoint = event.point.clone().applyMatrix4(GROUP_ROTATION_INVERSE);
+      const loop = findNearestLoop(boundaryLoops, surfacePoint, snapHighlightRadius());
+      if (loop) {
+        setRadiusPreviewFit(fitCircleLeastSquares(loop.points));
+        setRadiusPreviewLoopPoints(loop.points.map((p): [number, number, number] => [p.x, p.y, p.z]));
+        setMeasureHover(null);
+        setNearbyVertices([]);
+        setNearbyEdges([]);
+        return;
       }
       setRadiusPreviewFit(null);
       setRadiusPreviewLoopPoints(null);
@@ -929,6 +939,16 @@ export default function VersionDetailPage() {
                   />
                 </PropertyList>
               </CollapsibleSection>
+            </div>
+
+            <div className="mt-4">
+              <PrintLogSection
+                projectId={projectId!}
+                versionId={versionId!}
+                slicerProfile={version.slicerProfile}
+                printPhoto={version.printPhoto}
+                onChange={() => void refreshVersion()}
+              />
             </div>
 
             {threeMFProperties && (
