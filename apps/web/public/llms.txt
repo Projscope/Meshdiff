@@ -18,7 +18,7 @@
 - [3D Print Version Control](https://meshdiff.com/3d-print-version-control): using Meshdiff as version control for iterative print workflows.
 - [Meshdiff vs. Manually Comparing 3D Models](https://meshdiff.com/vs-manual-comparison): where eyeballing two models breaks down and what a geometric diff adds.
 - [Docs & FAQ](https://meshdiff.com/docs): how voxel diffing works, supported formats, and whether files are ever uploaded.
-- [Blog](https://meshdiff.com/blog): updates and write-ups, including outside coverage on Hacker News and Adafruit's blog.
+- [Blog](https://meshdiff.com/blog): updates and write-ups on the diff engine and how the comparison actually works.
 
 ## Tool-specific landing pages
 
