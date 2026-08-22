@@ -56,12 +56,44 @@ function injectIntoTemplate(template, bodyHtml, meta, routePath) {
       /<meta\s+name="description"\s+content="[^"]*"\s*\/>/,
       `<meta name="description" content="${escapeHtml(meta.description)}" />`,
     );
+    // og:title/twitter:title and their descriptions were otherwise left at
+    // index.html's homepage-specific values on every prerendered page —
+    // sharing e.g. /stl-diff on Twitter/LinkedIn would show the homepage's
+    // title and description instead of the actual page's.
+    html = html.replace(
+      /<meta property="og:title" content="[^"]*" \/>/,
+      `<meta property="og:title" content="${escapeHtml(meta.title)}" />`,
+    );
+    html = html.replace(
+      /<meta\s+property="og:description"\s+content="[^"]*"\s*\/>/,
+      `<meta property="og:description" content="${escapeHtml(meta.description)}" />`,
+    );
+    html = html.replace(
+      /<meta name="twitter:title" content="[^"]*" \/>/,
+      `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`,
+    );
+    html = html.replace(
+      /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/>/,
+      `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
+    );
   }
 
-  const canonicalUrl = `https://meshdiff.com${routePath}`;
+  // Netlify serves a directory's index.html for a bare path (e.g.
+  // /stl-diff) by issuing a 301 to the trailing-slash form (/stl-diff/) —
+  // confirmed on production, not just docs. A canonical tag pointing at
+  // the pre-redirect URL would tell crawlers to canonicalize onto a URL
+  // that immediately redirects away from itself, so this must match the
+  // URL actually served (RootLayout's client-side canonical effect
+  // already does this post-hydration via location.pathname; this keeps
+  // the pre-hydration/no-JS HTML consistent with it).
+  const canonicalUrl = routePath === "/" ? "https://meshdiff.com/" : `https://meshdiff.com${routePath}/`;
   html = html.replace(
     /<link rel="canonical" href="[^"]*" \/>/,
     `<link rel="canonical" href="${canonicalUrl}" />`,
+  );
+  html = html.replace(
+    /<meta property="og:url" content="[^"]*" \/>/,
+    `<meta property="og:url" content="${canonicalUrl}" />`,
   );
 
   return html;
