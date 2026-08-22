@@ -50,6 +50,14 @@ async function main() {
 function injectIntoTemplate(template, bodyHtml, meta, routePath) {
   let html = template.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
 
+  // index.html preloads the homepage hero image unconditionally — on every
+  // other prerendered page that image is never used, so the preload just
+  // spends first-load bandwidth/priority on a fetch that gets thrown away
+  // (confirmed via a "preloaded but not used" console warning in production).
+  if (routePath !== "/") {
+    html = html.replace(/\s*<link rel="preload" as="image"[^>]*live-diff-preview[^>]*\/>\n?/, "\n");
+  }
+
   if (meta) {
     html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(meta.title)}</title>`);
     html = html.replace(
