@@ -5,7 +5,7 @@ import { useCountdown } from "../hooks/useCountdown";
 import { LAUNCH_OFFER_DEADLINE } from "../lib/featureFlags";
 import { supabase } from "../lib/supabaseClient";
 import { getSubscription } from "../lib/projectsApi";
-import { markPendingProCheckout } from "../lib/pendingCheckout";
+import { markPendingCheckout } from "../lib/pendingCheckout";
 import AlreadyProModal from "./AlreadyProModal";
 
 interface PricingTier {
@@ -15,7 +15,7 @@ interface PricingTier {
   originalPrice?: string;
   period: string | null;
   audience: string;
-  cta: { label: string; to: string } | { label: string; scroll: true } | { label: string; checkout: true };
+  cta: { label: string; to: string } | { label: string; scroll: true } | { label: string; checkout: "pro" | "team" };
   highlighted: boolean;
   features: string[];
   /** Small promo pill shown above the tier name, e.g. a launch discount. */
@@ -24,55 +24,65 @@ interface PricingTier {
   urgency?: string;
 }
 
-export const PRICING_TIERS: PricingTier[] = [
-  {
-    name: "Community",
-    price: "Free",
-    period: null,
-    audience: "Compare any two models, right now.",
-    cta: { label: "Open the diff tool", to: "/live" },
-    highlighted: false,
-    features: [
-      "Compare OBJ, STL, and 3MF files",
-      "Measure distances and radiuses tools",
-      "Voxel diff, added and removed",
-      "Adjustable tolerance and cross-section",
-      "Shareable links, 1, 3, or 7 days",
-    ],
-  },
-  {
-    name: "Pro",
-    price: "$7.50",
-    originalPrice: "$15.00",
-    period: "/mo",
-    audience: "CAD and print engineers",
-    cta: { label: "Subscribe to Pro", checkout: true },
-    highlighted: true,
-    badge: "Early Subscriber Offer (50% OFF × 1 months)",
-    urgency: "Launch offer: 50% off first month. Ends Sunday at midnight.",
-    features: [
-      "Everything in Community",
-      "Project workspaces",
-      "Version history for every model",
-      "PDF diff reports for client review",
-    ],
-  },
-  {
-    name: "Team",
-    price: "$17.50",
-    period: "/seat/mo",
-    audience: "Hardware teams",
-    cta: { label: "Will be available soon", scroll: true },
-    highlighted: false,
-    features: [
-      "Everything in Pro",
-      "Team approvals workflow",
-      "Comment pins on 3D models",
-      "Slicer profile snapshots and print logs",
-      "Centralized billing and roles",
-    ],
-  },
-];
+/** Pro/Team's launch-offer price/badge/urgency only apply while
+ * LAUNCH_OFFER_DEADLINE hasn't passed yet — once it has, both tiers fall
+ * back to their normal price with no discount styling. Kept as a function
+ * (not a static array) so it can be recomputed each render as the
+ * countdown ticks past zero, without a page reload. */
+function getPricingTiers(offerActive: boolean): PricingTier[] {
+  return [
+    {
+      name: "Community",
+      price: "Free",
+      period: null,
+      audience: "Compare any two models, right now.",
+      cta: { label: "Open the diff tool", to: "/live" },
+      highlighted: false,
+      features: [
+        "Compare OBJ, STL, and 3MF files",
+        "Measure distances and radiuses tools",
+        "Voxel diff, added and removed",
+        "Adjustable tolerance and cross-section",
+        "Shareable links, 1, 3, or 7 days",
+      ],
+    },
+    {
+      name: "Pro",
+      price: offerActive ? "$7.50" : "$15.00",
+      originalPrice: offerActive ? "$15.00" : undefined,
+      period: "/mo",
+      audience: "CAD and print engineers",
+      cta: { label: "Subscribe to Pro", checkout: "pro" },
+      highlighted: true,
+      badge: offerActive ? "Early Subscriber Offer (50% OFF × 1 months)" : undefined,
+      urgency: offerActive ? "Launch offer: 50% off first month. Ends Sunday at midnight." : undefined,
+      features: [
+        "Everything in Community",
+        "Project workspaces",
+        "Version history for every model",
+        "Comment pins on 3D models",
+        "PDF diff reports for client review",
+      ],
+    },
+    {
+      name: "Team",
+      price: offerActive ? "$17.50" : "$35.00",
+      originalPrice: offerActive ? "$35.00" : undefined,
+      period: "/seat/mo",
+      audience: "Hardware teams",
+      cta: { label: "Subscribe to Team", checkout: "team" },
+      highlighted: false,
+      badge: offerActive ? "Early Subscriber Offer (50% OFF × 1 months)" : undefined,
+      urgency: offerActive ? "Launch offer: 50% off first month. Ends Sunday at midnight." : undefined,
+      features: [
+        "Everything in Pro",
+        "Team approvals workflow",
+        "Slicer profile snapshots and print logs",
+        "Centralized billing and roles",
+      ],
+    },
+  ];
+}
 
 /**
  * The tier card grid shared between the homepage's #pricing section
@@ -83,8 +93,13 @@ export const PRICING_TIERS: PricingTier[] = [
 export default function PricingCards() {
   const navigate = useNavigate();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [showAlreadyPro, setShowAlreadyPro] = useState(false);
+  const [alreadySubscribedTier, setAlreadySubscribedTier] = useState<"pro" | "team" | null>(null);
   const proOfferCountdown = useCountdown(LAUNCH_OFFER_DEADLINE);
+  // useCountdown ticks every second, so this is re-evaluated each render —
+  // the moment the deadline passes, both tiers fall back to normal price
+  // with no reload needed (mirrors AnnouncementBar's own expiry check).
+  const offerActive = Date.now() < LAUNCH_OFFER_DEADLINE.getTime();
+  const pricingTiers = getPricingTiers(offerActive);
 
   function scrollToEarlyAccess() {
     document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
@@ -97,36 +112,36 @@ export default function PricingCards() {
   //    automatically once a session exists (see ProjectsLayout.tsx —
   //    handles both the immediate-session and confirm-email-first cases,
   //    since the flag survives that whole round trip in localStorage).
-  //  - Signed in, already Pro: nothing to sell them — a plain "you're
-  //    already subscribed" modal instead of a pointless second Checkout
-  //    session.
-  //  - Signed in, not Pro: same "resume on the dashboard" flag, then
-  //    straight to /projects — ProjectsLayout raises the real Checkout
-  //    redirect from there once it's confirmed the tier itself.
-  async function handleProCheckout() {
+  //  - Signed in, already on this tier: nothing to sell them — a plain
+  //    "you're already subscribed" modal instead of a pointless second
+  //    Checkout session.
+  //  - Signed in, not yet on this tier: same "resume on the dashboard"
+  //    flag, then straight to /projects — ProjectsLayout raises the real
+  //    Checkout redirect from there once it's confirmed the tier itself.
+  async function handleCheckout(tier: "pro" | "team") {
     setIsCheckingOut(true);
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
-      markPendingProCheckout();
+      markPendingCheckout(tier);
       navigate("/login?mode=signup");
       return;
     }
 
     const subscriptionResult = await getSubscription();
-    if (subscriptionResult.success && subscriptionResult.data.tier === "pro") {
+    if (subscriptionResult.success && subscriptionResult.data.tier === tier) {
       setIsCheckingOut(false);
-      setShowAlreadyPro(true);
+      setAlreadySubscribedTier(tier);
       return;
     }
 
-    markPendingProCheckout();
+    markPendingCheckout(tier);
     navigate("/projects");
   }
 
   return (
     <>
       <div className="grid gap-4 md:grid-cols-3">
-        {PRICING_TIERS.map((tier) => (
+        {pricingTiers.map((tier) => (
           <div
             key={tier.name}
             className={`relative rounded-xl border p-6 ${
@@ -163,14 +178,19 @@ export default function PricingCards() {
                 {tier.cta.label}
               </Link>
             ) : "checkout" in tier.cta ? (
-              <button
-                type="button"
-                onClick={() => void handleProCheckout()}
-                disabled={isCheckingOut}
-                className="mt-4 w-full rounded-lg border border-accent-500/40 bg-accent-500/10 py-2 text-sm font-medium text-accent-400 transition hover:bg-accent-500/15 disabled:opacity-50"
-              >
-                {isCheckingOut ? "Redirecting…" : tier.cta.label}
-              </button>
+              (() => {
+                const checkoutTier = tier.cta.checkout;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => void handleCheckout(checkoutTier)}
+                    disabled={isCheckingOut}
+                    className="mt-4 w-full rounded-lg border border-accent-500/40 bg-accent-500/10 py-2 text-sm font-medium text-accent-400 transition hover:bg-accent-500/15 disabled:opacity-50"
+                  >
+                    {isCheckingOut ? "Redirecting…" : tier.cta.label}
+                  </button>
+                );
+              })()
             ) : (
               <button
                 type="button"
@@ -196,7 +216,9 @@ export default function PricingCards() {
         ))}
       </div>
 
-      {showAlreadyPro && <AlreadyProModal onClose={() => setShowAlreadyPro(false)} />}
+      {alreadySubscribedTier && (
+        <AlreadyProModal tier={alreadySubscribedTier} onClose={() => setAlreadySubscribedTier(null)} />
+      )}
     </>
   );
 }

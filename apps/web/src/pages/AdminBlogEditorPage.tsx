@@ -136,11 +136,11 @@ export default function AdminBlogEditorPage() {
     setCoverImageUrl(urlResult.data.publicUrl);
   }
 
-  async function handleInlineUpload(file: File) {
-    const publicUrl = await uploadAsset(file);
-    if (!publicUrl) return;
-    const isVideo = /\.(mp4|webm|mov)$/i.test(file.name);
-    const snippet = isVideo ? `{{video:${publicUrl}}}` : `![${file.name}](${publicUrl})`;
+  /** Inserts `snippet` at the textarea's current cursor position (replacing
+   * any selection), or appends it as a new paragraph if the textarea isn't
+   * mounted yet (e.g. still in Preview mode) — shared by the image/video
+   * upload, link, and image-URL toolbar actions below. */
+  function insertAtCursor(snippet: string) {
     const textarea = contentRef.current;
     if (!textarea) {
       setContentMarkdown((prev) => `${prev}\n\n${snippet}\n`);
@@ -154,6 +154,33 @@ export default function AdminBlogEditorPage() {
       const cursor = selectionStart + snippet.length;
       textarea.setSelectionRange(cursor, cursor);
     });
+  }
+
+  async function handleInlineUpload(file: File) {
+    const publicUrl = await uploadAsset(file);
+    if (!publicUrl) return;
+    const isVideo = /\.(mp4|webm|mov)$/i.test(file.name);
+    insertAtCursor(isVideo ? `{{video:${publicUrl}}}` : `![${file.name}](${publicUrl})`);
+  }
+
+  /** Wraps the current selection (if any) as link text, otherwise inserts a
+   * generic placeholder — either way the URL itself is always asked for. */
+  function handleInsertLink() {
+    const url = window.prompt("Link URL:");
+    if (!url?.trim()) return;
+    const textarea = contentRef.current;
+    const selected = textarea ? textarea.value.slice(textarea.selectionStart, textarea.selectionEnd) : "";
+    const text = selected || window.prompt("Link text:", url) || url;
+    insertAtCursor(`[${text}](${url.trim()})`);
+  }
+
+  /** Same idea as "+ Insert image/video" but for an image already hosted
+   * elsewhere — no upload needed, just the URL. */
+  function handleInsertImageUrl() {
+    const url = window.prompt("Image URL:");
+    if (!url?.trim()) return;
+    const alt = window.prompt("Alt text (optional, for accessibility/SEO):", "") ?? "";
+    insertAtCursor(`![${alt}](${url.trim()})`);
   }
 
   if (error && !post && !isNew) {
@@ -271,13 +298,19 @@ export default function AdminBlogEditorPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs text-ink-500">Content (Markdown)</span>
             <div className="flex items-center gap-3">
+              <button type="button" onClick={handleInsertLink} className="text-xs text-accent-400 hover:text-accent-300">
+                + Insert link
+              </button>
+              <button type="button" onClick={handleInsertImageUrl} className="text-xs text-accent-400 hover:text-accent-300">
+                + Image URL
+              </button>
               <button
                 type="button"
                 onClick={() => inlineInputRef.current?.click()}
                 disabled={isUploading}
                 className="text-xs text-accent-400 hover:text-accent-300 disabled:opacity-50"
               >
-                {isUploading ? "Uploading…" : "+ Insert image/video"}
+                {isUploading ? "Uploading…" : "+ Upload image/video"}
               </button>
               <button
                 type="button"
@@ -309,7 +342,7 @@ export default function AdminBlogEditorPage() {
               ref={contentRef}
               value={contentMarkdown}
               onChange={(event) => setContentMarkdown(event.target.value)}
-              placeholder={"Write in Markdown. Paste an image/video with \"+ Insert image/video\", or embed a YouTube/Vimeo link inline with {{video:https://youtube.com/watch?v=...}}"}
+              placeholder={"Write in Markdown — separate paragraphs with a blank line. Use \"+ Insert link\" for links, \"+ Image URL\" for an already-hosted image, or \"+ Upload image/video\" to upload one, or embed a YouTube/Vimeo link inline with {{video:https://youtube.com/watch?v=...}}"}
               className="h-[400px] w-full rounded border border-ink-800 bg-ink-900 p-4 font-mono text-sm text-ink-100 focus:border-accent-500 focus:outline-none"
             />
           )}

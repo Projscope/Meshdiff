@@ -10,10 +10,11 @@ import {
   cancelSubscription,
   resumeSubscription,
   startProCheckout,
+  startTeamCheckout,
   type ProjectSummary,
   type SubscriptionStatus,
 } from "../lib/projectsApi";
-import { consumePendingProCheckout } from "../lib/pendingCheckout";
+import { consumePendingCheckout } from "../lib/pendingCheckout";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthProvider";
 import NewProjectModal from "./NewProjectModal";
@@ -149,20 +150,21 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     getSubscription().then((result) => {
       if (!result.success) return;
       setSubscription(result.data);
-      // Landing page's "Subscribe to Pro" sends a signed-in-but-not-Pro
-      // visitor straight here and sets this flag (see
-      // LandingPage.tsx's handleProCheckout) — resume the actual Stripe
-      // redirect now that we know for sure they're not already Pro
-      // (re-checked here, not just trusted from the landing page, in case
-      // something changed in another tab in between).
-      if (result.data.tier !== "pro" && consumePendingProCheckout()) {
-        void handleAutoResumeCheckout();
+      // The pricing page's "Subscribe to Pro/Team" sends a signed-in-but-
+      // not-yet-subscribed visitor straight here and sets this flag (see
+      // PricingCards.tsx's handleCheckout) — resume the actual Stripe
+      // redirect now that we know for sure they're not already on that
+      // tier (re-checked here, not just trusted from the pricing page, in
+      // case something changed in another tab in between).
+      const pendingTier = consumePendingCheckout();
+      if (pendingTier && result.data.tier !== pendingTier) {
+        void handleAutoResumeCheckout(pendingTier);
       }
     });
   }, []);
 
-  async function handleAutoResumeCheckout() {
-    const result = await startProCheckout();
+  async function handleAutoResumeCheckout(tier: "pro" | "team") {
+    const result = tier === "team" ? await startTeamCheckout() : await startProCheckout();
     if (result.success) {
       window.location.href = result.data.url;
     } else {

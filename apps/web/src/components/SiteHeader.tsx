@@ -16,6 +16,7 @@ function LogoMark() {
 
 function AnnouncementBar() {
   const countdown = useCountdown(LAUNCH_OFFER_DEADLINE);
+  if (Date.now() >= LAUNCH_OFFER_DEADLINE.getTime()) return null;
 
   return (
     <div className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-center text-xs text-ink-300">

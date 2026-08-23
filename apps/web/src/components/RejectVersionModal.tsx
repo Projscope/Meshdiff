@@ -43,7 +43,7 @@ export default function RejectVersionModal({ versionLabel, isSubmitting, onConfi
             <button
               type="button"
               onClick={onCancel}
-              className="rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+              className="flex-1 rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
             >
               Cancel
             </button>
