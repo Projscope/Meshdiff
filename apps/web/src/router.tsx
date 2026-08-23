@@ -12,6 +12,7 @@ import ObjDiffPage from "./pages/ObjDiffPage";
 import VersionControlPage from "./pages/VersionControlPage";
 import VsManualComparisonPage from "./pages/VsManualComparisonPage";
 import DocsPage from "./pages/DocsPage";
+import PricingPage from "./pages/PricingPage";
 import BlogIndexPage from "./pages/BlogIndexPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import ProjectsListPage from "./pages/ProjectsListPage";
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
       { path: "/3d-print-version-control", element: <VersionControlPage /> },
       { path: "/vs-manual-comparison", element: <VsManualComparisonPage /> },
       { path: "/docs", element: <DocsPage /> },
+      { path: "/pricing", element: <PricingPage /> },
       { path: "/blog", element: <BlogIndexPage /> },
       { path: "/blog/:slug", element: <BlogPostPage /> },
       { path: "/embed", element: <EmbedBadgePage /> },

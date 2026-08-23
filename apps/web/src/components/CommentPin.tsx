@@ -27,7 +27,7 @@ export default function CommentPin({
   messageCount,
 }: CommentPinProps) {
   return (
-    <Html position={position} center distanceFactor={40} occlude={false}>
+    <Html position={position} center distanceFactor={40} occlude={false} zIndexRange={[100, 0]}>
       <div className="relative inline-flex -translate-y-1/2">
         <div
           onMouseEnter={() => onHoverChange?.(true)}

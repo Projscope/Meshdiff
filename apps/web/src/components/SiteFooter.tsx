@@ -33,9 +33,9 @@ export default function SiteFooter() {
               Roadmap
             </Link>
             {SHOW_MONETIZATION && (
-              <a href="/#pricing" className="hover:text-ink-300">
+              <Link to="/pricing" className="hover:text-ink-300">
                 Pricing
-              </a>
+              </Link>
             )}
             <Link to="/live" className="hover:text-ink-300">
               Free Diff tool
@@ -46,6 +46,9 @@ export default function SiteFooter() {
         <div>
           <p className="text-xs font-semibold text-ink-300">Resources</p>
           <nav className="mt-3 flex flex-col gap-2 text-xs text-ink-400">
+            <Link to="/docs" className="hover:text-ink-300">
+              Docs
+            </Link>
             <a href="/#faq" className="hover:text-ink-300">
               FAQ
             </a>

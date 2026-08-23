@@ -6,6 +6,7 @@
 
 - [Homepage](https://meshdiff.com/): overview, pricing tiers, and product walkthrough.
 - [Features](https://meshdiff.com/features): full feature breakdown of the diff engine and review workflow.
+- [Pricing](https://meshdiff.com/pricing): Free vs. Pro vs. Team feature comparison — core diffing is free forever, Pro adds saved projects and version history, Team adds comment pins, approvals, and print-log tracking.
 - [Free Diff Tool](https://meshdiff.com/live): no-signup, drag-and-drop STL/3MF/OBJ comparison in the browser.
 - [Roadmap](https://meshdiff.com/roadmap): shipped changelog and planned features.
 - [Embeddable Revision Badge](https://meshdiff.com/embed): a badge creators can embed on Printables/MakerWorld/Thingiverse listings showing a model's revision history.
@@ -18,7 +19,7 @@
 - [3D Print Version Control](https://meshdiff.com/3d-print-version-control): using Meshdiff as version control for iterative print workflows.
 - [Meshdiff vs. Manually Comparing 3D Models](https://meshdiff.com/vs-manual-comparison): where eyeballing two models breaks down and what a geometric diff adds.
 - [Docs & FAQ](https://meshdiff.com/docs): how voxel diffing works, supported formats, and whether files are ever uploaded.
-- [Blog](https://meshdiff.com/blog): updates and write-ups, including outside coverage on Hacker News and Adafruit's blog.
+- [Blog](https://meshdiff.com/blog): updates and write-ups on the diff engine and how the comparison actually works.
 
 ## Tool-specific landing pages
 

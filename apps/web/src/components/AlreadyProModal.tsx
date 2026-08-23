@@ -1,6 +1,13 @@
 import { Link } from "react-router-dom";
 
-export default function AlreadyProModal({ onClose }: { onClose: () => void }) {
+interface AlreadyProModalProps {
+  onClose: () => void;
+  /** Which tier the account is already on — drives the badge/copy below. */
+  tier?: "pro" | "team";
+}
+
+export default function AlreadyProModal({ onClose, tier = "pro" }: AlreadyProModalProps) {
+  const tierLabel = tier === "team" ? "Team" : "Pro";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
@@ -8,11 +15,11 @@ export default function AlreadyProModal({ onClose }: { onClose: () => void }) {
         onClick={(event) => event.stopPropagation()}
       >
         <span className="rounded bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-400">
-          Pro plan
+          {tierLabel} plan
         </span>
         <h3 className="mt-3 text-sm font-semibold text-ink-50">You already subscribed</h3>
         <p className="mt-2 text-sm text-ink-400">
-          This account already has an active Pro subscription — head to your dashboard to manage it.
+          This account already has an active {tierLabel} subscription — head to your dashboard to manage it.
         </p>
         <div className="mt-5 flex gap-2">
           <Link

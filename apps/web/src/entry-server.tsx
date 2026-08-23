@@ -21,6 +21,7 @@ import VsManualComparisonPage, {
   META_DESCRIPTION as VS_MANUAL_DESC,
 } from "./pages/VsManualComparisonPage";
 import DocsPage, { META_TITLE as DOCS_TITLE, META_DESCRIPTION as DOCS_DESC } from "./pages/DocsPage";
+import PricingPage, { META_TITLE as PRICING_TITLE, META_DESCRIPTION as PRICING_DESC } from "./pages/PricingPage";
 import BlogIndexPage, { META_TITLE as BLOG_INDEX_TITLE, META_DESCRIPTION as BLOG_INDEX_DESC } from "./pages/BlogIndexPage";
 
 /**
@@ -42,6 +43,7 @@ export const PRERENDER_ROUTES: Record<string, React.ComponentType> = {
   "/3d-print-version-control": VersionControlPage,
   "/vs-manual-comparison": VsManualComparisonPage,
   "/docs": DocsPage,
+  "/pricing": PricingPage,
   "/blog": BlogIndexPage,
 };
 
@@ -59,6 +61,7 @@ export const ROUTE_META: Record<string, { title: string; description: string }> 
   "/3d-print-version-control": { title: VERSION_CONTROL_TITLE, description: VERSION_CONTROL_DESC },
   "/vs-manual-comparison": { title: VS_MANUAL_TITLE, description: VS_MANUAL_DESC },
   "/docs": { title: DOCS_TITLE, description: DOCS_DESC },
+  "/pricing": { title: PRICING_TITLE, description: PRICING_DESC },
   "/blog": { title: BLOG_INDEX_TITLE, description: BLOG_INDEX_DESC },
 };
 

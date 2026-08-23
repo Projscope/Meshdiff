@@ -7,7 +7,7 @@ export interface ProjectAccess {
   role: "owner" | "admin" | "approver" | "member" | null;
   teamId: string | null;
   /** True for the auto-seeded "Sample Project" (see seedSampleProject.ts) —
-   * lets requireProjectTierAccess() admit free users to that one project. */
+   * lets requireProjectWriteAccess() admit free users to that one project. */
   isSample: boolean;
 }
 

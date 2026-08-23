@@ -4,7 +4,6 @@ import { loadMeshGeometryServer } from "../lib/loadMeshServer.js";
 import { computeVoxelDiff } from "../../../shared/dist/engine/diffVoxels.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
-import { requireProjectTierAccess } from "../lib/requireProjectTierAccess.js";
 import { exceedsMaxFileSize } from "../lib/fileSizeLimit.js";
 import { isUnderMemoryPressure } from "../lib/memoryGuard.js";
 import { runExclusive } from "../lib/computeLock.js";
@@ -57,7 +56,9 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           reply.code(404);
           return { success: false, error: "One or both versions not found" };
         }
-        if (!(await requireProjectTierAccess(supabase, request.userId!, access, reply))) return;
+        // Viewing a diff between two already-uploaded versions is a read —
+        // unrestricted for anyone with project access, including a
+        // downgraded former-Pro user looking at their retained history.
 
         const { data: cached, error: cacheError } = await supabase
           .from("version_diffs")

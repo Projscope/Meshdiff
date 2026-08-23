@@ -25,7 +25,16 @@
 #   — troika-three-text's unicode-font-resolver (used by drei's
 #   <Text>/<Text3D>, e.g. AxisLabels) fetches glyph-coverage data from
 #   jsDelivr on demand for characters outside the bundled font's basic
-#   range.
+#   range. Also needs https://www.googletagmanager.com here (not just in
+#   script-src) — script-src only covers loading the gtag.js <script> tag
+#   itself; the Google tag's own internal remote-config/hit-relay fetches
+#   back to googletagmanager.com are governed by connect-src, and without
+#   it here those calls get silently CSP-blocked. The script still loads
+#   and dataLayer still looks populated (gtm.load fires from the script
+#   executing, not from a hit actually landing), so this failure mode is
+#   invisible unless you check GA4 itself — diagnosed after GA4's Data
+#   Streams panel showed "Data collection isn't active... No data
+#   received" despite every other client-side signal looking healthy.
 # - img-src: 'self' data: blob: plus GA's tracking-pixel domain,
 #   *.supabase.co — project/version thumbnails are public Supabase
 #   Storage URLs (see ProjectDetailPage.tsx/ProjectsListPage.tsx),
@@ -57,4 +66,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"

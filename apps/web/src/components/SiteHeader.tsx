@@ -16,6 +16,7 @@ function LogoMark() {
 
 function AnnouncementBar() {
   const countdown = useCountdown(LAUNCH_OFFER_DEADLINE);
+  if (Date.now() >= LAUNCH_OFFER_DEADLINE.getTime()) return null;
 
   return (
     <div className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-center text-xs text-ink-300">
@@ -26,9 +27,9 @@ function AnnouncementBar() {
       <span className="font-semibold text-purple-400">
         <span className="font-mono tabular-nums">{countdown}</span>
       </span>{" "}
-      <a href="/#pricing" className="font-medium text-ink-100 hover:text-accent-300">
+      <Link to="/pricing" className="font-medium text-ink-100 hover:text-accent-300">
         See pricing →
-      </a>
+      </Link>
     </div>
   );
 }
@@ -110,10 +111,13 @@ export default function SiteHeader() {
             <Link to="/blog" className="hover:text-ink-200 transition-colors">
               Blog
             </Link>
+            <Link to="/docs" className="hover:text-ink-200 transition-colors">
+              Docs
+            </Link>
             {SHOW_MONETIZATION && (
-              <a href="/#pricing" className="hover:text-ink-200 transition-colors">
+              <Link to="/pricing" className="hover:text-ink-200 transition-colors">
                 Pricing
-              </a>
+              </Link>
             )}
             <Link to="/live" className="hover:text-ink-200 transition-colors">
               Free Diff tool
@@ -170,14 +174,21 @@ export default function SiteHeader() {
               >
                 Blog
               </Link>
+              <Link
+                to="/docs"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 hover:bg-ink-800 hover:text-ink-50"
+              >
+                Docs
+              </Link>
               {SHOW_MONETIZATION && (
-                <a
-                  href="/#pricing"
+                <Link
+                  to="/pricing"
                   onClick={() => setMobileMenuOpen(false)}
                   className="rounded-lg px-3 py-2 hover:bg-ink-800 hover:text-ink-50"
                 >
                   Pricing
-                </a>
+                </Link>
               )}
               <Link
                 to="/live"

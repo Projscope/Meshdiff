@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import CollapsibleSection, { PropertyList, PropertyRow } from "./CollapsibleSection";
 import { useDiffColors } from "../lib/diffPalette";
@@ -16,6 +17,14 @@ interface DetailedStatsPanelProps {
   boundingBoxB: [number, number, number];
 }
 
+/** Bordered card wrapper for one grid cell — gives each section a visible
+ * boundary when several sit side by side (see the grid comment below),
+ * without changing CollapsibleSection itself (shared with narrow-sidebar
+ * consumers elsewhere that don't need this). */
+function SectionCard({ children }: { children: ReactNode }) {
+  return <div className="rounded-lg border border-ink-800 bg-ink-900/40 p-3">{children}</div>;
+}
+
 export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB }: DetailedStatsPanelProps) {
   // Total volume isn't stored directly on VoxelDiffStats (only deltas are) —
   // derive it from the voxel counts rather than plumb a separate prop that
@@ -23,147 +32,164 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
   const volumeB = stats ? stats.voxelVolumeMm3 * (stats.unchangedCount + stats.addedCount) : 0;
   const diffColors = useDiffColors();
 
+  // grid-cols via auto-fit rather than a fixed responsive breakpoint: this
+  // panel is reused in both a ~300-400px sidebar (MeasureViewer,
+  // CompareVersionsPage, VersionDetailPage) and a full-width block
+  // (LiveDiffToolPage's "Show Detailed Stats" panel, with no side rail to
+  // compete with) — auto-fit naturally collapses to one column in the
+  // former and lays sections out side by side in the latter, without a
+  // viewport-width breakpoint that can't tell those two cases apart.
   return (
-    <div className="space-y-6 text-sm">
+    <div className="grid items-start gap-4 text-sm [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
       {hasComparison && (
-        <CollapsibleSection title="Geometric Delta">
-          {!stats ? (
-            <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-center text-xs text-ink-500">
-              No comparison available
-            </div>
-          ) : (
-            <>
-              <PropertyList>
-                <PropertyRow
-                  label="Volume"
-                  value={`${stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³`}
-                  valueClassName={stats.approxVolumeDeltaMm3 < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
-                />
-                <PropertyRow
-                  label="Volume Change"
-                  value={`${stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%`}
-                  valueClassName={stats.approxVolumeDeltaPercent < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
-                />
-                <PropertyRow
-                  label="Size Δ X"
-                  value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
-                  valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-ink-500"}
-                />
-                <PropertyRow
-                  label="Size Δ Y"
-                  value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
-                  valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-ink-500"}
-                />
-                <PropertyRow
-                  label="Size Δ Z"
-                  value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
-                  valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-ink-500"}
-                />
-                <PropertyRow
-                  label="Triangles"
-                  value={`${stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}${stats.triangleDelta}`}
-                  valueClassName={
-                    stats.triangleDelta > 0
-                      ? diffColors.addedTextClass
-                      : stats.triangleDelta < 0
-                        ? diffColors.removedTextClass
-                        : "text-ink-500"
-                  }
-                />
-                <PropertyRow
-                  label="Surface Area"
-                  value={`${stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}${Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²`}
-                  valueClassName={stats.surfaceAreaDelta < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
-                />
-              </PropertyList>
-              {stats.thinWallWarning && (
-                <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-                  ⚠ Thin walls detected (&lt; 0.8mm)
-                </div>
-              )}
-              {stats.maxOverhangAngle > 45 && (
-                <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-                  ⚠ Overhangs detected ({stats.maxOverhangAngle.toFixed(1)}°)
-                </div>
-              )}
-            </>
-          )}
-        </CollapsibleSection>
-      )}
-
-      <CollapsibleSection title="Model Size">
-        <PropertyList>
-          <PropertyRow label="Size X" value={`${boundingBoxB[0].toFixed(1)} mm`} />
-          <PropertyRow label="Size Y" value={`${boundingBoxB[1].toFixed(1)} mm`} />
-          <PropertyRow label="Size Z" value={`${boundingBoxB[2].toFixed(1)} mm`} />
-        </PropertyList>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Version Stats">
-        <PropertyList>
-          <PropertyRow label="Volume" value={stats ? `${volumeB.toFixed(0)} mm³` : "—"} />
-          <PropertyRow
-            label="Bounding Box"
-            value={`${boundingBoxB[0].toFixed(0)} × ${boundingBoxB[1].toFixed(0)} × ${boundingBoxB[2].toFixed(0)} mm`}
-          />
-          <PropertyRow label="Triangles" value={stats ? Math.round(stats.triangleDeltaB) : "—"} />
-          <PropertyRow label="Surface Area" value={stats ? `${stats.surfaceAreaB.toFixed(0)} mm²` : "—"} />
-          {stats?.fileFormatB && <PropertyRow label="File Format" value={stats.fileFormatB.toUpperCase()} />}
-        </PropertyList>
-      </CollapsibleSection>
-
-      {stats && (
-        <CollapsibleSection title="Printability Details">
-          {stats.printabilityIssues.length > 0 && (
-            <div className="space-y-1 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
-              {stats.printabilityIssues.map((issue, i) => (
-                <div key={i} className="text-xs text-amber-300">
-                  • {issue}
-                </div>
-              ))}
-            </div>
-          )}
-          <PropertyList>
-            <PropertyRow label="Wall Thickness" value={`${stats.minWallThickness.toFixed(2)} – ${stats.maxWallThickness.toFixed(2)} mm`} />
-            <PropertyRow label="Max Overhang" value={`${stats.maxOverhangAngle.toFixed(1)}°`} />
-            <PropertyRow label="Unsupported Area" value={`${stats.overhangAreaPercent.toFixed(1)}%`} />
-          </PropertyList>
-        </CollapsibleSection>
-      )}
-
-      {stats && (
-        <CollapsibleSection title="Hole Inventory">
-          {stats.holeCountB > 0 && stats.minHoleDiameterMm < 2 && (
-            <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-              ⚠ Small hole diameter ({stats.minHoleDiameterMm.toFixed(2)}mm) may fill in during printing
-            </div>
-          )}
-          <PropertyList>
-            <PropertyRow label="Holes Detected" value={stats.holeCountB} />
-            {hasComparison && (
+        <SectionCard>
+          <CollapsibleSection title="Geometric Delta">
+            {!stats ? (
+              <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-center text-xs text-ink-500">
+                No comparison available
+              </div>
+            ) : (
               <>
-                <PropertyRow
-                  label="Added"
-                  value={stats.holesAdded > 0 ? `+${stats.holesAdded}` : "0"}
-                  valueClassName={stats.holesAdded > 0 ? diffColors.addedTextClass : "text-ink-500"}
-                />
-                <PropertyRow
-                  label="Removed"
-                  value={stats.holesRemoved > 0 ? `-${stats.holesRemoved}` : "0"}
-                  valueClassName={stats.holesRemoved > 0 ? diffColors.removedTextClass : "text-ink-500"}
-                />
-                <PropertyRow
-                  label="Diameter Changed"
-                  value={stats.holesDiameterChanged}
-                  valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-400" : "text-ink-500"}
-                />
+                <PropertyList>
+                  <PropertyRow
+                    label="Volume"
+                    value={`${stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³`}
+                    valueClassName={stats.approxVolumeDeltaMm3 < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
+                  />
+                  <PropertyRow
+                    label="Volume Change"
+                    value={`${stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%`}
+                    valueClassName={stats.approxVolumeDeltaPercent < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
+                  />
+                  <PropertyRow
+                    label="Size Δ X"
+                    value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
+                    valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-ink-500"}
+                  />
+                  <PropertyRow
+                    label="Size Δ Y"
+                    value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
+                    valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-ink-500"}
+                  />
+                  <PropertyRow
+                    label="Size Δ Z"
+                    value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
+                    valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-ink-500"}
+                  />
+                  <PropertyRow
+                    label="Triangles"
+                    value={`${stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}${stats.triangleDelta}`}
+                    valueClassName={
+                      stats.triangleDelta > 0
+                        ? diffColors.addedTextClass
+                        : stats.triangleDelta < 0
+                          ? diffColors.removedTextClass
+                          : "text-ink-500"
+                    }
+                  />
+                  <PropertyRow
+                    label="Surface Area"
+                    value={`${stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}${Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²`}
+                    valueClassName={stats.surfaceAreaDelta < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
+                  />
+                </PropertyList>
+                {stats.thinWallWarning && (
+                  <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+                    ⚠ Thin walls detected (&lt; 0.8mm)
+                  </div>
+                )}
+                {stats.maxOverhangAngle > 45 && (
+                  <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+                    ⚠ Overhangs detected ({stats.maxOverhangAngle.toFixed(1)}°)
+                  </div>
+                )}
               </>
             )}
-            {stats.holeCountB > 0 && (
-              <PropertyRow label="Smallest Diameter" value={`${stats.minHoleDiameterMm.toFixed(2)} mm`} />
-            )}
+          </CollapsibleSection>
+        </SectionCard>
+      )}
+
+      <SectionCard>
+        <CollapsibleSection title="Model Size">
+          <PropertyList>
+            <PropertyRow label="Size X" value={`${boundingBoxB[0].toFixed(1)} mm`} />
+            <PropertyRow label="Size Y" value={`${boundingBoxB[1].toFixed(1)} mm`} />
+            <PropertyRow label="Size Z" value={`${boundingBoxB[2].toFixed(1)} mm`} />
           </PropertyList>
         </CollapsibleSection>
+      </SectionCard>
+
+      <SectionCard>
+        <CollapsibleSection title="Version Stats">
+          <PropertyList>
+            <PropertyRow label="Volume" value={stats ? `${volumeB.toFixed(0)} mm³` : "—"} />
+            <PropertyRow
+              label="Bounding Box"
+              value={`${boundingBoxB[0].toFixed(0)} × ${boundingBoxB[1].toFixed(0)} × ${boundingBoxB[2].toFixed(0)} mm`}
+            />
+            <PropertyRow label="Triangles" value={stats ? Math.round(stats.triangleDeltaB) : "—"} />
+            <PropertyRow label="Surface Area" value={stats ? `${stats.surfaceAreaB.toFixed(0)} mm²` : "—"} />
+            {stats?.fileFormatB && <PropertyRow label="File Format" value={stats.fileFormatB.toUpperCase()} />}
+          </PropertyList>
+        </CollapsibleSection>
+      </SectionCard>
+
+      {stats && (
+        <SectionCard>
+          <CollapsibleSection title="Printability Details">
+            {stats.printabilityIssues.length > 0 && (
+              <div className="space-y-1 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
+                {stats.printabilityIssues.map((issue, i) => (
+                  <div key={i} className="text-xs text-amber-300">
+                    • {issue}
+                  </div>
+                ))}
+              </div>
+            )}
+            <PropertyList>
+              <PropertyRow label="Wall Thickness" value={`${stats.minWallThickness.toFixed(2)} – ${stats.maxWallThickness.toFixed(2)} mm`} />
+              <PropertyRow label="Max Overhang" value={`${stats.maxOverhangAngle.toFixed(1)}°`} />
+              <PropertyRow label="Unsupported Area" value={`${stats.overhangAreaPercent.toFixed(1)}%`} />
+            </PropertyList>
+          </CollapsibleSection>
+        </SectionCard>
+      )}
+
+      {stats && (
+        <SectionCard>
+          <CollapsibleSection title="Hole Inventory">
+            {stats.holeCountB > 0 && stats.minHoleDiameterMm < 2 && (
+              <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+                ⚠ Small hole diameter ({stats.minHoleDiameterMm.toFixed(2)}mm) may fill in during printing
+              </div>
+            )}
+            <PropertyList>
+              <PropertyRow label="Holes Detected" value={stats.holeCountB} />
+              {hasComparison && (
+                <>
+                  <PropertyRow
+                    label="Added"
+                    value={stats.holesAdded > 0 ? `+${stats.holesAdded}` : "0"}
+                    valueClassName={stats.holesAdded > 0 ? diffColors.addedTextClass : "text-ink-500"}
+                  />
+                  <PropertyRow
+                    label="Removed"
+                    value={stats.holesRemoved > 0 ? `-${stats.holesRemoved}` : "0"}
+                    valueClassName={stats.holesRemoved > 0 ? diffColors.removedTextClass : "text-ink-500"}
+                  />
+                  <PropertyRow
+                    label="Diameter Changed"
+                    value={stats.holesDiameterChanged}
+                    valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-400" : "text-ink-500"}
+                  />
+                </>
+              )}
+              {stats.holeCountB > 0 && (
+                <PropertyRow label="Smallest Diameter" value={`${stats.minHoleDiameterMm.toFixed(2)} mm`} />
+              )}
+            </PropertyList>
+          </CollapsibleSection>
+        </SectionCard>
       )}
     </div>
   );

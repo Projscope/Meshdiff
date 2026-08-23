@@ -15,6 +15,7 @@ import {
   type ProjectDetail,
 } from "../lib/projectsApi";
 import { useAuth } from "../lib/AuthProvider";
+import { useAccountStatus } from "../components/ProjectsLayout";
 import ConfirmDialog from "../components/ConfirmDialog";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { extensionOf, loadMeshGeometry } from "../engine/loadMesh";
@@ -137,6 +138,7 @@ function computeUniqueEdges(geometry: THREE.BufferGeometry): Array<[THREE.Vector
 export default function VersionDetailPage() {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
   const { user } = useAuth();
+  const { isPro } = useAccountStatus();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [version, setVersion] = useState<VersionDetail | null>(null);
   const [diffStats, setDiffStats] = useState<VoxelDiffStats | null>(null);
@@ -636,6 +638,8 @@ export default function VersionDetailPage() {
       setComments((prev) => [...prev, result.data]);
       setPendingPosition(null);
       setPendingNormal(undefined);
+    } else {
+      setError(result.error);
     }
   }
 
@@ -653,6 +657,8 @@ export default function VersionDetailPage() {
     );
     if (result.success) {
       setComments((prev) => [...prev, result.data]);
+    } else {
+      setError(result.error);
     }
   }
 
@@ -725,6 +731,23 @@ export default function VersionDetailPage() {
             >
               ⌀
             </button>
+            {isPro && (
+              <>
+                <div className="mx-0.5 h-5 w-px bg-ink-800" />
+                <button
+                  type="button"
+                  onClick={() => setIsPlacingComment((prev) => !prev)}
+                  title={isPlacingComment ? "Cancel adding a comment" : "Click a spot on the model to add a comment"}
+                  className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
+                    isPlacingComment
+                      ? "bg-indigo-500/20 text-indigo-400"
+                      : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                  }`}
+                >
+                  💬
+                </button>
+              </>
+            )}
             <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <button
               type="button"
@@ -788,7 +811,7 @@ export default function VersionDetailPage() {
                 {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}
               </Bounds>
             )}
-            {project?.teamId && (
+            {isPro && (
               <>
                 {comments
                   .filter((comment) => !comment.parentCommentId)
@@ -854,7 +877,7 @@ export default function VersionDetailPage() {
             )}
             {/* Nearby vertex/edge "close area" highlight — shared by comment
                 placement/dragging and measure-tool hovering, so it isn't
-                gated behind project?.teamId like the comment UI above. */}
+                gated behind isPro like the comment UI above. */}
             {(isPlacingComment || isDraggingPin || isMeasuring) &&
               nearbyVertices.map((vertex, index) => (
                 <mesh key={`${vertex.join(",")}-${index}`} position={vertex}>
@@ -967,7 +990,7 @@ export default function VersionDetailPage() {
 
 
 
-            {project?.teamId && (
+            {isPro && (
               <div className="mt-5">
                 <CommentsPanel
                   comments={comments}
