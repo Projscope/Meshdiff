@@ -3,6 +3,7 @@ const GA_MEASUREMENT_ID = "G-YYCQHG6EW5";
 declare global {
   interface Window {
     dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
   }
 }
 
@@ -21,6 +22,14 @@ export function initAnalytics(): void {
   function gtag(...args: unknown[]) {
     window.dataLayer!.push(args);
   }
+  // Google's own official snippet always assigns this to window.gtag, not
+  // just a local closure — some of Google's own tooling (Tag Assistant's
+  // Consent report, at minimum) reads window.gtag directly rather than
+  // inferring state purely from dataLayer's array contents. Confirmed via
+  // Tag Assistant showing "Default consent state has not been set yet"
+  // even though the consent/default push was visibly processed by the
+  // container in the debugger's own event log.
+  window.gtag = gtag;
   // Google Consent Mode v2 checks four signals — ad_storage, analytics_storage,
   // ad_user_data, ad_personalization. Leaving any of them unset (not even
   // explicitly "denied") makes the container treat consent as unresolved,
