@@ -13,33 +13,22 @@ declare global {
 export function initAnalytics(): void {
   if (!import.meta.env.PROD) return;
 
-  const script = document.createElement("script");
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-  document.head.appendChild(script);
-
   window.dataLayer = window.dataLayer ?? [];
   function gtag(...args: unknown[]) {
     window.dataLayer!.push(args);
   }
-  // Google's own official snippet always assigns this to window.gtag, not
-  // just a local closure — some of Google's own tooling (Tag Assistant's
-  // Consent report, at minimum) reads window.gtag directly rather than
-  // inferring state purely from dataLayer's array contents. Confirmed via
-  // Tag Assistant showing "Default consent state has not been set yet"
-  // even though the consent/default push was visibly processed by the
-  // container in the debugger's own event log.
   window.gtag = gtag;
-  // Google Consent Mode v2 checks four signals — ad_storage, analytics_storage,
-  // ad_user_data, ad_personalization. Leaving any of them unset (not even
-  // explicitly "denied") makes the container treat consent as unresolved,
-  // which silently skips the actual GA4 measurement tag entirely: gtag.js
-  // still loads, still hooks into dataLayer, and still looks completely
-  // healthy (confirmed via the GA Debugger extension — only the
-  // consent-init bookkeeping tag fired, never the measurement tag), but no
-  // hit ever reaches Google's servers. No ad/remarketing use here, so the
-  // ad_* signals all stay denied; analytics_storage is granted since this
-  // is plain traffic analytics with no separate cookie-consent banner.
+
+  // Matches Google's canonical snippet order exactly: consent default,
+  // then js/config, all queued into dataLayer BEFORE the gtag.js <script>
+  // tag is even inserted into the page — not after, which is what this
+  // file did previously. Despite the array-based queue nominally being
+  // order-independent, Tag Assistant's Consent report kept reporting
+  // "Default consent state has not been set yet" with the old order even
+  // after confirming window.gtag was assigned and the consent/default
+  // push was visibly processed in the debugger's own event log — so
+  // something about gtag.js's actual bootstrapping is order-sensitive
+  // here in a way the array-queue theory alone doesn't cover.
   gtag("consent", "default", {
     ad_storage: "denied",
     ad_user_data: "denied",
@@ -48,4 +37,9 @@ export function initAnalytics(): void {
   });
   gtag("js", new Date());
   gtag("config", GA_MEASUREMENT_ID);
+
+  const script = document.createElement("script");
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+  document.head.appendChild(script);
 }
