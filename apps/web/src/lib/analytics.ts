@@ -21,13 +21,22 @@ export function initAnalytics(): void {
   function gtag(...args: unknown[]) {
     window.dataLayer!.push(args);
   }
-  // Google Consent Mode: without an explicit "granted" signal, gtag.js
-  // silently discards every hit and never sets its cookies — it loads,
-  // hooks itself into dataLayer, and looks completely healthy, but
-  // nothing ever reaches Google's servers. No ad/remarketing use here,
-  // so ad_storage stays denied; analytics_storage is granted since this
+  // Google Consent Mode v2 checks four signals — ad_storage, analytics_storage,
+  // ad_user_data, ad_personalization. Leaving any of them unset (not even
+  // explicitly "denied") makes the container treat consent as unresolved,
+  // which silently skips the actual GA4 measurement tag entirely: gtag.js
+  // still loads, still hooks into dataLayer, and still looks completely
+  // healthy (confirmed via the GA Debugger extension — only the
+  // consent-init bookkeeping tag fired, never the measurement tag), but no
+  // hit ever reaches Google's servers. No ad/remarketing use here, so the
+  // ad_* signals all stay denied; analytics_storage is granted since this
   // is plain traffic analytics with no separate cookie-consent banner.
-  gtag("consent", "default", { ad_storage: "denied", analytics_storage: "granted" });
+  gtag("consent", "default", {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "granted",
+  });
   gtag("js", new Date());
   gtag("config", GA_MEASUREMENT_ID);
 }
