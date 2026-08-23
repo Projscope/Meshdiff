@@ -41,7 +41,18 @@
 #   already allowed under connect-src but img-src is evaluated
 #   separately for <img> loads and was missing it, blocking every
 #   thumbnail — and blog.adafruit.com, hotlinked directly for their logo
-#   in the landing page's testimonial section (LandingPage.tsx).
+#   in the landing page's testimonial section (LandingPage.tsx). Also
+#   needs www.googletagmanager.com here specifically (not just
+#   script-src/connect-src) — gtag.js sends some hits as an <img> pixel
+#   beacon to googletagmanager.com/a and /td rather than fetch/XHR, and
+#   without it here those loads get silently CSP-blocked. This was the
+#   actual root cause of GA4 showing "Data collection isn't active"
+#   despite every prior fix (Consent Mode signals, connect-src) — found
+#   via Google Tag Assistant's Console log, which is the only tool of the
+#   ones tried that surfaces img-src violations directly instead of just
+#   showing a healthy-looking dataLayer with zero hits ever landing.
+#   *.google-analytics.com stays here too for the fallback/legacy pixel
+#   path some older GA integrations use.
 # - worker-src: this app's entire diff/measure pipeline runs in Web
 #   Workers (CLAUDE.md "3D Performance Rules") — 'self' covers Vite's
 #   built worker bundles, blob: is a defensive fallback.
@@ -66,4 +77,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.google-analytics.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com https://*.supabase.co https://blog.adafruit.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://meshdiff-api.onrender.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://cdn.jsdelivr.net; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
