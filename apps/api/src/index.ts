@@ -14,6 +14,7 @@ import workspaceRoute from "./routes/workspace.js";
 import billingRoute from "./routes/billing.js";
 import adminRoute from "./routes/admin.js";
 import blogRoute from "./routes/blog.js";
+import analyticsRoute from "./routes/analytics.js";
 
 const app = Fastify({ logger: true });
 
@@ -42,6 +43,7 @@ await app.register(workspaceRoute);
 await app.register(billingRoute);
 await app.register(adminRoute);
 await app.register(blogRoute);
+await app.register(analyticsRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 

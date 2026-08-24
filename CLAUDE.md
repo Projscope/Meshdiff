@@ -197,109 +197,236 @@ Meshdiff/
 
 ---
 
-## Pricing Tiers
+## Pricing Tiers — IMPLEMENTED (Stripe is live, this is not aspirational)
 
-| Tier     | Price                               | Billing        | Audience                       | Gate                                                                                                                                                     |
-| -------- | ------------------------------------ | -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Free** | $0                                   | —              | Hobbyists, evaluators           | 3 active shareable links, 3-day expiry, watermark, no saved projects                                                                                        |
-| **Pro**  | $15/mo or $144/yr (20% off)          | Monthly/Annual | Solo engineers, freelancers     | Unlimited links, custom expiry (1/3/7/30/never), no watermark, unlimited projects, comment pins, diff report export (PNG/PDF)                               |
-| **Team** | $35/seat/mo or $336/yr (20% off)     | Monthly/Annual | Hardware startups, print farms  | Everything in Pro + team approvals (Pending/Changes/Approved/Rejected), slicer profile snapshots, print result logging, SSO, admin dashboard, audit log     |
+Auth is **Supabase Auth**, not Clerk — this doc's Identity/Stack section
+above still says Clerk; that's stale, ignore it for anything billing/auth-
+related. There is no custom `users` table — everything below hangs off
+`auth.users(id)` directly.
 
-Billing via Stripe (see roadmap — not yet implemented). Tier gates above are the
-target end state; until Stripe is wired up, no plan enforcement exists in code.
+| Tier     | Price (normal, post-launch-offer)   | Audience                       | Gate                                                                                                                          |
+| -------- | ------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Free** | $0                                   | Hobbyists, evaluators           | Live Diff tool only (`/live`), no saved projects. Share-link limits are UI copy, not verified server-enforced as of this writing. |
+| **Pro**  | $15/mo                               | Solo engineers, freelancers     | Project workspaces, version history, **comment pins**, PDF diff report export                                                  |
+| **Team** | $35/seat/mo, quantity adjustable 1–50 at checkout (default 5) | Hardware startups, print farms  | Everything in Pro + version-approval workflow, slicer profile snapshots, print-result photo log, per-seat billing, audit log   |
+
+Monthly billing only — **no annual/yearly price exists in code**, despite
+older drafts of this doc implying one. A time-limited 50%-off "launch offer"
+is implemented purely as a **frontend display toggle** keyed off
+`LAUNCH_OFFER_DEADLINE` in `apps/web/src/lib/featureFlags.ts` — see
+`apps/web/src/components/PricingCards.tsx`'s `getPricingTiers(offerActive)`.
+It re-evaluates every render (piggybacking on the countdown's 1s tick) and
+reverts both tiers to full price with no badge/reload needed once the
+deadline passes. This is cosmetic only; it does **not** change what Stripe
+actually charges — a real discount requires a Stripe Promotion Code (see
+`STRIPE_DEFAULT_PROMO_CODE` below), which has its own independent expiry
+that must be configured in Stripe itself.
+
+**Comment pins are Pro, not Team-exclusive** — gated by `isPro` (see Feature
+Gating Logic below), not by team membership. `VersionDetailPage.tsx` used to
+gate the comment UI behind `project?.teamId`, which wrongly excluded
+personal Pro projects; fixed to check `isPro` instead (three spots: the
+toolbar's 💬 button, the 3D-scene comment pins/popovers, and the
+`CommentsPanel` side panel).
 
 ---
 
 ## Stripe Setup
 
-- Products: `Meshdiff Pro`, `Meshdiff Team`
-- Prices: monthly + yearly for each
-- Customer Portal enabled for self-service (update card, cancel, switch plan)
-- Checkout: Stripe hosted pages, not Elements
+- Products/Prices: `Meshdiff Pro` and `Meshdiff Team`, one **monthly** recurring
+  price each (no yearly price — see above). Team's price is per-seat;
+  quantity is chosen on Stripe's own hosted Checkout page via
+  `adjustable_quantity`, not a custom seat-picker in the app.
+- **No Product ID env var is needed anywhere** — only the Price ID matters
+  for Checkout line items. `STRIPE_PRO_PRODUCT_ID` appears as a commented-out
+  note-to-self in `apps/api/.env` but is never read by any code; there is no
+  `STRIPE_TEAM_PRODUCT_ID` at all. Don't go looking for one.
+- Customer Portal enabled for self-service (update card, cancel, resume).
+- Checkout: Stripe-hosted pages (`stripe.checkout.sessions.create`), not
+  Elements.
+- Env vars (`apps/api/.env`, see `.env.example` for the template):
+  `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`,
+  `STRIPE_TEAM_PRICE_ID`, `STRIPE_DEFAULT_PROMO_CODE` (optional, a Stripe
+  *Promotion Code* — not a raw coupon ID), `FRONTEND_URL`. All billing code
+  lives in `apps/api/src/routes/billing.ts`.
+- **Production status (as of 2026-08-23)**: live webhook endpoint is
+  Active at `https://meshdiff-api.onrender.com/billing/webhook`, correctly
+  subscribed to exactly the 3 events the handler processes (see Webhook
+  Events below). The live-mode `STRIPE_TEAM_PRICE_ID` was still a literal
+  `<live-mode Team price ID, once created>` placeholder in the commented
+  "Live credentials" block of `apps/api/.env` — **check whether that's been
+  filled in before assuming Team checkout works in production.** Test-mode
+  Team checkout (full flow: Checkout session → Stripe test card →
+  `checkout.session.completed` webhook → `subscriptions` upsert) was
+  verified working end-to-end locally via `stripe listen --forward-to
+  http://localhost:3001/billing/webhook`.
+- **CSP footgun (this bit us for real)**: `netlify.toml`'s
+  `Content-Security-Policy` needs `googletagmanager.com` in **three**
+  directives, not just `script-src`:
+  - `script-src` — loads the `gtag.js` `<script>` tag itself.
+  - `connect-src` — the Google tag's own internal remote-config fetches.
+  - `img-src` — **the actual root cause of a real "GA4 shows zero data"
+    incident**: gtag.js sends some hits as an `<img>` pixel beacon to
+    `googletagmanager.com/a` and `/td` rather than fetch/XHR, and `img-src`
+    is evaluated separately from `connect-src` for `<img>` loads. Missing
+    it here silently drops the hit before it ever becomes a visible network
+    request — `dataLayer` still populates, `gtm.load` still fires, Consent
+    Mode still resolves correctly, everything *looks* healthy. Diagnosed
+    via Google Tag Assistant's console log, the only tool (of several
+    tried — Realtime, DebugView, Resource Timing, a direct Measurement
+    Protocol curl test) that actually surfaces `img-src` CSP violations
+    instead of just showing a healthy-looking pipeline with zero hits ever
+    landing. The only visible symptom otherwise was GA4's own Admin → Data
+    Streams panel saying "Data collection isn't active... No data
+    received." All three directives now include it — don't regress any of
+    them.
 
-## Database Schema (PostgreSQL)
+## Database Schema (PostgreSQL / Supabase) — actual, not aspirational
+
+No `users` or `usage_limits` table exists. Real schema, spread across
+`supabase/migrations/` (mirrored in `apps/api/migrations/`):
 
 ```sql
-users (
-  id uuid primary key,           -- Clerk user ID
-  email text not null,
-  stripe_customer_id text,
-  created_at timestamptz default now()
+-- 20260101000012_stripe_billing.sql
+stripe_customers (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  stripe_customer_id text not null unique,
+  created_at timestamptz not null default now()
 );
 
 subscriptions (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id) on delete cascade,
-  stripe_subscription_id text unique not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  stripe_subscription_id text not null unique,
   stripe_price_id text not null,
-  status text not null check (status in ('active','canceled','past_due','unpaid','trialing')),
-  tier text not null check (tier in ('pro','team')),
+  status text not null check (status in ('active','trialing','past_due','canceled','unpaid','incomplete','incomplete_expired')),
+  tier text not null check (tier in ('pro','team')),        -- 'team' added in 20260101000017
+  quantity int not null default 1,                           -- seats, added in 20260101000017
   current_period_start timestamptz not null,
   current_period_end timestamptz not null,
-  cancel_at_period_end boolean default false,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  cancel_at_period_end boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+-- one row per user_id (unique index), upserted by the webhook handler
 
+-- 20260101000006_teams_and_approval.sql (+ 20260101000017_team_billing.sql)
 teams (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  owner_id uuid references users(id),
-  stripe_subscription_id text references subscriptions(stripe_subscription_id),
-  created_at timestamptz default now()
+  owner_user_id uuid not null unique references auth.users(id) on delete cascade,  -- unique: one team per owner
+  created_at timestamptz not null default now()
 );
 
 team_members (
   id uuid primary key default gen_random_uuid(),
-  team_id uuid references teams(id) on delete cascade,
-  user_id uuid references users(id) on delete cascade,
-  role text not null check (role in ('admin','member')),
-  joined_at timestamptz default now(),
+  team_id uuid not null references teams(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null check (role in ('admin','approver','member')),  -- 'approver' added in 20260101000010
+  joined_at timestamptz not null default now(),
   unique(team_id, user_id)
 );
 
-usage_limits (
-  user_id uuid primary key references users(id) on delete cascade,
-  active_share_links_count int default 0,
-  projects_count int default 0,
-  reset_at timestamptz default now()
-);
+-- 20260101000006: versions gained approval columns
+alter table versions add column approval_status text not null default 'pending'
+  check (approval_status in ('pending','approved','rejected'));  -- only 3 states, no "changes requested"
+alter table versions add column reviewed_by_user_id uuid references auth.users(id);
+alter table versions add column reviewed_at timestamptz;
+alter table versions add column rejection_reason text;
+alter table projects add column team_id uuid references teams(id) on delete set null;
+-- team_id null = personal/Pro project (auto-approves on upload); non-null = Team project (needs review)
 ```
 
-## Feature Gating Logic
+`has_active_team_access(p_user_id uuid) returns boolean` (SQL function,
+`security definer`, in `20260101000017_team_billing.sql`) — true if the user
+is a `team_members` row whose team's owner has a `subscriptions` row with
+`tier = 'team'` and `status not in ('canceled','past_due')`. This is how a
+team member with **no subscription of their own** still counts as paid.
+
+## Feature Gating Logic — actual code paths
+
+Backend, `apps/api/src/lib/subscription.ts`:
 
 ```
-Is user authenticated?
-  └─ No → Free tier limits (3 links, watermark, no save)
-  └─ Yes → Check subscriptions table
-      └─ status = 'active' or 'trialing'?
-          └─ tier = 'pro' → Pro limits
-          └─ tier = 'team' → Team limits (check team_members for seat)
-      └─ Else → Free tier limits
+getAccountAccess(supabase, userId):
+  tier = getUserTier(userId).tier            // reads `subscriptions` directly
+  if tier != 'free': return { status: 'pro', tier, viaTeamMembership: false }
+  hasTeamAccess = rpc has_active_team_access(userId)
+  return { status: hasTeamAccess ? 'pro' : 'restricted', tier: 'free', viaTeamMembership: hasTeamAccess }
 ```
 
-## API Endpoints
+`status === 'pro'` is the actual gate almost everything checks — it means
+"Pro tier, OR Team subscription owner, OR team member riding the owner's
+seats." Never gate a feature on a raw `tier === 'pro'` string check; that
+wrongly excludes Team owners and members. Concretely:
 
-| Method | Route                        | Auth     | Description                             |
-| ------ | ----------------------------- | -------- | ---------------------------------------- |
-| POST   | `/api/billing/checkout`       | Required | Creates Stripe Checkout session          |
-| POST   | `/api/billing/portal`         | Required | Creates Stripe Customer Portal session   |
-| GET    | `/api/billing/subscription`   | Required | Returns current subscription status      |
-| POST   | `/api/billing/webhook`        | None     | Stripe webhook handler                   |
+- `requireProjectWriteAccess()` (`apps/api/src/lib/requireProjectTierAccess.ts`)
+  — gates comment creation, version approve/reject, deleting a version,
+  slicer-profile/print-photo upload, etc. `isSample` (the auto-seeded Sample
+  Project) is exempt; everything else requires `status === 'pro'`.
+- `requireProUploadAccess()` — uploading a *new* version specifically; no
+  Sample Project exemption (it ships pre-seeded, free users explore but
+  don't add to it).
+- Frontend mirror: `useAccountStatus()` context in
+  `apps/web/src/components/ProjectsLayout.tsx` exposes `{ isRestricted,
+  isPro }`, fetched once from `GET /billing/subscription`. Use `isPro` for
+  any client-side "should I show this button" check — it's the same
+  status field, not a re-derived guess.
+- Team-only (not just Pro) beyond that: `canReviewVersions()` in
+  `apps/api/src/routes/versions.ts` — project owner always reviews; on a
+  Team project, `admin` or `approver` role also can (`approver` is
+  "reviews only, can't manage members"); `member` role cannot. Team seat
+  invites/removals are `admin`/owner-only, enforced in
+  `apps/api/src/routes/teams.ts`.
 
-## Webhook Events to Handle
+## API Endpoints (no `/api` prefix — routes are unprefixed, e.g. `/billing/checkout`)
 
-| Event                            | Action                                                             |
-| --------------------------------- | -------------------------------------------------------------------- |
-| `checkout.session.completed`      | Create subscription record, update user tier, send welcome email     |
-| `invoice.paid`                    | Mark active, update period dates                                     |
-| `invoice.payment_failed`          | Mark past_due, 7-day grace period                                    |
-| `customer.subscription.updated`   | Sync cancel_at_period_end, tier changes, quantity                    |
-| `customer.subscription.deleted`   | Downgrade to Free, preserve data 30 days                             |
+| Method | Route                                          | Auth     | Description                                          |
+| ------ | ----------------------------------------------- | -------- | ------------------------------------------------------ |
+| GET    | `/billing/subscription`                        | Required | Returns `{ tier, status, accountStatus, seats, ... }`  |
+| POST   | `/billing/checkout`                            | Required | Body `{ tier: 'pro'\|'team', couponCode? }` → Checkout session URL |
+| GET    | `/billing/coupons`                             | None     | The general-availability promo code, if any is active  |
+| POST   | `/billing/portal`                              | Required | Creates Stripe Customer Portal session                 |
+| POST   | `/billing/cancel` / `/billing/resume`          | Required | Toggles `cancel_at_period_end` on the live subscription |
+| POST   | `/billing/webhook`                             | None (Stripe signature) | Stripe webhook handler, raw-body content-type parser |
+| POST   | `/projects/:projectId/versions/:versionId/approve` / `/reject` | Required, Team reviewer role | Version-approval actions, see `canReviewVersions()` above |
+| GET    | `/teams/:teamId/pending-versions`              | Required | Cross-project queue of pending versions for reviewers   |
+
+Frontend callers: `apps/web/src/lib/projectsApi.ts`
+(`startProCheckout`/`startTeamCheckout`/`getSubscription`/etc.) and
+`apps/web/src/lib/pendingCheckout.ts` (`markPendingCheckout(tier)` /
+`consumePendingCheckout()` — persists which tier a signed-out visitor meant
+to buy across the signup + email-confirm round trip, resumed automatically
+in `ProjectsLayout.tsx`'s `handleAutoResumeCheckout(tier)`).
+
+## Webhook Events — only 3 are actually handled
+
+| Event                            | Action                                                                |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `checkout.session.completed`      | Look up the Stripe customer → user, upsert `subscriptions` from the real Stripe subscription object |
+| `customer.subscription.updated`   | Same upsert — covers plan/quantity/cancel-at-period-end changes         |
+| `customer.subscription.deleted`   | Sets `status = 'canceled'` on the matching row                          |
+
+`invoice.paid` and `invoice.payment_failed` are **not implemented** —
+earlier drafts of this doc listed them as required; they were never built.
+If you're setting up a webhook endpoint, subscribing to extra events beyond
+these 3 is harmless (unhandled types are a no-op default case in the
+handler) but does nothing useful. Don't assume past_due/grace-period logic
+exists — it doesn't.
 
 ## Security Rules
 
-- Never trust client-side tier checks. Always verify server-side.
-- Stripe webhook secret in `STRIPE_WEBHOOK_SECRET` env var only.
-- Whitelist `price_id` server-side — reject unknown price IDs.
-- Team seat limits enforced at invite time.
+- Never trust client-side tier checks. Always verify server-side via
+  `getAccountAccess()`/`requireProjectWriteAccess()`, not a raw `tier`
+  string comparison (see Feature Gating Logic above for why).
+- Stripe webhook secret in `STRIPE_WEBHOOK_SECRET` env var only — never
+  commit a real value to `.env.example` (this happened once with a
+  `stripe listen` CLI secret; scrubbed, but check before assuming that
+  file's contents are safe to treat as placeholders).
+- Whitelist `price_id` server-side via `apps/api/src/lib/priceCatalog.ts`'s
+  `tierForPriceId()` — reject unknown price IDs rather than guessing a tier.
+- Team seat limits enforced at invite time in `apps/api/src/routes/teams.ts`.
+- `blog_posts` (unrelated to billing, but same "don't forget RLS" lesson)
+  shipped once without Row Level Security enabled, exposing it to the anon
+  key. Fixed in `apps/api/migrations/0023_blog_rls.sql`. When adding a new
+  table, enable RLS with a real policy in the same migration — don't defer it.

@@ -44,3 +44,35 @@ export function listAdminUsers(page = 1): Promise<Result<AdminUsersPage>> {
 export function getAdminDashboard(granularity: SignupGranularity = "week"): Promise<Result<AdminDashboard>> {
   return request(`/admin/stats?granularity=${granularity}`);
 }
+
+export interface AnalyticsTrendPoint {
+  date: string;
+  pageviews: number;
+  visitors: number;
+}
+
+export interface AnalyticsBreakdownEntry {
+  value: string;
+  count: number;
+}
+
+export interface AnalyticsSummary {
+  totalPageviews: number;
+  totalUniqueVisitors: number;
+  dailyTrend: AnalyticsTrendPoint[];
+  topPages: AnalyticsBreakdownEntry[];
+  topCountries: AnalyticsBreakdownEntry[];
+  topLanguages: AnalyticsBreakdownEntry[];
+  topReferrers: AnalyticsBreakdownEntry[];
+}
+
+/** Self-hosted, cookie-less pageview analytics — see
+ * netlify/functions/track.mts (write side) and CLAUDE.md/the analytics
+ * plan. `from`/`to` are YYYY-MM-DD; defaults to the last 30 days. */
+export function getAdminAnalytics(from?: string, to?: string): Promise<Result<AnalyticsSummary>> {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+  return request(`/admin/analytics${query ? `?${query}` : ""}`);
+}

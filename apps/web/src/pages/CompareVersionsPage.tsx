@@ -41,10 +41,11 @@ export default function CompareVersionsPage() {
   const diffViewRef = useRef<DiffViewHandle>(null);
 
   useEffect(() => {
-    // Team billing isn't wired up yet (see CLAUDE.md) — "pro" is the only
-    // paid tier the backend can actually return today.
+    // accountStatus (not a raw tier === 'pro' check) mirrors the backend's
+    // getAccountAccess() — true for Pro, a Team subscription's owner, and a
+    // team member riding the owner's seats (whose own tier is 'free').
     getSubscription().then((result) => {
-      setIsProOrTeam(result.success && result.data.tier === "pro");
+      setIsProOrTeam(result.success && result.data.accountStatus === "pro");
     });
   }, []);
 
