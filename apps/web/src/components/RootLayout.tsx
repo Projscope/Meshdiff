@@ -3,9 +3,14 @@ import { Outlet, useLocation } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import LoadingCube from "./LoadingCube";
+import { useTrackPageview } from "../hooks/useTrackPageview";
 
 export default function RootLayout() {
   const location = useLocation();
+  // Every route nests under this layout (see Outlet below) — mounting the
+  // self-hosted pageview tracker here, once, covers initial load and every
+  // client-side route change without each page needing its own call.
+  useTrackPageview();
 
   // index.html ships one static <link rel="canonical"> pointing at "/" —
   // fine for the very first paint, but every route past that (an SPA

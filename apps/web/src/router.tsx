@@ -18,6 +18,7 @@ import BlogPostPage from "./pages/BlogPostPage";
 import ProjectsListPage from "./pages/ProjectsListPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
 import AdminBlogPage from "./pages/AdminBlogPage";
 import AdminBlogEditorPage from "./pages/AdminBlogEditorPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -149,6 +150,16 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ProjectsLayout>
               <AdminUsersPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin/analytics",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <AdminAnalyticsPage />
             </ProjectsLayout>
           </ProtectedRoute>
         ),

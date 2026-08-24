@@ -10,6 +10,7 @@ export interface DiffReportScreenshots {
 }
 
 const MESHDIFF_URL = "https://meshdiff.com/";
+const EMBED_URL = "https://meshdiff.com/embed";
 const ACCENT = "#10b981";
 const NEUTRAL_950 = "#15181e";
 const NEUTRAL_400 = "#7c879e";
@@ -33,6 +34,38 @@ function drawWatermark(doc: jsPDF) {
     angle: 45,
   });
   doc.restoreGraphicsState();
+}
+
+/** A clearly-readable (not the faint diagonal watermark's 0.08 opacity)
+ * upsell panel for Free-tier reports, filling the otherwise-blank space
+ * below the stats table — the diagonal watermark alone was easy to miss at
+ * a glance. Also promotes the embeddable revision badge (/embed), which is
+ * relevant to exactly this audience (someone sharing a diff report
+ * publicly, e.g. on a Thingiverse/Printables listing). Returns the y
+ * position after the panel. */
+function drawFreeTierPromo(doc: jsPDF, y: number): number {
+  const boxY = y;
+  const boxHeight = 26;
+  doc.setDrawColor(230, 230, 230);
+  doc.setFillColor(250, 250, 250);
+  doc.roundedRect(14, boxY, 182, boxHeight, 2, 2, "FD");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor("#171717");
+  doc.text("This report was generated with Meshdiff Community.", 14 + 6, boxY + 9);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(NEUTRAL_400);
+  doc.text("Upgrade to Pro or Team to remove this watermark and unlock saved projects and version history.", 14 + 6, boxY + 15);
+
+  doc.setTextColor(ACCENT);
+  doc.textWithLink("Get an embeddable revision badge for your listing → meshdiff.com/embed", 14 + 6, boxY + 21, {
+    url: EMBED_URL,
+  });
+
+  return boxY + boxHeight + 8;
 }
 
 /** Draws the "^" logomark + Meshdiff wordmark, linked to meshdiff.com. */
@@ -163,6 +196,9 @@ export function downloadDiffReportPdf(
     doc.line(14, y + 2, 196, y + 2);
     y += 9;
   }
+
+  y += 6;
+  if (!isProOrTeam) y = drawFreeTierPromo(doc, y);
 
   const pageHeight = doc.internal.pageSize.getHeight();
   const footerY = pageHeight - 14;

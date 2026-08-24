@@ -43,3 +43,34 @@ export function initAnalytics(): void {
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
   document.head.appendChild(script);
 }
+
+/** Self-hosted, cookie-less pageview beacon — runs alongside GA for now
+ * (see plan "Self-hosted privacy-friendly analytics"), not a replacement
+ * yet. Fire-and-forget: never blocks navigation, and the caller doesn't
+ * need to know whether it succeeded. `sendBeacon` survives the page
+ * unloading immediately after (e.g. on a route change), which a plain
+ * fetch can't reliably guarantee without `keepalive`. */
+export function trackPageview(): void {
+  if (!import.meta.env.PROD) return;
+
+  const payload = JSON.stringify({
+    path: window.location.pathname,
+    referrer: document.referrer,
+    language: navigator.language,
+  });
+
+  if (navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: "application/json" });
+    navigator.sendBeacon("/.netlify/functions/track", blob);
+  } else {
+    fetch("/.netlify/functions/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true,
+    }).catch(() => {
+      // Best-effort only — a dropped pageview beacon is never worth
+      // surfacing to the user or retrying.
+    });
+  }
+}
