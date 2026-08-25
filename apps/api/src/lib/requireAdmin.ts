@@ -6,6 +6,13 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
+/** Shared with subscription.ts so admin accounts also get permanent,
+ * never-restricted product access (see getAccountAccess()) without
+ * duplicating the ADMIN_EMAILS parsing. */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
 /**
  * Must run after requireAuth (needs request.userId already set). Looks up
  * the caller's email via admin.getUserById — requireAuth doesn't retain the
@@ -21,8 +28,8 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   }
 
   const { data, error } = await supabase.auth.admin.getUserById(request.userId!);
-  const email = data?.user?.email?.toLowerCase();
-  if (error || !email || !ADMIN_EMAILS.includes(email)) {
+  const email = data?.user?.email;
+  if (error || !isAdminEmail(email)) {
     reply.code(403).send({ success: false, error: "Admin access required" });
     return;
   }

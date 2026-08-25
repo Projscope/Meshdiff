@@ -3,6 +3,7 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "../lib/subscription.js";
+import { isAdminEmail } from "../lib/requireAdmin.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 
 const PAGE_SIZE = 25;
@@ -112,6 +113,24 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         const subsByUser = new Map((subs as SubscriptionRow[]).map((s) => [s.user_id, s]));
 
         const users = pageResult.data.users.map((u) => {
+          // Admin accounts (ADMIN_EMAILS) have permanent, never-restricted
+          // access via getAccountAccess() regardless of subscription state
+          // — reflect that here too so this list doesn't show them as an
+          // expired free user.
+          if (isAdminEmail(u.email)) {
+            return {
+              id: u.id,
+              email: u.email ?? null,
+              signupDate: u.created_at,
+              lastSignInAt: u.last_sign_in_at ?? null,
+              tier: "team" as const,
+              status: null,
+              currentPeriodEnd: null,
+              isTrialing: false,
+              trialDaysRemaining: null,
+            };
+          }
+
           const sub = subsByUser.get(u.id);
           const isActive = !!sub && !INACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
           // Trial status only applies to a free-tier user — listUsers()

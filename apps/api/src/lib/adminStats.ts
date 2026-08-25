@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "./subscription.js";
+import { isAdminEmail } from "./requireAdmin.js";
 
 export interface AdminStats {
   totalUsers: number;
@@ -77,7 +78,8 @@ export async function getAdminStats(
   let teamSubscribers = 0;
   for (const u of usersResult.data.users) {
     const activeTier = tierByUserId.get(u.id);
-    if (activeTier === "pro") proSubscribers++;
+    if (isAdminEmail(u.email)) teamSubscribers++;
+    else if (activeTier === "pro") proSubscribers++;
     else if (activeTier === "team") teamSubscribers++;
     else if (computeTrialStatus(u.created_at).isTrialing) trialingUsers++;
     else freeUsers++;
