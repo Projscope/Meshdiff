@@ -12,6 +12,10 @@ export interface AdminUserRow {
    * computeTrialStatus() in apps/api/src/lib/subscription.ts. */
   isTrialing: boolean;
   trialDaysRemaining: number | null;
+  /** Flagged by an admin as a demo/test/showcase account — excluded from
+   * the stat widgets and signups chart, no effect on the account itself.
+   * See setUserDemoStatus() and apps/api/src/lib/demoAccounts.ts. */
+  isDemo: boolean;
 }
 
 export interface AdminStats {
@@ -49,6 +53,10 @@ export interface AdminDashboard {
 
 export function listAdminUsers(page = 1): Promise<Result<AdminUsersPage>> {
   return request(`/admin/users?page=${page}`);
+}
+
+export function setUserDemoStatus(userId: string, isDemo: boolean): Promise<Result<{ userId: string; isDemo: boolean }>> {
+  return request(`/admin/users/${userId}/demo`, { method: "PATCH", body: JSON.stringify({ demo: isDemo }) });
 }
 
 export function getAdminDashboard(granularity: SignupGranularity = "week"): Promise<Result<AdminDashboard>> {
