@@ -3,6 +3,7 @@ import { getAdminAnalytics, type AnalyticsSummary } from "../lib/adminApi";
 import AnalyticsStatsGrid from "../components/AnalyticsStatsGrid";
 import AnalyticsTrendChart from "../components/AnalyticsTrendChart";
 import AnalyticsRankedList from "../components/AnalyticsRankedList";
+import { countryName, languageName } from "../lib/localeNames";
 
 type RangePreset = "30d" | "6m";
 
@@ -84,8 +85,8 @@ export default function AdminAnalyticsPage() {
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <AnalyticsRankedList title="Top Pages" entries={data.topPages} />
-            <AnalyticsRankedList title="Top Countries" entries={data.topCountries} />
-            <AnalyticsRankedList title="Top Languages" entries={data.topLanguages} />
+            <AnalyticsRankedList title="Top Countries" entries={data.topCountries} formatValue={countryName} />
+            <AnalyticsRankedList title="Top Languages" entries={data.topLanguages} formatValue={languageName} />
             <AnalyticsRankedList title="Top Referrers" entries={data.topReferrers} />
           </div>
         </>

@@ -34,6 +34,7 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
         const y = bottom - barHeight;
         return (
           <g key={point.date}>
+            <title>{`${formatDateLabel(point.date)}: ${point.pageviews.toLocaleString()} pageviews`}</title>
             <rect
               x={x + barWidth * 0.15}
               y={y}
@@ -43,9 +44,14 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
               className="fill-accent-500/70"
             />
             {i % labelStride === 0 && (
-              <text x={x + barWidth / 2} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
-                {formatDateLabel(point.date)}
-              </text>
+              <>
+                <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" className="fill-ink-300 text-[9px] font-semibold">
+                  {point.pageviews.toLocaleString()}
+                </text>
+                <text x={x + barWidth / 2} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
+                  {formatDateLabel(point.date)}
+                </text>
+              </>
             )}
           </g>
         );
