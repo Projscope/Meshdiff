@@ -249,7 +249,7 @@ export default function CompareVersionsPage() {
             <button
               type="button"
               onClick={() =>
-                downloadDiffReportPdf(stats, isProOrTeam, {
+                downloadDiffReportPdf(stats, isProOrTeam, boundingBoxB, {
                   viewA: viewerARef.current?.captureScreenshot(),
                   viewB: viewerBRef.current?.captureScreenshot(),
                   combined: diffViewRef.current?.captureScreenshot(),

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { INACTIVE_SUBSCRIPTION_STATUSES } from "./subscription.js";
+import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "./subscription.js";
 
 export interface AdminStats {
   totalUsers: number;
@@ -8,6 +8,14 @@ export interface AdminStats {
   communityShares: number;
   freeShares: number;
   proShares: number;
+  /** Subscriber-type breakdown — freeUsers + trialingUsers + proSubscribers
+   * + teamSubscribers always sums to totalUsers. Free/trialing are split by
+   * computeTrialStatus() (the same day-math used by getAccountAccess() and
+   * the admin users list), not just "no subscription row". */
+  freeUsers: number;
+  trialingUsers: number;
+  proSubscribers: number;
+  teamSubscribers: number;
 }
 
 export type SignupGranularity = "week" | "month";
@@ -44,6 +52,37 @@ export async function getAdminStats(
     return { success: false, error: "Failed to count pro subscriptions" };
   }
 
+  // Subscriber-type breakdown (Free/Trialing/Pro/Team) — needs each
+  // free-tier user's created_at, which a count-only query can't give.
+  // Fetches every user in one listUsers() call, same pattern (and same
+  // "fine at this scale" reasoning) as getSignupBuckets() below.
+  const [usersResult, activeSubsResult] = await Promise.all([
+    supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    supabase
+      .from("subscriptions")
+      .select("user_id, tier")
+      .not("status", "in", `(${INACTIVE_SUBSCRIPTION_STATUSES.join(",")})`),
+  ]);
+  if (usersResult.error) {
+    return { success: false, error: "Failed to load users" };
+  }
+  if (activeSubsResult.error) {
+    return { success: false, error: "Failed to load subscriptions" };
+  }
+  const tierByUserId = new Map(activeSubsResult.data.map((s) => [s.user_id as string, s.tier as string]));
+
+  let freeUsers = 0;
+  let trialingUsers = 0;
+  let proSubscribers = 0;
+  let teamSubscribers = 0;
+  for (const u of usersResult.data.users) {
+    const activeTier = tierByUserId.get(u.id);
+    if (activeTier === "pro") proSubscribers++;
+    else if (activeTier === "team") teamSubscribers++;
+    else if (computeTrialStatus(u.created_at).isTrialing) trialingUsers++;
+    else freeUsers++;
+  }
+
   // Share counts by who created them, using the tier snapshotted at share
   // time (share_stats.tier_at_share — see migration 0016), not a live join:
   // null = the anonymous public Live Diff tool ("community"), 'free'/'pro'
@@ -64,6 +103,10 @@ export async function getAdminStats(
       totalUsers,
       proUsers: proCount ?? 0,
       conversionRate: totalUsers > 0 ? Math.round(((proCount ?? 0) / totalUsers) * 1000) / 10 : 0,
+      freeUsers,
+      trialingUsers,
+      proSubscribers,
+      teamSubscribers,
       communityShares: communityShares.count ?? 0,
       freeShares: freeShares.count ?? 0,
       proShares: proShares.count ?? 0,

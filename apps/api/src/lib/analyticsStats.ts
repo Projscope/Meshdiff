@@ -23,7 +23,11 @@ export interface AnalyticsSummary {
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
-const TOP_N = 10;
+// High enough that the ranked lists rarely truncate real data — the
+// frontend paginates client-side in pages of 15 (see AnalyticsRankedList.tsx)
+// rather than re-fetching, so this just needs to cover a generous number of
+// distinct values per dimension over the range, not match the page size.
+const TOP_N = 50;
 
 async function topBreakdown(
   supabase: SupabaseClient,

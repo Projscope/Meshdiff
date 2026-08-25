@@ -264,10 +264,15 @@ export interface SubscriptionStatus {
   status: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  /** "pro" (real subscription, or access via a Team owner's seats) |
-   * "restricted" (no subscription and no team access — most routes 403;
-   * Pro/Team are payable from day one, no trial). */
+  /** "pro" (real subscription, access via a Team owner's seats, or still
+   * within the 14-day free-signup trial) | "restricted" (no subscription,
+   * no team access, trial expired — most routes 403). */
   accountStatus: "pro" | "restricted";
+  /** true for the first 14 days after a free signup — full access with no
+   * subscription. See getAccountAccess() in apps/api/src/lib/subscription.ts. */
+  isTrialing: boolean;
+  /** Whole days left in the trial window, or null when not trialing. */
+  trialDaysRemaining: number | null;
   /** Only populated for a Team subscription's owner — a member riding the
    * owner's seats has no purchased/used figure of their own. */
   seats: { purchased: number; used: number } | null;

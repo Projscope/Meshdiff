@@ -109,13 +109,21 @@ export default function AdminUsersPage() {
                             ? "bg-violet-500/15 text-violet-400"
                             : user.tier === "pro"
                               ? "bg-accent-500/15 text-accent-400"
-                              : "bg-ink-800 text-ink-400"
+                              : user.isTrialing
+                                ? "bg-amber-500/15 text-amber-400"
+                                : "bg-ink-800 text-ink-400"
                         }`}
                       >
-                        {user.tier}
+                        {user.isTrialing ? "trial" : user.tier}
                       </span>
                     </span>
-                    <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>{user.status ?? "—"}</span>
+                    <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
+                      {user.isTrialing
+                        ? `${user.trialDaysRemaining} day${user.trialDaysRemaining === 1 ? "" : "s"} left`
+                        : user.tier === "free"
+                          ? "trial ended"
+                          : (user.status ?? "—")}
+                    </span>
                     <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
                       {formatDate(user.signupDate)}
                     </span>

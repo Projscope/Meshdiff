@@ -1,4 +1,5 @@
 import type { AnalyticsSummary } from "../lib/adminApi";
+import { countryName } from "../lib/localeNames";
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -15,7 +16,7 @@ function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
  * selected range (see analyticsStats.ts) — not a sum of daily uniques,
  * which would double-count a returning visitor. */
 export default function AnalyticsStatsGrid({ summary }: { summary: AnalyticsSummary }) {
-  const topCountry = summary.topCountries[0]?.value ?? "—";
+  const topCountry = summary.topCountries[0] ? countryName(summary.topCountries[0].value) : "—";
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <StatCard label="Pageviews" value={summary.totalPageviews.toLocaleString()} />

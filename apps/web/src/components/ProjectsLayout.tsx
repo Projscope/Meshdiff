@@ -263,19 +263,21 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // wrongly show as "Free".
   const isTeamMember = teams.length > 0 || subscription?.tier === "team";
   const isPro = subscription?.tier === "pro";
-  // No trial — a non-Pro, non-team account is restricted from day one (see
-  // requireActiveAccess.ts). Stays false until the subscription fetch
-  // resolves, so the sidebar doesn't flash a locked state on first load.
+  const isTrialing = !!subscription?.isTrialing;
+  // A free signup gets full ("pro") access for their first 14 days — see
+  // getAccountAccess() in apps/api/src/lib/subscription.ts. Stays false
+  // until the subscription fetch resolves, so the sidebar doesn't flash a
+  // locked state on first load.
   const isRestricted = subscription?.accountStatus === "restricted";
   // Distinct from isTeamMember: a regular team member (not the owner) has
   // no subscription/stripe_customers row of their own, so /billing/portal
   // would 404 for them — only the actual subscriber (Pro or Team) gets the
   // Manage/Cancel/Resume controls below.
   const isBillingOwner = subscription?.tier === "pro" || subscription?.tier === "team";
-  const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : "Free";
+  const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : isTrialing ? "Free Trial" : "Free";
   const planTextClass = isTeamMember
     ? "text-violet-400"
-    : isPro
+    : isPro || isTrialing
       ? "text-accent-400"
       : isRestricted
         ? "text-red-400"
@@ -560,9 +562,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
                   : isTeamMember
                     ? "Access via your team's plan."
-                    : isRestricted
-                      ? "Subscribe to keep using Meshdiff — you can still sign in and delete projects."
-                      : "Project workspaces, version history, and comment pins — $15/mo."}
+                    : isTrialing
+                      ? `Full access — ${subscription?.trialDaysRemaining} day${subscription?.trialDaysRemaining === 1 ? "" : "s"} left in your free trial.`
+                      : isRestricted
+                        ? "Your 14-day trial has ended — subscribe to keep using Meshdiff. You can still sign in and delete projects."
+                        : "Project workspaces, version history, and comment pins — $15/mo."}
               </p>
               {isBillingOwner && (
                 <div className="mt-2 flex items-center gap-3">
