@@ -110,6 +110,8 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
           currentPeriodEnd: row?.current_period_end ?? null,
           cancelAtPeriodEnd: row?.cancel_at_period_end ?? false,
           accountStatus: access.status,
+          isTrialing: access.isTrialing,
+          trialDaysRemaining: access.trialDaysRemaining,
           seats,
         },
       };

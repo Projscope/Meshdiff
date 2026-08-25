@@ -643,7 +643,9 @@ export default function ProjectDetailPage() {
                           </span>
                         )}
                       </div>
-                      <ApprovalBadge status={comparison.toVersion.approvalStatus} />
+                      {project?.teamId && comparison.toVersion.approvalStatus !== "approved" && (
+                        <ApprovalBadge status={comparison.toVersion.approvalStatus} />
+                      )}
                       <span className="whitespace-nowrap text-xs text-ink-500">{timeAgo(comparison.toVersion.createdAt)}</span>
                     </div>
                   </div>

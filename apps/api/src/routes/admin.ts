@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
-import { INACTIVE_SUBSCRIPTION_STATUSES } from "../lib/subscription.js";
+import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "../lib/subscription.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 
 const PAGE_SIZE = 25;
@@ -114,6 +114,11 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         const users = pageResult.data.users.map((u) => {
           const sub = subsByUser.get(u.id);
           const isActive = !!sub && !INACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
+          // Trial status only applies to a free-tier user — listUsers()
+          // already returns created_at per row, so this is pure day-math,
+          // no extra lookup (see getAccountAccess() for the same helper
+          // used on the actual access-gating path).
+          const trial = isActive ? { isTrialing: false, trialDaysRemaining: null } : computeTrialStatus(u.created_at);
           return {
             id: u.id,
             email: u.email ?? null,
@@ -122,6 +127,8 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
             tier: isActive ? sub!.tier : "free",
             status: sub?.status ?? null,
             currentPeriodEnd: isActive ? sub!.current_period_end : null,
+            isTrialing: trial.isTrialing,
+            trialDaysRemaining: trial.trialDaysRemaining,
           };
         });
 

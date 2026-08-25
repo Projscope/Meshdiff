@@ -32,12 +32,13 @@ interface PricingTier {
 function getPricingTiers(offerActive: boolean): PricingTier[] {
   return [
     {
-      name: "Community",
+      name: "Base",
       price: "Free",
       period: null,
-      audience: "Compare any two models, right now.",
-      cta: { label: "Open the diff tool", to: "/live" },
+      audience: "14-day free trial of Pro features, no card required",
+      cta: { label: "Sign Up", to: "/login?mode=signup" },
       highlighted: false,
+      badge: "No credit card required",
       features: [
         "Compare OBJ, STL, and 3MF files",
         "Measure distances and radiuses tools",
@@ -57,7 +58,7 @@ function getPricingTiers(offerActive: boolean): PricingTier[] {
       badge: offerActive ? "Early Subscriber Offer (50% OFF × 1 months)" : undefined,
       urgency: offerActive ? "Launch offer: 50% off first month. Ends Sunday at midnight." : undefined,
       features: [
-        "Everything in Community",
+        "Everything in Base",
         "Project workspaces",
         "Version history for every model",
         "Comment pins on 3D models",

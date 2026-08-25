@@ -8,12 +8,22 @@ export interface AdminUserRow {
   tier: "free" | "pro" | "team";
   status: string | null;
   currentPeriodEnd: string | null;
+  /** true for the first 14 days after a free signup — see
+   * computeTrialStatus() in apps/api/src/lib/subscription.ts. */
+  isTrialing: boolean;
+  trialDaysRemaining: number | null;
 }
 
 export interface AdminStats {
   totalUsers: number;
   proUsers: number;
   conversionRate: number;
+  /** Subscriber-type breakdown — always sums to totalUsers. Free/trialing
+   * split uses the same day-math as computeTrialStatus() on the backend. */
+  freeUsers: number;
+  trialingUsers: number;
+  proSubscribers: number;
+  teamSubscribers: number;
   communityShares: number;
   freeShares: number;
   proShares: number;

@@ -3,7 +3,6 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireActiveAccess } from "../lib/requireActiveAccess.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { getProjectAccess } from "../lib/ownership.js";
-import { getUserTier } from "../lib/subscription.js";
 import { requireProjectWriteAccess } from "../lib/requireProjectTierAccess.js";
 
 const BUCKET = "project-meshes";
@@ -48,11 +47,14 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
       const supabase = request.supabase!;
 
-      const { tier } = await getUserTier(supabase, request.userId!);
-      if (tier === "free") {
-        reply.code(403);
-        return { success: false, error: "Upgrade to create new projects. Use the Sample Project to learn the platform." };
-      }
+      // requireActiveAccess (preHandler above) already rejected a genuinely
+      // restricted account before this handler ever runs — a second,
+      // separate `tier === 'free'` check used to live here, which wrongly
+      // re-blocked a trialing free-tier user (their real `tier` stays
+      // 'free'; only `status` becomes 'pro' during the trial — see
+      // getAccountAccess() in subscription.ts). Removed rather than fixed
+      // in place, since it was fully redundant with the preHandler once
+      // correct.
 
       try {
         const { data: row, error } = await supabase
