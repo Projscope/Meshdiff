@@ -273,7 +273,7 @@ export default function LiveDiffToolPage({
 
   function handleDownloadReport() {
     if (!stats) return;
-    downloadDiffReportPdf(stats, isProOrTeam, {
+    downloadDiffReportPdf(stats, isProOrTeam, boundingBoxB, {
       viewA: viewerARef.current?.captureScreenshot(),
       viewB: viewerBRef.current?.captureScreenshot(),
       combined: diffViewRef.current?.captureScreenshot(),
