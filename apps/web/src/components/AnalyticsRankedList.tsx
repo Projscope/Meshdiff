@@ -34,7 +34,7 @@ export default function AnalyticsRankedList({
   const visible = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+    <div className="flex h-full flex-col rounded-lg border border-ink-800 bg-ink-900 p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{title}</p>
       <div className="mt-3 flex flex-col gap-2">
         {entries.length === 0 && <p className="text-sm text-ink-600">No data yet</p>}
@@ -53,7 +53,7 @@ export default function AnalyticsRankedList({
       </div>
 
       {totalPages > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-2 text-xs">
+        <div className="mt-auto flex items-center justify-center gap-2 pt-3 text-xs">
           <button
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
