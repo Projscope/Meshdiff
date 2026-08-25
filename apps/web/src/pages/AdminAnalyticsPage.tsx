@@ -77,11 +77,20 @@ export default function AdminAnalyticsPage() {
           </div>
 
           <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Pageviews</p>
-              <div className="flex items-center gap-1.5 text-[10px] text-ink-500">
-                <span className="inline-block h-0.5 w-3 rounded-full bg-white/80" />
-                Trend
+              <div className="flex items-center gap-3 text-[10px] text-ink-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-0.5 w-3 rounded-full bg-sky-400" />
+                  Unique visitors
+                </span>
+                <span
+                  className="flex items-center gap-1.5"
+                  title="Repeat pageviews within the same day, beyond each visitor's first hit — the daily-rotating visitor hash can't identify a return across different days by design (see analytics.md)"
+                >
+                  <span className="inline-block h-0.5 w-3 rounded-full bg-red-400" />
+                  Returning (same day)
+                </span>
               </div>
             </div>
             <div className="mt-3">

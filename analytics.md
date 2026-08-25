@@ -144,10 +144,14 @@ this, even for a table nobody's supposed to query directly.
   ranked breakdown lists for pages/countries/languages/referrers
   (`AnalyticsRankedList.tsx`). Linked from the sidebar's Admin section.
   - The trend chart shows each day's pageview count above its bar (plus a
-    hover tooltip with the exact date), and overlays a smoothed **tendency
-    line** — a trailing moving average (7-day window once there's ≥14 days
-    of data, shorter otherwise) — so the overall growth/decline direction
-    reads clearly through daily noise.
+    hover tooltip with the exact date), and overlays two lines splitting
+    that same pageview total: **unique visitors** (blue) and **returning**
+    (red). "Returning" here means repeat pageviews within the *same day*
+    beyond each visitor's first hit — **not** a multi-day return. The
+    visitor hash rotates every calendar day by design (see "Why this
+    exists" above), so the system cannot recognize the same real person
+    across two different days at all; there's no cross-day "new vs.
+    returning" signal to show without weakening that privacy guarantee.
   - Top Countries/Languages render human-readable names (`"Germany"`,
     `"American English"`) via the browser's native `Intl.DisplayNames`
     (`apps/web/src/lib/localeNames.ts`) instead of raw codes — no static

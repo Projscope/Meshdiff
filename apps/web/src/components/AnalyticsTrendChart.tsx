@@ -12,22 +12,14 @@ function formatDateLabel(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-/** Trailing moving average — smooths day-to-day noise so the overall
- * tendency (growing/flat/declining) reads clearly against the raw bars.
- * Uses a shrinking window at the start of the series rather than padding
- * with zeros, so the first few points aren't artificially dragged down. */
-function movingAverage(values: number[], window: number): number[] {
-  return values.map((_, i) => {
-    const slice = values.slice(Math.max(0, i - window + 1), i + 1);
-    return slice.reduce((sum, v) => sum + v, 0) / slice.length;
-  });
-}
-
-/** Hand-rolled inline SVG bar chart, same approach as SignupsChart.tsx —
+/** Hand-rolled inline SVG combo chart, same approach as SignupsChart.tsx —
  * not worth a charting library dependency for a handful of daily points.
- * A day with no visits at all won't have a row in the data at all (see
- * analyticsStats.ts), so gaps are filled with zero-height bars here rather
- * than skipped, keeping the x-axis evenly spaced by calendar day. */
+ * Bars are pageviews; the two overlaid lines split that same total into
+ * unique visitors (blue) and "returning" views (red) — see the note below
+ * on what "returning" actually means here. A day with no visits at all
+ * won't have a row in the data at all (see analyticsStats.ts), so gaps are
+ * filled with zero-height bars/points here rather than skipped, keeping
+ * the x-axis evenly spaced by calendar day. */
 export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPoint[] }) {
   const max = Math.max(1, ...trend.map((point) => point.pageviews));
   const top = PADDING_TOP;
@@ -36,33 +28,37 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
   const barWidth = WIDTH / Math.max(1, trend.length);
   // Skip every Nth label once there are too many days to fit legibly.
   const labelStride = Math.max(1, Math.ceil(trend.length / 12));
+  const showLines = trend.length >= 2;
 
-  // Longer ranges are noisier day-to-day, so widen the smoothing window —
-  // 7 days once there's enough history for it to mean something, otherwise
-  // fall back to a shorter window rather than over-smoothing a sparse range.
-  const window = trend.length >= 14 ? 7 : Math.max(1, Math.min(3, trend.length));
-  const smoothed = movingAverage(
-    trend.map((p) => p.pageviews),
-    window,
-  );
-  const showTrendLine = trend.length >= 2;
-  const linePoints = smoothed
-    .map((v, i) => {
-      const x = i * barWidth + barWidth / 2;
-      const y = bottom - (v / max) * barAreaHeight;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const xFor = (i: number) => i * barWidth + barWidth / 2;
+  const yFor = (value: number) => bottom - (value / max) * barAreaHeight;
+
+  // "Returning" is repeat pageviews within the SAME day, beyond each
+  // visitor's first hit that day — not a multi-day return visit. The
+  // visitor hash intentionally rotates every calendar day (see
+  // netlify/functions/track.mts and analytics.md) so the same real person
+  // is unrecognizable across days by design; there's no way to tell "back
+  // again this week" from "brand new" without weakening that privacy
+  // guarantee, so this chart doesn't claim to.
+  const returningFor = (point: AnalyticsTrendPoint) => Math.max(0, point.pageviews - point.visitors);
+
+  const uniquePoints = trend.map((point, i) => `${xFor(i)},${yFor(point.visitors)}`).join(" ");
+  const returningPoints = trend.map((point, i) => `${xFor(i)},${yFor(returningFor(point))}`).join(" ");
 
   return (
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" role="img" aria-label="Pageviews over time">
+    <svg
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      className="w-full"
+      role="img"
+      aria-label="Pageviews, unique visitors, and same-day returning views over time"
+    >
       {trend.map((point, i) => {
         const barHeight = (point.pageviews / max) * barAreaHeight;
         const x = i * barWidth;
         const y = bottom - barHeight;
         return (
           <g key={point.date}>
-            <title>{`${formatDateLabel(point.date)}: ${point.pageviews.toLocaleString()} pageviews`}</title>
+            <title>{`${formatDateLabel(point.date)}: ${point.pageviews.toLocaleString()} pageviews, ${point.visitors.toLocaleString()} unique visitors`}</title>
             <rect
               x={x + barWidth * 0.15}
               y={y}
@@ -73,10 +69,10 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
             />
             {i % labelStride === 0 && (
               <>
-                <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" className="fill-ink-300 text-[9px] font-semibold">
+                <text x={xFor(i)} y={y - 4} textAnchor="middle" className="fill-ink-300 text-[9px] font-semibold">
                   {point.pageviews.toLocaleString()}
                 </text>
-                <text x={x + barWidth / 2} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
+                <text x={xFor(i)} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
                   {formatDateLabel(point.date)}
                 </text>
               </>
@@ -85,26 +81,32 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
         );
       })}
 
-      {showTrendLine && (
-        <polyline
-          points={linePoints}
-          fill="none"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          className="stroke-white/80"
-        />
-      )}
-      {showTrendLine &&
-        smoothed.map((v, i) => (
-          <circle
-            key={trend[i].date}
-            cx={i * barWidth + barWidth / 2}
-            cy={bottom - (v / max) * barAreaHeight}
-            r={2}
-            className="fill-white/80"
+      {showLines && (
+        <>
+          <polyline
+            points={returningPoints}
+            fill="none"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            className="stroke-red-400"
           />
-        ))}
+          <polyline
+            points={uniquePoints}
+            fill="none"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            className="stroke-sky-400"
+          />
+          {trend.map((point, i) => (
+            <g key={`markers-${point.date}`}>
+              <circle cx={xFor(i)} cy={yFor(returningFor(point))} r={2} className="fill-red-400" />
+              <circle cx={xFor(i)} cy={yFor(point.visitors)} r={2} className="fill-sky-400" />
+            </g>
+          ))}
+        </>
+      )}
     </svg>
   );
 }
