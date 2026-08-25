@@ -4,6 +4,7 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { sanitizeFilename, extensionOf } from "../lib/filename.js";
+import { getPageviewCountsByPath } from "../lib/analyticsStats.js";
 
 const BUCKET = "blog-assets";
 const PAGE_SIZE = 10;
@@ -106,21 +107,33 @@ export default async function blogRoute(app: FastifyInstance): Promise<void> {
       const page = Math.max(1, parseInt(request.query.page ?? "1", 10) || 1);
       const from = (page - 1) * PAGE_SIZE;
 
-      const { data, error, count } = await supabase
-        .from("blog_posts")
-        .select("*", { count: "exact" })
-        .order("updated_at", { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
+      const [{ data, error, count }, viewsResult] = await Promise.all([
+        supabase
+          .from("blog_posts")
+          .select("*", { count: "exact" })
+          .order("updated_at", { ascending: false })
+          .range(from, from + PAGE_SIZE - 1),
+        getPageviewCountsByPath(supabase),
+      ]);
       if (error) {
         app.log.error(error, "Failed to list blog posts for admin");
         reply.code(502);
         return { success: false, error: "Failed to load posts" };
       }
+      // View counts are a nice-to-have overlay, not core post data — don't
+      // fail the whole list if the analytics tables are missing/misconfigured.
+      if (!viewsResult.success) {
+        app.log.warn("Failed to load pageview counts for admin blog list: " + viewsResult.error);
+      }
+      const viewsByPath = viewsResult.success ? viewsResult.data : new Map<string, number>();
 
       return {
         success: true,
         data: {
-          posts: (data as BlogPostRow[]).map((row) => toPublicPost(row, supabase)),
+          posts: (data as BlogPostRow[]).map((row) => ({
+            ...toPublicPost(row, supabase),
+            views: viewsByPath.get(`/blog/${row.slug}`) ?? 0,
+          })),
           total: count ?? 0,
         },
       };

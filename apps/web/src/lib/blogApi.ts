@@ -25,7 +25,19 @@ export function getBlogPost(slug: string): Promise<Result<BlogPost>> {
   return request(`/blog/posts/${slug}`);
 }
 
-export function listAdminBlogPosts(page = 1): Promise<Result<BlogPostsPage>> {
+/** All-time pageview count for `/blog/:slug`, from the self-hosted
+ * analytics rollup (see apps/api/src/lib/analyticsStats.ts's
+ * getPageviewCountsByPath()) — 0 if analytics has no data for it yet. */
+export interface AdminBlogPost extends BlogPost {
+  views: number;
+}
+
+export interface AdminBlogPostsPage {
+  posts: AdminBlogPost[];
+  total: number;
+}
+
+export function listAdminBlogPosts(page = 1): Promise<Result<AdminBlogPostsPage>> {
   return request(`/admin/blog/posts?page=${page}`);
 }
 
