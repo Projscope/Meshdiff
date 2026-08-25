@@ -3,7 +3,9 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "../lib/subscription.js";
+import { isAdminEmail } from "../lib/requireAdmin.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
+import { getDemoUserIds, setDemoAccount } from "../lib/demoAccounts.js";
 
 const PAGE_SIZE = 25;
 
@@ -13,6 +15,14 @@ interface AdminUsersQuery {
 
 interface AdminStatsQuery {
   granularity?: string;
+}
+
+interface AdminUserDemoParams {
+  userId: string;
+}
+
+interface AdminUserDemoBody {
+  demo?: boolean;
 }
 
 interface SubscriptionRow {
@@ -76,10 +86,11 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         // as ≥2 users exist system-wide) independent of the real page size
         // below. See apps/api/migrations/0007_get_user_id_by_email.sql's
         // comment for why there's no cheaper way to get this count.
-        const [totalProbe, pageResult, statsResult] = await Promise.all([
+        const [totalProbe, pageResult, statsResult, demoIdsResult] = await Promise.all([
           supabase.auth.admin.listUsers({ page: 1, perPage: 1 }),
           supabase.auth.admin.listUsers({ page, perPage: PAGE_SIZE }),
           getAdminStats(supabase),
+          getDemoUserIds(supabase),
         ]);
 
         if (pageResult.error) {
@@ -92,6 +103,12 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           reply.code(502);
           return { success: false, error: "Failed to load users" };
         }
+        if (!demoIdsResult.success) {
+          app.log.error("Failed to load demo accounts: " + demoIdsResult.error);
+          reply.code(502);
+          return { success: false, error: "Failed to load users" };
+        }
+        const demoIds = demoIdsResult.data;
 
         // totalProbe.error's fallback shape ({ users: [] }) has no `total`
         // field — only take it when the probe actually succeeded.
@@ -112,6 +129,27 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         const subsByUser = new Map((subs as SubscriptionRow[]).map((s) => [s.user_id, s]));
 
         const users = pageResult.data.users.map((u) => {
+          // Admin accounts (ADMIN_EMAILS) have permanent, never-restricted
+          // access via getAccountAccess() regardless of subscription state
+          // — reflect that here too so this list doesn't show them as an
+          // expired free user.
+          const isDemo = demoIds.has(u.id);
+
+          if (isAdminEmail(u.email)) {
+            return {
+              id: u.id,
+              email: u.email ?? null,
+              signupDate: u.created_at,
+              lastSignInAt: u.last_sign_in_at ?? null,
+              tier: "team" as const,
+              status: null,
+              currentPeriodEnd: null,
+              isTrialing: false,
+              trialDaysRemaining: null,
+              isDemo,
+            };
+          }
+
           const sub = subsByUser.get(u.id);
           const isActive = !!sub && !INACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
           // Trial status only applies to a free-tier user — listUsers()
@@ -129,6 +167,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
             currentPeriodEnd: isActive ? sub!.current_period_end : null,
             isTrialing: trial.isTrialing,
             trialDaysRemaining: trial.trialDaysRemaining,
+            isDemo,
           };
         });
 
@@ -145,6 +184,31 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         reply.code(502);
         return { success: false, error: "Failed to load users" };
       }
+    },
+  );
+
+  // Flags/unflags a user as a demo account (see 20260101000025_demo_accounts.sql)
+  // — excluded from the user-count widgets above and the signups trend
+  // chart, with no effect on the account's own access or billing.
+  app.patch<{ Params: AdminUserDemoParams; Body: AdminUserDemoBody }>(
+    "/admin/users/:userId/demo",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const supabase = request.supabase!;
+      const { userId } = request.params;
+      const demo = request.body?.demo;
+      if (typeof demo !== "boolean") {
+        reply.code(400);
+        return { success: false, error: "Body must include a boolean 'demo' field" };
+      }
+
+      const result = await setDemoAccount(supabase, userId, demo);
+      if (!result.success) {
+        app.log.error("Failed to set demo account: " + result.error);
+        reply.code(502);
+        return { success: false, error: "Failed to update demo status" };
+      }
+      return { success: true, data: { userId, isDemo: demo } };
     },
   );
 }

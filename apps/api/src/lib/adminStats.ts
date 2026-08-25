@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "./subscription.js";
+import { isAdminEmail } from "./requireAdmin.js";
+import { getDemoUserIds } from "./demoAccounts.js";
 
 export interface AdminStats {
   totalUsers: number;
@@ -32,22 +34,35 @@ export interface SignupBucket {
 export async function getAdminStats(
   supabase: SupabaseClient,
 ): Promise<{ success: true; data: AdminStats } | { success: false; error: string }> {
+  const demoIdsResult = await getDemoUserIds(supabase);
+  if (!demoIdsResult.success) {
+    return { success: false, error: "Failed to load demo accounts" };
+  }
+  const demoIds = demoIdsResult.data;
+
   // listUsers()'s `total` is parsed from a Link response header that's only
   // present when there's more than one page for the requested perPage — a
   // perPage:1 probe reliably forces that header (as long as ≥2 users exist
   // system-wide). See apps/api/migrations/0007_get_user_id_by_email.sql's
-  // comment for why there's no cheaper way to get this count.
+  // comment for why there's no cheaper way to get this count. Demo accounts
+  // are real auth users, so they're counted here and then subtracted —
+  // demo_accounts is the only place that knows which ids to exclude.
   const totalProbe = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
-  const totalUsers = !totalProbe.error && "total" in totalProbe.data ? totalProbe.data.total : 0;
+  const rawTotalUsers = !totalProbe.error && "total" in totalProbe.data ? totalProbe.data.total : 0;
+  const totalUsers = Math.max(0, rawTotalUsers - demoIds.size);
 
   // "pro" here means "paying" for the stat card — includes Team
   // subscribers, not just tier==='pro' rows, otherwise Team revenue would
   // silently disappear from the conversion-rate stat.
-  const { count: proCount, error: proCountError } = await supabase
+  let proCountQuery = supabase
     .from("subscriptions")
     .select("*", { count: "exact", head: true })
     .in("tier", ["pro", "team"])
     .not("status", "in", `(${INACTIVE_SUBSCRIPTION_STATUSES.join(",")})`);
+  if (demoIds.size > 0) {
+    proCountQuery = proCountQuery.not("user_id", "in", `(${[...demoIds].join(",")})`);
+  }
+  const { count: proCount, error: proCountError } = await proCountQuery;
   if (proCountError) {
     return { success: false, error: "Failed to count pro subscriptions" };
   }
@@ -76,8 +91,10 @@ export async function getAdminStats(
   let proSubscribers = 0;
   let teamSubscribers = 0;
   for (const u of usersResult.data.users) {
+    if (demoIds.has(u.id)) continue;
     const activeTier = tierByUserId.get(u.id);
-    if (activeTier === "pro") proSubscribers++;
+    if (isAdminEmail(u.email)) teamSubscribers++;
+    else if (activeTier === "pro") proSubscribers++;
     else if (activeTier === "team") teamSubscribers++;
     else if (computeTrialStatus(u.created_at).isTrialing) trialingUsers++;
     else freeUsers++;
@@ -143,10 +160,17 @@ export async function getSignupBuckets(
   granularity: SignupGranularity,
   periods = DEFAULT_PERIODS[granularity],
 ): Promise<{ success: true; data: SignupBucket[] } | { success: false; error: string }> {
-  const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const [{ data, error }, demoIdsResult] = await Promise.all([
+    supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    getDemoUserIds(supabase),
+  ]);
   if (error) {
     return { success: false, error: "Failed to load users" };
   }
+  if (!demoIdsResult.success) {
+    return { success: false, error: "Failed to load demo accounts" };
+  }
+  const demoIds = demoIdsResult.data;
 
   const startOfPeriod = granularity === "week" ? startOfWeekUTC : startOfMonthUTC;
   const currentPeriodStart = startOfPeriod(new Date());
@@ -166,6 +190,7 @@ export async function getSignupBuckets(
   }
 
   for (const u of data.users) {
+    if (demoIds.has(u.id)) continue;
     const key = toISODate(startOfPeriod(new Date(u.created_at)));
     const index = indexByPeriodStart.get(key);
     if (index !== undefined) buckets[index].count += 1;

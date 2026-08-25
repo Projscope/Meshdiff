@@ -77,7 +77,13 @@ export default function AdminAnalyticsPage() {
           </div>
 
           <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Pageviews</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Pageviews</p>
+              <div className="flex items-center gap-1.5 text-[10px] text-ink-500">
+                <span className="inline-block h-0.5 w-3 rounded-full bg-white/80" />
+                Trend
+              </div>
+            </div>
             <div className="mt-3">
               <AnalyticsTrendChart trend={data.dailyTrend} />
             </div>

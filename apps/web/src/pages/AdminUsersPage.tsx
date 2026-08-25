@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { listAdminUsers, type AdminUsersPage } from "../lib/adminApi";
+import { listAdminUsers, setUserDemoStatus, type AdminUsersPage } from "../lib/adminApi";
 import AdminStatsGrid from "../components/AdminStatsGrid";
 
 const PAGE_SIZE = 25;
@@ -25,6 +25,7 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<AdminUsersPage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     setData(null);
@@ -37,6 +38,19 @@ export default function AdminUsersPage() {
       }
     });
   }, [page]);
+
+  // Refetches (rather than patching local state) so the stat widgets above
+  // — which exclude demo accounts from their counts — stay in sync with
+  // this row's new flag, not just the row itself.
+  async function handleToggleDemo(userId: string, nextIsDemo: boolean) {
+    setTogglingUserId(userId);
+    const result = await setUserDemoStatus(userId, nextIsDemo);
+    if (result.success) {
+      const refreshed = await listAdminUsers(page);
+      if (refreshed.success) setData(refreshed.data);
+    }
+    setTogglingUserId(null);
+  }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
@@ -71,7 +85,7 @@ export default function AdminUsersPage() {
                 showed the page background through the header's bg-ink-900
                 as visible stripes. Column spacing comes from each cell's own
                 px-4 padding instead, so backgrounds/borders stay flush. */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] items-center">
               <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Email
               </span>
@@ -90,16 +104,21 @@ export default function AdminUsersPage() {
               <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Last sign in
               </span>
+              <span className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
+                Demo
+              </span>
 
               {data.users.length === 0 && (
-                <div className="col-span-6 px-4 py-10 text-center text-sm text-ink-500">No users yet.</div>
+                <div className="col-span-7 px-4 py-10 text-center text-sm text-ink-500">No users yet.</div>
               )}
 
               {data.users.map((user, i) => {
                 const rowBorder = i === data.users.length - 1 ? "" : "border-b border-ink-900";
                 return (
                   <Fragment key={user.id}>
-                    <span className={`truncate px-4 py-3 text-sm text-ink-200 ${rowBorder}`}>
+                    <span
+                      className={`truncate px-4 py-3 text-sm ${user.isDemo ? "text-ink-500" : "text-ink-200"} ${rowBorder}`}
+                    >
                       {user.email ?? "—"}
                     </span>
                     <span className={`px-4 py-3 text-sm ${rowBorder}`}>
@@ -132,6 +151,21 @@ export default function AdminUsersPage() {
                     </span>
                     <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
                       {user.lastSignInAt ? timeSince(user.lastSignInAt) : "Never"}
+                    </span>
+                    <span className={`px-4 py-3 text-sm ${rowBorder}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDemo(user.id, !user.isDemo)}
+                        disabled={togglingUserId === user.id}
+                        title="Excludes this account from the stat widgets and signups chart above — no effect on its own access."
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                          user.isDemo
+                            ? "bg-fuchsia-500/15 text-fuchsia-400 hover:bg-fuchsia-500/25"
+                            : "bg-ink-800 text-ink-500 hover:bg-ink-700 hover:text-ink-300"
+                        }`}
+                      >
+                        {togglingUserId === user.id ? "…" : user.isDemo ? "Demo" : "Mark demo"}
+                      </button>
                     </span>
                   </Fragment>
                 );

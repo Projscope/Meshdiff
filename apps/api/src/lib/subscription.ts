@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isAdminEmail } from "./requireAdmin.js";
 
 export interface SubscriptionRow {
   tier: "pro" | "team";
@@ -95,6 +96,14 @@ export async function getAccountAccess(supabase: SupabaseClient, userId: string)
   }
 
   const { data: userResult } = await supabase.auth.admin.getUserById(userId);
+
+  // Admin accounts (ADMIN_EMAILS) always have full, permanent access —
+  // never restricted, never trial-gated, with or without a subscription
+  // of their own.
+  if (isAdminEmail(userResult?.user?.email)) {
+    return { status: "pro", tier: "team", viaTeamMembership: false, isTrialing: false, trialDaysRemaining: null };
+  }
+
   const trial = computeTrialStatus(userResult?.user?.created_at);
   if (trial.isTrialing) {
     return { status: "pro", tier: "free", viaTeamMembership: false, ...trial };
