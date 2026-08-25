@@ -169,13 +169,14 @@ body {
   margin-top: 1.5em;
 }
 .prose-blog a {
-  color: rgb(var(--ink-50));
+  color: theme("colors.accent.400");
   text-decoration: underline;
-  text-decoration-color: rgb(var(--ink-500));
+  text-decoration-color: theme("colors.accent.400" / 40%);
   text-underline-offset: 2px;
 }
 .prose-blog a:hover {
-  color: theme("colors.accent.400");
+  color: theme("colors.accent.300");
+  text-decoration-color: theme("colors.accent.300");
 }
 .prose-blog strong {
   color: rgb(var(--ink-50));
