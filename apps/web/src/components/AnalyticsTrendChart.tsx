@@ -12,6 +12,17 @@ function formatDateLabel(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
+/** Trailing moving average — smooths day-to-day noise so the overall
+ * tendency (growing/flat/declining) reads clearly against the raw bars.
+ * Uses a shrinking window at the start of the series rather than padding
+ * with zeros, so the first few points aren't artificially dragged down. */
+function movingAverage(values: number[], window: number): number[] {
+  return values.map((_, i) => {
+    const slice = values.slice(Math.max(0, i - window + 1), i + 1);
+    return slice.reduce((sum, v) => sum + v, 0) / slice.length;
+  });
+}
+
 /** Hand-rolled inline SVG bar chart, same approach as SignupsChart.tsx —
  * not worth a charting library dependency for a handful of daily points.
  * A day with no visits at all won't have a row in the data at all (see
@@ -25,6 +36,23 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
   const barWidth = WIDTH / Math.max(1, trend.length);
   // Skip every Nth label once there are too many days to fit legibly.
   const labelStride = Math.max(1, Math.ceil(trend.length / 12));
+
+  // Longer ranges are noisier day-to-day, so widen the smoothing window —
+  // 7 days once there's enough history for it to mean something, otherwise
+  // fall back to a shorter window rather than over-smoothing a sparse range.
+  const window = trend.length >= 14 ? 7 : Math.max(1, Math.min(3, trend.length));
+  const smoothed = movingAverage(
+    trend.map((p) => p.pageviews),
+    window,
+  );
+  const showTrendLine = trend.length >= 2;
+  const linePoints = smoothed
+    .map((v, i) => {
+      const x = i * barWidth + barWidth / 2;
+      const y = bottom - (v / max) * barAreaHeight;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" role="img" aria-label="Pageviews over time">
@@ -56,6 +84,27 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
           </g>
         );
       })}
+
+      {showTrendLine && (
+        <polyline
+          points={linePoints}
+          fill="none"
+          strokeWidth={2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          className="stroke-white/80"
+        />
+      )}
+      {showTrendLine &&
+        smoothed.map((v, i) => (
+          <circle
+            key={trend[i].date}
+            cx={i * barWidth + barWidth / 2}
+            cy={bottom - (v / max) * barAreaHeight}
+            r={2}
+            className="fill-white/80"
+          />
+        ))}
     </svg>
   );
 }
