@@ -32,9 +32,10 @@ persistent version history, comments, and team review.
 
 ### Projects workspace (signed in via Supabase Auth)
 
-Full workspace access is [Pro](pro.md) (or [Team](teams.md)) — payable from day one,
-no trial. A free account gets a read/write-but-not-uploadable Sample Project to try
-before subscribing (see [pro.md](pro.md) for exactly what's gated).
+Full workspace access is [Pro](pro.md) (or [Team](teams.md)). Every new free signup
+gets a 14-day full-access trial with no card required, then falls back to a
+read/write-but-not-uploadable Sample Project (see [pro.md](pro.md) for exactly
+what's gated and how the trial works).
 
 - Persistent projects with a full version history (not just a single share link)
 - **Printability gate** — real per-version wall-thickness, overhang, and unsupported-

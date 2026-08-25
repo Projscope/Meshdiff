@@ -66,6 +66,32 @@ async function topBreakdown(
  * multiple days. The rollup's visitor_count is only a correct metric per
  * individual day (used for dailyTrend), never summed across days.
  */
+/**
+ * All-time (not date-range-limited) pageview count per page path, keyed by
+ * the path with any trailing slash stripped. A page can get recorded with
+ * or without a trailing slash depending on how it was linked/typed (see
+ * analytics.md's note on `/roadmap` vs `/roadmap/` showing up as separate
+ * Top Pages rows) — this sums both variants together so a caller matching
+ * against a known path (e.g. a blog post's `/blog/:slug`) gets the true
+ * total rather than half of it. Used by blog.ts's admin post list to show
+ * a view count per post; not date-range-scoped since a post's lifetime
+ * total is more useful there than a 30-day window.
+ */
+export async function getPageviewCountsByPath(supabase: SupabaseClient): Promise<Result<Map<string, number>>> {
+  const { data, error } = await supabase
+    .from("analytics_daily_rollup")
+    .select("dimension_value, pageview_count")
+    .eq("dimension_type", "page");
+  if (error) return { success: false, error: error.message };
+
+  const totals = new Map<string, number>();
+  for (const row of data as Array<{ dimension_value: string; pageview_count: number }>) {
+    const normalized = row.dimension_value.replace(/\/$/, "") || "/";
+    totals.set(normalized, (totals.get(normalized) ?? 0) + row.pageview_count);
+  }
+  return { success: true, data: totals };
+}
+
 export async function getAnalyticsSummary(
   supabase: SupabaseClient,
   from: string,

@@ -143,6 +143,26 @@ this, even for a table nobody's supposed to query directly.
   no-dependency approach as `SignupsChart.tsx` on the main Dashboard), and
   ranked breakdown lists for pages/countries/languages/referrers
   (`AnalyticsRankedList.tsx`). Linked from the sidebar's Admin section.
+  - The trend chart shows each day's pageview count above its bar (plus a
+    hover tooltip with the exact date), and overlays two lines splitting
+    that same pageview total: **unique visitors** (blue) and **returning**
+    (red). "Returning" here means repeat pageviews within the *same day*
+    beyond each visitor's first hit — **not** a multi-day return. The
+    visitor hash rotates every calendar day by design (see "Why this
+    exists" above), so the system cannot recognize the same real person
+    across two different days at all; there's no cross-day "new vs.
+    returning" signal to show without weakening that privacy guarantee.
+  - Top Countries/Languages render human-readable names (`"Germany"`,
+    `"American English"`) via the browser's native `Intl.DisplayNames`
+    (`apps/web/src/lib/localeNames.ts`) instead of raw codes — no static
+    lookup table to maintain, falls back to the raw code for anything
+    unrecognized. The raw code is still shown as a hover tooltip.
+  - Each ranked list paginates client-side, 15 entries per page, over the
+    already-fetched array — `TOP_N` in `analyticsStats.ts` returns up to 50
+    entries per dimension so there's enough to paginate through rather than
+    silently truncating at 10. No extra request and no page reload on
+    Prev/Next; the page resets to 1 whenever the 30-day/6-month toggle
+    swaps in new data.
 
 ## Setup
 

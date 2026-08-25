@@ -206,7 +206,7 @@ related. There is no custom `users` table — everything below hangs off
 
 | Tier     | Price (normal, post-launch-offer)   | Audience                       | Gate                                                                                                                          |
 | -------- | ------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Free** | $0                                   | Hobbyists, evaluators           | Live Diff tool only (`/live`), no saved projects. Share-link limits are UI copy, not verified server-enforced as of this writing. |
+| **Free** | $0                                   | Hobbyists, evaluators           | Live Diff tool (`/live`) always. New signups also get a **14-day full-access trial** of the Projects workspace (see below), then fall back to the Sample Project only. Share-link limits are UI copy, not verified server-enforced as of this writing. |
 | **Pro**  | $15/mo                               | Solo engineers, freelancers     | Project workspaces, version history, **comment pins**, PDF diff report export                                                  |
 | **Team** | $35/seat/mo, quantity adjustable 1–50 at checkout (default 5) | Hardware startups, print farms  | Everything in Pro + version-approval workflow, slicer profile snapshots, print-result photo log, per-seat billing, audit log   |
 
@@ -228,6 +228,24 @@ gate the comment UI behind `project?.teamId`, which wrongly excluded
 personal Pro projects; fixed to check `isPro` instead (three spots: the
 toolbar's 💬 button, the 3D-scene comment pins/popovers, and the
 `CommentsPanel` side panel).
+
+**14-day free trial (no card, no new table)** — a free-tier signup gets full
+Pro-level access (`status: 'pro'`) for their first 14 days, computed on the
+fly from `auth.users.created_at` via `computeTrialStatus()` in
+`apps/api/src/lib/subscription.ts` — there's no `trial_ends_at` column or
+trigger (a prior attempt at this, `20260101000013_user_trials.sql`, was
+built and removed in `20260101000014_remove_trial.sql`; this version avoids
+reintroducing that table). Once the window closes, the account falls
+through to the existing restricted/Sample-Project-only behavior with no
+separate "read-only mode" to build — a lapsed trial and a canceled Pro
+subscription land in exactly the same `status: 'restricted'` state. See
+[pro.md](pro.md) for the full mechanism and what's exempt.
+
+See pro.md's "Admin overrides" for two related, ADMIN_EMAILS-driven
+behaviors layered on top of this: admin accounts get permanent access
+regardless of trial/subscription state, and admins can flag any account as
+a "demo" account to exclude it from the Admin dashboard's user-count
+widgets.
 
 ---
 
@@ -335,6 +353,15 @@ alter table versions add column reviewed_at timestamptz;
 alter table versions add column rejection_reason text;
 alter table projects add column team_id uuid references teams(id) on delete set null;
 -- team_id null = personal/Pro project (auto-approves on upload); non-null = Team project (needs review)
+
+-- 20260101000025_demo_accounts.sql
+demo_accounts (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+-- Existence = flagged, no boolean column. An admin flips this per-user from
+-- the Admin Users table; excluded from getAdminStats()/getSignupBuckets()'s
+-- counts only — no effect on the account's own access. See pro.md.
 ```
 
 `has_active_team_access(p_user_id uuid) returns boolean` (SQL function,
@@ -350,15 +377,20 @@ Backend, `apps/api/src/lib/subscription.ts`:
 ```
 getAccountAccess(supabase, userId):
   tier = getUserTier(userId).tier            // reads `subscriptions` directly
-  if tier != 'free': return { status: 'pro', tier, viaTeamMembership: false }
+  if tier != 'free': return { status: 'pro', tier, viaTeamMembership: false, isTrialing: false }
+  if isAdminEmail(user.email): return { status: 'pro', tier: 'team', ... }   // permanent, see pro.md
+  trial = computeTrialStatus(user.created_at)                                // 14-day window, see pro.md
+  if trial.isTrialing: return { status: 'pro', tier: 'free', ...trial }
   hasTeamAccess = rpc has_active_team_access(userId)
   return { status: hasTeamAccess ? 'pro' : 'restricted', tier: 'free', viaTeamMembership: hasTeamAccess }
 ```
 
 `status === 'pro'` is the actual gate almost everything checks — it means
 "Pro tier, OR Team subscription owner, OR team member riding the owner's
-seats." Never gate a feature on a raw `tier === 'pro'` string check; that
-wrongly excludes Team owners and members. Concretely:
+seats, OR within the 14-day trial window, OR an ADMIN_EMAILS account."
+Never gate a feature on a raw `tier === 'pro'` string check; that wrongly
+excludes Team owners, members, and trialing free users (`tier` stays
+`'free'` during a trial — only `status` becomes `'pro'`). Concretely:
 
 - `requireProjectWriteAccess()` (`apps/api/src/lib/requireProjectTierAccess.ts`)
   — gates comment creation, version approve/reject, deleting a version,
@@ -391,6 +423,7 @@ wrongly excludes Team owners and members. Concretely:
 | POST   | `/billing/webhook`                             | None (Stripe signature) | Stripe webhook handler, raw-body content-type parser |
 | POST   | `/projects/:projectId/versions/:versionId/approve` / `/reject` | Required, Team reviewer role | Version-approval actions, see `canReviewVersions()` above |
 | GET    | `/teams/:teamId/pending-versions`              | Required | Cross-project queue of pending versions for reviewers   |
+| PATCH  | `/admin/users/:userId/demo`                    | Required, admin | Body `{ demo: boolean }` — flags/unflags a demo account, see pro.md |
 
 Frontend callers: `apps/web/src/lib/projectsApi.ts`
 (`startProCheckout`/`startTeamCheckout`/`getSubscription`/etc.) and

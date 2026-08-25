@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listAdminBlogPosts, deleteBlogPost, updateBlogPost, type BlogPost } from "../lib/blogApi";
+import { listAdminBlogPosts, deleteBlogPost, updateBlogPost, type AdminBlogPost } from "../lib/blogApi";
 import BlogPostCard from "../components/BlogPostCard";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 const PAGE_SIZE = 10;
 
 export default function AdminBlogPage() {
-  const [posts, setPosts] = useState<BlogPost[] | null>(null);
+  const [posts, setPosts] = useState<AdminBlogPost[] | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<BlogPost | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AdminBlogPost | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -40,7 +40,7 @@ export default function AdminBlogPage() {
     else setError(result.error);
   }
 
-  async function handleTogglePublish(post: BlogPost) {
+  async function handleTogglePublish(post: AdminBlogPost) {
     setTogglingId(post.id);
     const result = await updateBlogPost(post.id, { status: post.status === "published" ? "draft" : "published" });
     setTogglingId(null);
@@ -75,13 +75,20 @@ export default function AdminBlogPage() {
             post={post}
             to={`/admin/blog/${post.id}`}
             badge={
-              <span
-                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                  post.status === "published" ? "bg-accent-500/15 text-accent-400" : "bg-ink-800 text-ink-400"
-                }`}
-              >
-                {post.status}
-              </span>
+              <>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                    post.status === "published" ? "bg-accent-500/15 text-accent-400" : "bg-ink-800 text-ink-400"
+                  }`}
+                >
+                  {post.status}
+                </span>
+                {post.status === "published" && (
+                  <span title="All-time pageviews from the self-hosted analytics tracker">
+                    {post.views.toLocaleString()} view{post.views === 1 ? "" : "s"}
+                  </span>
+                )}
+              </>
             }
             actions={
               <div className="flex items-center gap-3 text-[11px]">
