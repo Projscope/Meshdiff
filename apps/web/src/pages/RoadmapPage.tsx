@@ -8,7 +8,7 @@ export const META_DESCRIPTION =
 
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.3.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.4.0");
 
   const roadmapItems = {
     planned: [
@@ -31,6 +31,30 @@ export default function RoadmapPage() {
   };
 
   const changelog = [
+    {
+      version: "v1.4.0",
+      date: "2026-08-25",
+      title: "Free trial and unified billing",
+      items: {
+        new: [
+          "14-day full-access free trial for new signups, no card required — falls back to read-only after, same as a lapsed subscription",
+          "Unified plan-management dialog — real in-app upgrade/downgrade between Free, Pro, and Team",
+          "Ground-grid visibility toggle on every 3D viewer (Live Diff, Compare, Version detail)",
+          "New /pricing comparison page; Free tier renamed to \"Base\" with a \"no credit card required\" badge",
+        ],
+        improved: [
+          "Diff-report PDF export: screenshots fill their box instead of letterboxing, and every detailed-stats section is included",
+          "Blog post links render in the brand accent color instead of plain white",
+        ],
+        fixed: [
+          "A Team-tier subscriber's PDF export was incorrectly watermarked as Free",
+          "New project creation was wrongly blocked for users still inside their trial window",
+          "Personal (non-team) projects showed a stray \"Approved\" badge that doesn't apply to them",
+          "Upgrade dialog buttons were unequal width and could render behind an open 3D comment popover",
+          "Printability status dot moved to the project card's top-left corner",
+        ],
+      },
+    },
     {
       version: "v1.3.0",
       date: "2026-08-22",
