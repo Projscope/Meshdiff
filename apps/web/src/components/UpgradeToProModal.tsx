@@ -32,7 +32,10 @@ export default function UpgradeToProModal({ onClose }: { onClose: () => void }) 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    // z-[110]: the 3D viewer's comment pins render via drei's <Html>
+    // with zIndexRange={[100, 0]} (see CommentPopover.tsx) — a plain z-50
+    // here would let an open comment popover render on top of this modal.
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
         className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
@@ -88,7 +91,7 @@ export default function UpgradeToProModal({ onClose }: { onClose: () => void }) 
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+            className="flex-1 rounded border border-ink-700 px-4 py-2 text-center text-sm text-ink-300 hover:border-ink-500"
           >
             Cancel
           </button>
