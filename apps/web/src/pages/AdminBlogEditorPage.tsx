@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   createBlogPost,
@@ -11,6 +11,18 @@ import {
 } from "../lib/blogApi";
 import { uploadVersionBytes } from "../lib/projectsApi";
 import BlogMarkdown from "../components/BlogMarkdown";
+
+/** Google typically shows ~50-160 characters of a meta description before
+ * truncating with an ellipsis — this is guidance, not a hard rule (Google
+ * sometimes ignores it and generates its own snippet from the page body
+ * regardless), but staying in range gives the excerpt the best chance of
+ * showing up intact in a search result. */
+function excerptSeoHint(length: number): { label: string; className: string } {
+  if (length === 0) return { label: "no meta description set", className: "text-ink-600" };
+  if (length < 50) return { label: "a bit short for a search snippet", className: "text-amber-400" };
+  if (length <= 160) return { label: "good length for a search snippet", className: "text-accent-400" };
+  return { label: "may get truncated in search results", className: "text-amber-400" };
+}
 
 /** Handles both /admin/blog/new (id === "new") and /admin/blog/:id (editing
  * a real post) in one page — a brand-new post is just a title+slug form
@@ -156,11 +168,73 @@ export default function AdminBlogEditorPage() {
     });
   }
 
+  /** Wraps the current selection in `before`/`after` (Bold/Italic/inline
+   * code) — a placeholder stands in for an empty selection so there's
+   * still something between the markers to type over, and that
+   * placeholder ends up selected so typing immediately replaces it. */
+  function wrapSelection(before: string, after: string, placeholder: string) {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+    const { selectionStart, selectionEnd, value } = textarea;
+    const selected = value.slice(selectionStart, selectionEnd) || placeholder;
+    const next = `${value.slice(0, selectionStart)}${before}${selected}${after}${value.slice(selectionEnd)}`;
+    setContentMarkdown(next);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(selectionStart + before.length, selectionStart + before.length + selected.length);
+    });
+  }
+
+  /** Prepends `prefix` to the start of every line touched by the current
+   * selection — headings, blockquote, and list markers all work this way
+   * in Markdown, applied to the whole selected block at once rather than
+   * just the cursor's own line. */
+  function prefixLines(prefix: string) {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+    const { selectionStart, selectionEnd, value } = textarea;
+    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    const nextNewline = value.indexOf("\n", selectionEnd);
+    const lineEnd = nextNewline === -1 ? value.length : nextNewline;
+    const block = value.slice(lineStart, lineEnd);
+    const prefixed = block
+      .split("\n")
+      .map((line) => `${prefix}${line}`)
+      .join("\n");
+    const next = `${value.slice(0, lineStart)}${prefixed}${value.slice(lineEnd)}`;
+    setContentMarkdown(next);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(lineStart, lineStart + prefixed.length);
+    });
+  }
+
+  /** Cmd/Ctrl+B and Cmd/Ctrl+I — the keyboard shortcut a rich-text editor
+   * is expected to support, on top of the toolbar buttons below. */
+  function handleContentKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!(event.metaKey || event.ctrlKey)) return;
+    if (event.key === "b") {
+      event.preventDefault();
+      wrapSelection("**", "**", "bold text");
+    } else if (event.key === "i") {
+      event.preventDefault();
+      wrapSelection("_", "_", "italic text");
+    }
+  }
+
   async function handleInlineUpload(file: File) {
     const publicUrl = await uploadAsset(file);
     if (!publicUrl) return;
     const isVideo = /\.(mp4|webm|mov)$/i.test(file.name);
-    insertAtCursor(isVideo ? `{{video:${publicUrl}}}` : `![${file.name}](${publicUrl})`);
+    if (isVideo) {
+      insertAtCursor(`{{video:${publicUrl}}}`);
+      return;
+    }
+    // Alt text matters for both accessibility and image-search SEO — the
+    // filename ("IMG_2043.jpg") that used to land here by default is
+    // useless for either, same reasoning as the Image URL flow below.
+    const alt = window.prompt("Alt text (for accessibility and SEO):", "") ?? "";
+    insertAtCursor(`![${alt}](${publicUrl})`);
   }
 
   /** Wraps the current selection (if any) as link text, otherwise inserts a
@@ -295,6 +369,76 @@ export default function AdminBlogEditorPage() {
             className="w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-lg font-semibold text-ink-50 focus:border-accent-500 focus:outline-none"
           />
 
+          {!showPreview && (
+            <div className="flex flex-wrap items-center gap-1 rounded-lg border border-ink-800 bg-ink-950/70 p-1">
+              <button
+                type="button"
+                onClick={() => wrapSelection("**", "**", "bold text")}
+                title="Bold (Ctrl/Cmd+B)"
+                className="flex h-7 w-7 items-center justify-center rounded text-sm font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => wrapSelection("_", "_", "italic text")}
+                title="Italic (Ctrl/Cmd+I)"
+                className="flex h-7 w-7 items-center justify-center rounded text-sm italic text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                I
+              </button>
+              <button
+                type="button"
+                onClick={() => wrapSelection("`", "`", "code")}
+                title="Inline code"
+                className="flex h-7 w-7 items-center justify-center rounded font-mono text-xs text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                {"</>"}
+              </button>
+              <div className="mx-0.5 h-5 w-px bg-ink-800" />
+              <button
+                type="button"
+                onClick={() => prefixLines("## ")}
+                title="Heading"
+                className="flex h-7 w-7 items-center justify-center rounded text-xs font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                onClick={() => prefixLines("### ")}
+                title="Subheading"
+                className="flex h-7 w-7 items-center justify-center rounded text-xs font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                H3
+              </button>
+              <button
+                type="button"
+                onClick={() => prefixLines("> ")}
+                title="Blockquote"
+                className="flex h-7 w-7 items-center justify-center rounded text-base text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                &ldquo;
+              </button>
+              <button
+                type="button"
+                onClick={() => prefixLines("- ")}
+                title="Bullet list"
+                className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                •&nbsp;—
+              </button>
+              <button
+                type="button"
+                onClick={() => prefixLines("1. ")}
+                title="Numbered list"
+                className="flex h-7 w-7 items-center justify-center rounded text-xs text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              >
+                1.
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <span className="text-xs text-ink-500">Content (Markdown)</span>
             <div className="flex items-center gap-3">
@@ -342,6 +486,7 @@ export default function AdminBlogEditorPage() {
               ref={contentRef}
               value={contentMarkdown}
               onChange={(event) => setContentMarkdown(event.target.value)}
+              onKeyDown={handleContentKeyDown}
               placeholder={"Write in Markdown — separate paragraphs with a blank line. Use \"+ Insert link\" for links, \"+ Image URL\" for an already-hosted image, or \"+ Upload image/video\" to upload one, or embed a YouTube/Vimeo link inline with {{video:https://youtube.com/watch?v=...}}"}
               className="h-[400px] w-full rounded border border-ink-800 bg-ink-900 p-4 font-mono text-sm text-ink-100 focus:border-accent-500 focus:outline-none"
             />
@@ -362,7 +507,12 @@ export default function AdminBlogEditorPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-widest text-ink-500">Excerpt</label>
+            <div className="flex items-baseline justify-between">
+              <label className="text-xs font-semibold uppercase tracking-widest text-ink-500">Excerpt</label>
+              <span className={`text-[11px] ${excerptSeoHint(excerpt.length).className}`}>
+                {excerpt.length} chars — {excerptSeoHint(excerpt.length).label}
+              </span>
+            </div>
             <textarea
               value={excerpt}
               onChange={(event) => setExcerpt(event.target.value)}
