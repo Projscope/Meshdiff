@@ -33,6 +33,7 @@ import BoundsResetBridge from "../components/BoundsResetBridge";
 import ZoomToFitBridge from "../components/ZoomToFitBridge";
 import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import ShadingModeToggle from "../components/ShadingModeToggle";
+import GridToggle from "../components/GridToggle";
 import { useShadingMode } from "../lib/shadingMode";
 import EdgeOverlay from "../components/EdgeOverlay";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
@@ -767,6 +768,7 @@ export default function VersionDetailPage() {
             </button>
             <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <ShadingModeToggle />
+            <GridToggle />
             <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <ControlSchemeSelect showLegend={false} />
           </div>
