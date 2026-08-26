@@ -23,7 +23,12 @@ interface PlanRowConfig {
 }
 
 const PLANS: PlanRowConfig[] = [
-  { id: "free", name: "Free", price: "$0", blurb: "The Sample Project and the Live Diff tool only." },
+  {
+    id: "free",
+    name: "Free",
+    price: "$0",
+    blurb: "The Sample Project and the Live Diff tool only — existing projects stay in read-only mode.",
+  },
   { id: "pro", name: "Pro", price: "$15/mo", blurb: "Project workspaces, version history, comment pins, PDF reports." },
   { id: "team", name: "Team", price: "$35/seat/mo", blurb: "Everything in Pro, plus shared projects and version approval." },
 ];
