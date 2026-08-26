@@ -7,8 +7,6 @@ import {
   getWorkspace,
   getSubscription,
   openBillingPortal,
-  cancelSubscription,
-  resumeSubscription,
   startProCheckout,
   startTeamCheckout,
   type ProjectSummary,
@@ -20,9 +18,8 @@ import { useAuth } from "../lib/AuthProvider";
 import NewProjectModal from "./NewProjectModal";
 import TeamModal from "./TeamModal";
 import UpgradeToTeamModal from "./UpgradeToTeamModal";
-import UpgradeToProModal from "./UpgradeToProModal";
+import ManagePlanModal from "./ManagePlanModal";
 import EditWorkspaceModal from "./EditWorkspaceModal";
-import ConfirmDialog from "./ConfirmDialog";
 
 // UI convenience only — hides the sidebar link for everyone else. The real
 // admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
@@ -87,7 +84,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // at /teams/:teamId (see TeamDashboardPage.tsx) instead of this popup.
   const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [showUpgradeToPro, setShowUpgradeToPro] = useState(false);
+  const [showManagePlan, setShowManagePlan] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("My Workspace");
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   // Persisted so the sidebar doesn't reset to expanded on every reload —
@@ -100,9 +97,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   );
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [isResuming, setIsResuming] = useState(false);
 
   // Creating a team is a Team-plan feature, gated on the real subscription
   // tier — a non-Team user (Free or Pro) gets prompted to upgrade instead
@@ -173,9 +167,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   }
 
   // Stripe Checkout redirects back to /projects?checkout=success|cancelled
-  // (see UpgradeToProModal). Only depends on location.search, not
-  // location.pathname, so stripping the param via navigate() below doesn't
-  // re-trigger the sidebar's project/team refetch effect above.
+  // (see ManagePlanModal's checkout redirect). Only depends on
+  // location.search, not location.pathname, so stripping the param via
+  // navigate() below doesn't re-trigger the sidebar's project/team refetch
+  // effect above.
   useEffect(() => {
     const checkout = new URLSearchParams(location.search).get("checkout");
     if (!checkout) return;
@@ -224,34 +219,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
     }
   }
 
-  async function handleConfirmCancel() {
-    setIsCancelling(true);
-    const result = await cancelSubscription();
-    setIsCancelling(false);
-    setShowCancelConfirm(false);
-    if (result.success) {
-      setSubscription((prev) => (prev ? { ...prev, cancelAtPeriodEnd: true, currentPeriodEnd: result.data.currentPeriodEnd } : prev));
-      setNotice({
-        type: "info",
-        message: `Your Pro plan will end on ${formatRenewalDate(result.data.currentPeriodEnd)}. You can resume any time before then.`,
-      });
-    } else {
-      setNotice({ type: "error", message: result.error });
-    }
-  }
-
-  async function handleResume() {
-    setIsResuming(true);
-    const result = await resumeSubscription();
-    setIsResuming(false);
-    if (result.success) {
-      setSubscription((prev) => (prev ? { ...prev, cancelAtPeriodEnd: false, currentPeriodEnd: result.data.currentPeriodEnd } : prev));
-      setNotice({ type: "success", message: "Subscription resumed — your Pro plan will keep renewing." });
-    } else {
-      setNotice({ type: "error", message: result.error });
-    }
-  }
-
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
 
   // isTeamMember is a display-only signal, true for the paying owner AND
@@ -272,8 +239,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // Distinct from isTeamMember: a regular team member (not the owner) has
   // no subscription/stripe_customers row of their own, so /billing/portal
   // would 404 for them — only the actual subscriber (Pro or Team) gets the
-  // Manage/Cancel/Resume controls below.
+  // "Payment method & invoices" link and the full ManagePlanModal below.
   const isBillingOwner = subscription?.tier === "pro" || subscription?.tier === "team";
+  // Hide the plan-management trigger only for someone riding a team owner's
+  // seats with no subscription of their own — everyone else (not yet
+  // subscribed, or the actual payer) has a plan to manage.
+  const canManagePlan = !isTeamMember || isBillingOwner;
   const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : isTrialing ? "Free Trial" : "Free";
   const planTextClass = isTeamMember
     ? "text-violet-400"
@@ -543,22 +514,25 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             <div className="mt-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
-                {!isTeamMember && !isPro && (
+                {/* Riding a team owner's seats has no billing of your own to
+                    manage — everyone else (not-yet-subscribed, or the actual
+                    Pro/Team payer) gets the full plan-management dialog. */}
+                {canManagePlan && (
                   <button
                     type="button"
-                    onClick={() => setShowUpgradeToPro(true)}
+                    onClick={() => setShowManagePlan(true)}
                     className={`shrink-0 text-[11px] font-medium ${
                       isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
                     }`}
                   >
-                    Upgrade
+                    {isBillingOwner ? "Manage plan" : "Upgrade"}
                   </button>
                 )}
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
                 {isBillingOwner
                   ? subscription?.cancelAtPeriodEnd
-                    ? `Cancels ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"}.`
+                    ? `Ends ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"} — becomes read-only until you resubscribe.`
                     : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
                   : isTeamMember
                     ? "Access via your team's plan."
@@ -569,32 +543,14 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                         : "Project workspaces, version history, and comment pins — $15/mo."}
               </p>
               {isBillingOwner && (
-                <div className="mt-2 flex items-center gap-3">
+                <div className="mt-2">
                   <button
                     type="button"
                     onClick={() => void handleManageBilling()}
                     className="text-[11px] font-medium text-ink-400 hover:text-ink-200"
                   >
-                    Manage
+                    Payment method &amp; invoices
                   </button>
-                  {subscription?.cancelAtPeriodEnd ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleResume()}
-                      disabled={isResuming}
-                      className="text-[11px] font-medium text-accent-400 hover:text-accent-300 disabled:opacity-50"
-                    >
-                      {isResuming ? "Resuming…" : "Resume"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowCancelConfirm(true)}
-                      className="text-[11px] font-medium text-ink-500 hover:text-red-400"
-                    >
-                      Cancel
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -676,22 +632,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
         {showUpgrade && <UpgradeToTeamModal onClose={() => setShowUpgrade(false)} />}
 
-        {showUpgradeToPro && <UpgradeToProModal onClose={() => setShowUpgradeToPro(false)} />}
-
-        {showCancelConfirm && (
-          <ConfirmDialog
-            title="Cancel Pro plan?"
-            message={
-              subscription?.currentPeriodEnd
-                ? `You'll keep Pro access until ${formatRenewalDate(subscription.currentPeriodEnd)}, then move to the Free plan. You can resume any time before then.`
-                : "You'll keep Pro access until the end of the current billing period, then move to the Free plan."
-            }
-            confirmLabel="Cancel plan"
-            cancelLabel="Keep Pro"
-            isDestructive
-            isConfirming={isCancelling}
-            onConfirm={() => void handleConfirmCancel()}
-            onCancel={() => setShowCancelConfirm(false)}
+        {showManagePlan && subscription && (
+          <ManagePlanModal
+            subscription={subscription}
+            onClose={() => setShowManagePlan(false)}
+            onSubscriptionChange={(updates) => setSubscription((prev) => (prev ? { ...prev, ...updates } : prev))}
+            onNotice={setNotice}
           />
         )}
 
