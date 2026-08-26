@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Grid } from "@react-three/drei";
 import AxisLabels from "./AxisLabels";
+import { useShowGrid } from "../lib/showGrid";
 
 interface ModelSceneProps {
   /** Only MeasureViewer.tsx/VersionDetailPage.tsx need this — slicer-exported
@@ -24,11 +25,14 @@ interface ModelSceneProps {
  * rotated group, alongside the axes, so mesh content lines up with them.
  */
 export default function ModelScene({ gridPosition, gridFadeDistance, axisOrigin, children }: ModelSceneProps) {
+  const [showGrid] = useShowGrid();
   return (
     <>
       <ambientLight intensity={0.6} />
       <directionalLight position={[10, 20, 10]} intensity={0.8} />
-      <Grid infiniteGrid position={gridPosition} fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />
+      {showGrid && (
+        <Grid infiniteGrid position={gridPosition} fadeDistance={gridFadeDistance} cellColor="#333" sectionColor="#555" />
+      )}
       {/* The grid is drei's default Y-up floor; this app's model data is
           Z-up (see diffVoxels.ts's gravity vector), so the displayed
           content is rotated -90° around X to lay it flat on that floor.
