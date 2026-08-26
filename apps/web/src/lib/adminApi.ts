@@ -72,11 +72,15 @@ export interface AnalyticsTrendPoint {
 export interface AnalyticsBreakdownEntry {
   value: string;
   count: number;
+  /** This value's contribution to `count` from today (UTC) alone. */
+  todayCount: number;
 }
 
 export interface AnalyticsSummary {
   totalPageviews: number;
   totalUniqueVisitors: number;
+  todayPageviews: number;
+  todayUniqueVisitors: number;
   dailyTrend: AnalyticsTrendPoint[];
   topPages: AnalyticsBreakdownEntry[];
   topCountries: AnalyticsBreakdownEntry[];

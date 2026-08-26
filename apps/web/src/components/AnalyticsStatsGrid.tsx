@@ -1,11 +1,18 @@
 import type { AnalyticsSummary } from "../lib/adminApi";
 import { countryName } from "../lib/localeNames";
 
-function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
+function StatCard({ label, value, today }: { label: string; value: React.ReactNode; today?: number }) {
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold text-ink-50">{value}</p>
+      <p className="mt-1.5 flex items-baseline gap-2">
+        <span className="text-2xl font-bold text-ink-50">{value}</span>
+        {!!today && (
+          <span className="text-sm font-semibold text-accent-400" title="From today">
+            +{today.toLocaleString()}
+          </span>
+        )}
+      </p>
     </div>
   );
 }
@@ -19,8 +26,12 @@ export default function AnalyticsStatsGrid({ summary }: { summary: AnalyticsSumm
   const topCountry = summary.topCountries[0] ? countryName(summary.topCountries[0].value) : "—";
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <StatCard label="Pageviews" value={summary.totalPageviews.toLocaleString()} />
-      <StatCard label="Unique Visitors" value={summary.totalUniqueVisitors.toLocaleString()} />
+      <StatCard label="Pageviews" value={summary.totalPageviews.toLocaleString()} today={summary.todayPageviews} />
+      <StatCard
+        label="Unique Visitors"
+        value={summary.totalUniqueVisitors.toLocaleString()}
+        today={summary.todayUniqueVisitors}
+      />
       <StatCard label="Top Country" value={topCountry} />
     </div>
   );

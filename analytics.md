@@ -157,6 +157,10 @@ this, even for a table nobody's supposed to query directly.
     (`apps/web/src/lib/localeNames.ts`) instead of raw codes — no static
     lookup table to maintain, falls back to the raw code for anything
     unrecognized. The raw code is still shown as a hover tooltip.
+  - Every count — the Pageviews/Unique Visitors stat cards and each row in
+    the four ranked lists — shows a green "+N" for today's (UTC) share of
+    that number, when N > 0. Computed server-side per dimension value in
+    `topBreakdown()`/`getAnalyticsSummary()`, not derived client-side.
   - Each ranked list paginates client-side, 15 entries per page, over the
     already-fetched array — `TOP_N` in `analyticsStats.ts` returns up to 50
     entries per dimension so there's enough to paginate through rather than

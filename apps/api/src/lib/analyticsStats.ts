@@ -9,11 +9,18 @@ export interface AnalyticsTrendPoint {
 export interface AnalyticsBreakdownEntry {
   value: string;
   count: number;
+  /** This value's contribution to `count` from today (UTC) alone — powers
+   * the "+N" badge in the UI. 0, not omitted, when nothing happened today. */
+  todayCount: number;
 }
 
 export interface AnalyticsSummary {
   totalPageviews: number;
   totalUniqueVisitors: number;
+  /** Today's (UTC) slice of the two totals above — always within range,
+   * since both UI presets (last 30 days / last 6 months) end at "now". */
+  todayPageviews: number;
+  todayUniqueVisitors: number;
   dailyTrend: AnalyticsTrendPoint[];
   topPages: AnalyticsBreakdownEntry[];
   topCountries: AnalyticsBreakdownEntry[];
@@ -29,26 +36,35 @@ type Result<T> = { success: true; data: T } | { success: false; error: string };
 // distinct values per dimension over the range, not match the page size.
 const TOP_N = 50;
 
+function todayUTC(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 async function topBreakdown(
   supabase: SupabaseClient,
   dimensionType: string,
   from: string,
   to: string,
+  today: string,
 ): Promise<Result<AnalyticsBreakdownEntry[]>> {
   const { data, error } = await supabase
     .from("analytics_daily_rollup")
-    .select("dimension_value, pageview_count")
+    .select("dimension_value, pageview_count, day")
     .eq("dimension_type", dimensionType)
     .gte("day", from)
     .lte("day", to);
   if (error) return { success: false, error: error.message };
 
   const totals = new Map<string, number>();
-  for (const row of data as Array<{ dimension_value: string; pageview_count: number }>) {
+  const todayTotals = new Map<string, number>();
+  for (const row of data as Array<{ dimension_value: string; pageview_count: number; day: string }>) {
     totals.set(row.dimension_value, (totals.get(row.dimension_value) ?? 0) + row.pageview_count);
+    if (row.day === today) {
+      todayTotals.set(row.dimension_value, (todayTotals.get(row.dimension_value) ?? 0) + row.pageview_count);
+    }
   }
   const sorted = [...totals.entries()]
-    .map(([value, count]) => ({ value, count }))
+    .map(([value, count]) => ({ value, count, todayCount: todayTotals.get(value) ?? 0 }))
     .sort((a, b) => b.count - a.count)
     .slice(0, TOP_N);
   return { success: true, data: sorted };
@@ -97,6 +113,7 @@ export async function getAnalyticsSummary(
   from: string,
   to: string,
 ): Promise<Result<AnalyticsSummary>> {
+  const today = todayUTC();
   const [totalRow, uniqueResult, pagesResult, countriesResult, languagesResult, referrersResult] = await Promise.all([
     supabase
       .from("analytics_daily_rollup")
@@ -107,10 +124,10 @@ export async function getAnalyticsSummary(
       .lte("day", to)
       .order("day", { ascending: true }),
     supabase.rpc("count_distinct_visitors", { p_from: from, p_to: to }),
-    topBreakdown(supabase, "page", from, to),
-    topBreakdown(supabase, "country", from, to),
-    topBreakdown(supabase, "language", from, to),
-    topBreakdown(supabase, "referrer", from, to),
+    topBreakdown(supabase, "page", from, to, today),
+    topBreakdown(supabase, "country", from, to, today),
+    topBreakdown(supabase, "language", from, to, today),
+    topBreakdown(supabase, "referrer", from, to, today),
   ]);
 
   if (totalRow.error) return { success: false, error: totalRow.error.message };
@@ -125,12 +142,15 @@ export async function getAnalyticsSummary(
   ).map((row) => ({ date: row.day, pageviews: row.pageview_count, visitors: row.visitor_count }));
 
   const totalPageviews = dailyTrend.reduce((sum, point) => sum + point.pageviews, 0);
+  const todayPoint = dailyTrend.find((point) => point.date === today);
 
   return {
     success: true,
     data: {
       totalPageviews,
       totalUniqueVisitors: Number(uniqueResult.data ?? 0),
+      todayPageviews: todayPoint?.pageviews ?? 0,
+      todayUniqueVisitors: todayPoint?.visitors ?? 0,
       dailyTrend,
       topPages: pagesResult.data,
       topCountries: countriesResult.data,
