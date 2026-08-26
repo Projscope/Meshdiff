@@ -284,6 +284,71 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
     }
   });
 
+  // Switches an EXISTING subscription between Pro and Team — distinct from
+  // /billing/checkout, which always starts a brand-new Stripe Checkout
+  // session (correct for a free/trialing user with no subscription yet,
+  // but would create a second, duplicate-billing subscription for someone
+  // who already has one). Updates the existing subscription's price in
+  // place with proration instead. Team's seat quantity defaults to 5, same
+  // as a fresh Team checkout — adjusting it afterward goes through
+  // /billing/portal, same as today.
+  app.post<{ Body: { tier?: "pro" | "team" } }>(
+    "/billing/change-plan",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const supabase = request.supabase!;
+      const stripe = getStripe();
+      const tier = request.body?.tier;
+      if (tier !== "pro" && tier !== "team") {
+        reply.code(400);
+        return { success: false, error: "tier must be 'pro' or 'team'" };
+      }
+      const priceId = priceIdForTier(tier);
+      if (!stripe || !priceId) {
+        reply.code(500);
+        return { success: false, error: "Billing is not configured" };
+      }
+
+      try {
+        const { data: existing } = await supabase
+          .from("subscriptions")
+          .select("stripe_subscription_id, tier")
+          .eq("user_id", request.userId)
+          .maybeSingle();
+        if (!existing) {
+          reply.code(404);
+          return { success: false, error: "No active subscription to change — subscribe first" };
+        }
+        if (existing.tier === tier) {
+          reply.code(400);
+          return { success: false, error: `Already on the ${tier} plan` };
+        }
+
+        const current = await stripe.subscriptions.retrieve(existing.stripe_subscription_id);
+        const item = current.items.data[0];
+        if (!item) {
+          reply.code(502);
+          return { success: false, error: "Failed to change plan" };
+        }
+
+        const updated = await stripe.subscriptions.update(existing.stripe_subscription_id, {
+          items: [{ id: item.id, price: priceId, quantity: tier === "team" ? 5 : 1 }],
+          proration_behavior: "create_prorations",
+          // Switching plans is an active choice to keep paying — clear any
+          // pending cancel-at-period-end from a prior "downgrade to Free".
+          cancel_at_period_end: false,
+        });
+        await upsertSubscriptionRow(supabase, request.userId!, updated);
+
+        return { success: true, data: { tier } };
+      } catch (err) {
+        app.log.error(err, "Failed to change subscription plan");
+        reply.code(502);
+        return { success: false, error: "Failed to change plan, please try again" };
+      }
+    },
+  );
+
   // Shared by /cancel and /resume — both just flip cancel_at_period_end on
   // the same Stripe subscription and write the result straight back to our
   // own table, rather than waiting on the customer.subscription.updated

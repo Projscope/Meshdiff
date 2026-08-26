@@ -46,7 +46,7 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
       )}
       {project.latestPrintabilityStatus && (
         <span
-          className={`absolute right-2 top-2 h-2.5 w-2.5 rounded-full ${STATUS_DOT[project.latestPrintabilityStatus]}`}
+          className={`absolute left-2 top-2 h-2.5 w-2.5 rounded-full ${STATUS_DOT[project.latestPrintabilityStatus]}`}
           title={`Latest printability: ${project.latestPrintabilityStatus}`}
         />
       )}

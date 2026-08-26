@@ -11,10 +11,14 @@ export function useTrackPageview(): void {
   const location = useLocation();
 
   useEffect(() => {
-    // Admin's own navigation around /admin/* isn't real site traffic —
-    // it'd otherwise pollute the visitor/pageview stats the dashboard is
-    // meant to report on with the admin's own repeated visits.
-    if (location.pathname.startsWith("/admin")) return;
+    // Admin's own navigation around /admin/* isn't real site traffic — it'd
+    // otherwise pollute the visitor/pageview stats the dashboard is meant
+    // to report on with the admin's own repeated visits. /projects/* is
+    // the signed-in app itself (project/version IDs in the URL, not public
+    // marketing/content pages) — not meaningful "which page did visitors
+    // read" analytics, and every distinct project ID would otherwise show
+    // up as its own noisy Top Pages row.
+    if (location.pathname.startsWith("/admin") || location.pathname.startsWith("/projects")) return;
 
     trackPageview();
     // Deliberately keyed on pathname only, not the full location object —

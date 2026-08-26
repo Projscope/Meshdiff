@@ -27,6 +27,7 @@ import BoundsResetBridge from "./BoundsResetBridge";
 import ZoomToFitBridge from "./ZoomToFitBridge";
 import CameraSync from "./CameraSync";
 import DiffPaletteSelect from "./DiffPaletteSelect";
+import GridToggle from "./GridToggle";
 import EdgeOverlay from "./EdgeOverlay";
 import MeasureSceneOverlay from "./MeasureSceneOverlay";
 import { useMeasureTool } from "../lib/useMeasureTool";
@@ -448,6 +449,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             ⟲ Reset View
           </button>
         )}
+        {!isPending && !hasError && <GridToggle />}
         {!isPending && !hasError && (
           <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
             Tolerance

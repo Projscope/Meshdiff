@@ -46,7 +46,14 @@ export default function AnalyticsRankedList({
             />
             <div className="relative flex items-center justify-between px-2 py-1 text-sm">
               <span className="truncate text-ink-200">{formatValue ? formatValue(entry.value) : entry.value}</span>
-              <span className="shrink-0 pl-2 font-medium text-ink-400">{entry.count.toLocaleString()}</span>
+              <span className="flex shrink-0 items-center gap-1.5 pl-2">
+                <span className="font-medium text-ink-400">{entry.count.toLocaleString()}</span>
+                {entry.todayCount > 0 && (
+                  <span className="text-xs font-semibold text-accent-400" title="Added today">
+                    +{entry.todayCount.toLocaleString()}
+                  </span>
+                )}
+              </span>
             </div>
           </div>
         ))}

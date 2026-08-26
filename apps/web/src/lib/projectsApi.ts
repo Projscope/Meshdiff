@@ -326,6 +326,14 @@ export function resumeSubscription(): Promise<Result<{ cancelAtPeriodEnd: boolea
   return request("/billing/resume", { method: "POST" });
 }
 
+/** Switches an EXISTING Pro/Team subscription to the other tier in place
+ * (prorated) — distinct from startProCheckout()/startTeamCheckout(), which
+ * always start a brand-new subscription and would double-bill someone who
+ * already has one. Only valid when already on the other paid tier. */
+export function changePlan(tier: "pro" | "team"): Promise<Result<{ tier: "pro" | "team" }>> {
+  return request("/billing/change-plan", { method: "POST", body: JSON.stringify({ tier }) });
+}
+
 export function approveVersion(projectId: string, versionId: string): Promise<Result<VersionSummary>> {
   return request(`/projects/${projectId}/versions/${versionId}/approve`, { method: "POST" });
 }

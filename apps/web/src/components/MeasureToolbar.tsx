@@ -1,5 +1,6 @@
 import ControlSchemeSelect from "./ControlSchemeSelect";
 import ShadingModeToggle from "./ShadingModeToggle";
+import GridToggle from "./GridToggle";
 import type { MeasureTool } from "../lib/useMeasureTool";
 
 interface MeasureToolbarProps {
@@ -63,6 +64,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
       </button>
       <div className="mx-0.5 h-5 w-px bg-ink-800" />
       <ShadingModeToggle />
+      <GridToggle />
       <div className="mx-0.5 h-5 w-px bg-ink-800" />
       <ControlSchemeSelect showLegend={false} />
     </div>
