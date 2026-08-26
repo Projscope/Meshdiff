@@ -42,12 +42,17 @@ function referrerHost(referrer: string | undefined, ownOrigin: string): string {
   }
 }
 
-/** Strips query string/hash defensively — the client should already send a
- * bare pathname, but never trust that from an untrusted POST body. */
+/** Strips query string/hash defensively (the client should already send a
+ * bare pathname, but never trust that from an untrusted POST body), and
+ * normalizes away a trailing slash — "/features" and "/features/" are the
+ * same page, but without this they'd land as two separate Top Pages rows
+ * depending on how the link was typed/clicked. The root path is the one
+ * exception: "/" has no non-slash form to normalize to. */
 function cleanPath(path: string | undefined): string {
   if (!path) return "/";
   const withoutQuery = path.split("?")[0]!.split("#")[0]!;
-  return withoutQuery || "/";
+  const trimmed = withoutQuery.length > 1 ? withoutQuery.replace(/\/+$/, "") : withoutQuery;
+  return trimmed || "/";
 }
 
 /**
