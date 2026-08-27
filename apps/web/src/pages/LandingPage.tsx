@@ -568,52 +568,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* External review: no CAD software required — the bridge between
-            internal engineering and outside customers/suppliers. Moved up
-            near the hero — expanding who can even open the file (a
-            customer without SolidWorks, a manufacturer who doesn't want
-            another CAD license) is one of the strongest differentiators,
-            not a footnote. */}
-        <section className="border-t border-ink-900 px-6 py-16">
-          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
-            <div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-ink-50 md:text-3xl">
-                Send a 3D review without sending a CAD file.
-              </h2>
-              <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-400">
-                Give customers, suppliers, and teammates a browser link. They can see exactly
-                what changed and leave feedback without installing CAD software.
-              </p>
-              <Link
-                to="/live"
-                className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
-              >
-                <PaperPlaneTilt size={16} weight="bold" />
-                Share a Review
-              </Link>
-            </div>
-            <div className="flex flex-col gap-3">
-              {[
-                { label: "1 day", detail: "Quick internal check" },
-                { label: "3 days", detail: "Client review window" },
-                { label: "7 days", detail: "Longer async review" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-3 rounded-lg border border-ink-800 bg-ink-900 px-4 py-3"
-                >
-                  <LinkSimple size={18} weight="light" className="shrink-0 text-ink-400" />
-                  <span className="w-14 shrink-0 text-sm font-semibold text-ink-50">{item.label}</span>
-                  <span className="text-xs text-ink-400">{item.detail}</span>
-                </div>
-              ))}
-              <p className="mt-1 text-xs text-ink-400">
-                Links expire automatically. Free on the Community plan.
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* Version confusion: the relatable pain point before the pitch. */}
         <section className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto max-w-3xl text-center">
@@ -683,7 +637,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <SectionHeader
               tag="Revision History"
-              title="From revision to approval"
+              title="Every revision. Every comment. One approved version."
               description="Every revision has a history. Every comment stays connected to the geometry. Everyone knows which version was approved."
             />
             <div className="grid gap-10 sm:grid-cols-2">
@@ -730,6 +684,48 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* External review: no CAD software required — the bridge between
+            internal engineering and outside customers/suppliers. */}
+        <section className="border-t border-ink-900 px-6 py-16">
+          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
+            <div>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-ink-50 md:text-3xl">
+                Send a 3D review without sending a CAD file.
+              </h2>
+              <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-400">
+                Give customers, suppliers, and teammates a browser link. They can see exactly
+                what changed and leave feedback without installing CAD software.
+              </p>
+              <Link
+                to="/live"
+                className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
+              >
+                <PaperPlaneTilt size={16} weight="bold" />
+                Share a Review
+              </Link>
+            </div>
+            <div className="flex flex-col gap-3">
+              {[
+                { label: "1 day", detail: "Quick internal check" },
+                { label: "3 days", detail: "Client review window" },
+                { label: "7 days", detail: "Longer async review" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-3 rounded-lg border border-ink-800 bg-ink-900 px-4 py-3"
+                >
+                  <LinkSimple size={18} weight="light" className="shrink-0 text-ink-400" />
+                  <span className="w-14 shrink-0 text-sm font-semibold text-ink-50">{item.label}</span>
+                  <span className="text-xs text-ink-400">{item.detail}</span>
+                </div>
+              ))}
+              <p className="mt-1 text-xs text-ink-400">
+                Links expire automatically. Free on the Community plan.
+              </p>
             </div>
           </div>
         </section>
