@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   listProjects,
   listMyTeams,
@@ -20,6 +21,7 @@ import TeamModal from "./TeamModal";
 import UpgradeToTeamModal from "./UpgradeToTeamModal";
 import ManagePlanModal from "./ManagePlanModal";
 import EditWorkspaceModal from "./EditWorkspaceModal";
+import LanguageSelect from "./LanguageSelect";
 
 // UI convenience only — hides the sidebar link for everyone else. The real
 // admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
@@ -66,6 +68,7 @@ export function useAccountStatus(): { isRestricted: boolean; isPro: boolean } {
 }
 
 export default function ProjectsLayout({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
@@ -245,7 +248,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // seats with no subscription of their own — everyone else (not yet
   // subscribed, or the actual payer) has a plan to manage.
   const canManagePlan = !isTeamMember || isBillingOwner;
-  const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : isTrialing ? "Free Trial" : "Free";
   const planTextClass = isTeamMember
     ? "text-violet-400"
     : isPro || isTrialing
@@ -315,7 +317,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setIsProjectsExpanded((expanded) => !expanded)}
                 className="flex min-w-0 flex-1 items-center gap-1 text-left"
-                title={isProjectsExpanded ? "Collapse projects" : "Expand projects"}
+                title={isProjectsExpanded ? t("sidebar.collapseProjects") : t("sidebar.expandProjects")}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -336,7 +338,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setIsEditWorkspaceOpen(true)}
-                title="Rename workspace"
+                title={t("sidebar.renameWorkspace")}
                 className="shrink-0 rounded p-0.5 text-ink-600 hover:bg-ink-800 hover:text-ink-300"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
@@ -358,13 +360,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     to="/projects"
                     className="text-[10px] font-semibold uppercase tracking-widest text-ink-600 hover:text-ink-300"
                   >
-                    Projects
+                    {t("sidebar.projects")}
                   </Link>
                   {!isRestricted && (
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(true)}
-                      title="New project"
+                      title={t("sidebar.newProject")}
                       className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                     >
                       +
@@ -378,7 +380,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       type="text"
                       value={projectSearch}
                       onChange={(e) => setProjectSearch(e.target.value)}
-                      placeholder="Search projects…"
+                      placeholder={t("sidebar.searchPlaceholder")}
                       className="w-full rounded border border-ink-800 bg-ink-900 px-2 py-1 text-xs text-ink-300 placeholder:text-ink-600 focus:border-ink-600 focus:outline-none"
                     />
                   </div>
@@ -386,13 +388,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
                 <div className="mt-2 flex flex-col gap-0.5">
                   {sortedProjects === null && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">Loading…</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">{t("sidebar.loading")}</p>
                   )}
                   {sortedProjects?.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">No projects yet.</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">{t("sidebar.noProjectsYet")}</p>
                   )}
                   {sortedProjects !== null && sortedProjects.length > 0 && visibleProjects?.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">No projects match "{projectSearch}".</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">
+                      {t("sidebar.noProjectsMatch", { query: projectSearch })}
+                    </p>
                   )}
                   {visibleProjects?.map((project) => {
                     const isActive = project.id === projectId;
@@ -421,11 +425,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 opens the create-team form instead of a checkout prompt). */}
             <>
                 <div className="mt-4 flex items-center justify-between px-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">Teams</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">{t("sidebar.teams")}</span>
                   <button
                     type="button"
                     onClick={handleCreateTeamClick}
-                    title={subscription?.tier === "team" ? "New team" : "Upgrade to the Team plan to create a team"}
+                    title={subscription?.tier === "team" ? t("sidebar.newTeam") : t("sidebar.upgradeToCreateTeam")}
                     className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                   >
                     +
@@ -433,7 +437,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 </div>
                 <div className="mt-2 flex flex-col gap-0.5">
                   {teams.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">No teams yet.</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">{t("sidebar.noTeamsYet")}</p>
                   )}
                   {teams.map((team) => (
                     <button
@@ -510,10 +514,19 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="border-t border-ink-800 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">Billing</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">{t("billing.title")}</p>
             <div className="mt-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
-                <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
+                <span className={`text-xs font-semibold ${planTextClass}`}>
+                  {isTeamMember
+                    ? t("billing.teamPlan")
+                    : isPro
+                      ? t("billing.proPlan")
+                      : isTrialing
+                        ? t("billing.freeTrialPlan")
+                        : t("billing.freePlan")}{" "}
+                  {t("billing.planSuffix")}
+                </span>
                 {/* Riding a team owner's seats has no billing of your own to
                     manage — everyone else (not-yet-subscribed, or the actual
                     Pro/Team payer) gets the full plan-management dialog. */}
@@ -525,22 +538,28 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
                     }`}
                   >
-                    {isBillingOwner ? "Manage plan" : "Upgrade"}
+                    {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
                   </button>
                 )}
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
                 {isBillingOwner
                   ? subscription?.cancelAtPeriodEnd
-                    ? `Ends ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"} — becomes read-only until you resubscribe.`
-                    : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
+                    ? t("billing.endsReadOnly", {
+                        date: subscription.currentPeriodEnd
+                          ? formatRenewalDate(subscription.currentPeriodEnd)
+                          : t("billing.endsAtPeriodEnd"),
+                      })
+                    : subscription?.currentPeriodEnd
+                      ? t("billing.renewsOn", { date: formatRenewalDate(subscription.currentPeriodEnd) })
+                      : t("billing.renewsAutomatically")
                   : isTeamMember
-                    ? "Access via your team's plan."
+                    ? t("billing.accessViaTeam")
                     : isTrialing
-                      ? `Full access — ${subscription?.trialDaysRemaining} day${subscription?.trialDaysRemaining === 1 ? "" : "s"} left in your free trial.`
+                      ? t("billing.trialActive", { count: subscription?.trialDaysRemaining ?? 0 })
                       : isRestricted
-                        ? "Your 14-day trial has ended — subscribe to keep using Meshdiff. You can still sign in and delete projects."
-                        : "Project workspaces, version history, and comment pins — $15/mo."}
+                        ? t("billing.trialEnded")
+                        : t("billing.freeBlurb")}
               </p>
               {isBillingOwner && (
                 <div className="mt-2">
@@ -549,10 +568,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     onClick={() => void handleManageBilling()}
                     className="text-[11px] font-medium text-ink-400 hover:text-ink-200"
                   >
-                    Payment method &amp; invoices
+                    {t("billing.paymentAndInvoices")}
                   </button>
                 </div>
               )}
+            </div>
+            <div className="mt-2">
+              <LanguageSelect />
             </div>
           </div>
 
@@ -574,7 +596,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   onClick={() => void handleSignOut()}
                   className="w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
                 >
-                  Sign Out
+                  {t("sidebar.signOut")}
                 </button>
               </div>
             )}

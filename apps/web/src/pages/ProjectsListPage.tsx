@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listProjects, deleteProject, type ProjectSummary } from "../lib/projectsApi";
 import NewProjectModal from "../components/NewProjectModal";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -26,6 +27,7 @@ function FolderIcon() {
 }
 
 function ProjectThumbnail({ project }: { project: ProjectSummary }) {
+  const { t } = useTranslation();
   const [failed, setFailed] = useState(false);
   const showImage = project.thumbnailUrl && !failed;
 
@@ -41,13 +43,13 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
       ) : (
         <div className="flex flex-col items-center gap-2 text-ink-700">
           <FolderIcon />
-          <span className="text-[11px] text-ink-600">No model yet</span>
+          <span className="text-[11px] text-ink-600">{t("projectsList.noModelYet")}</span>
         </div>
       )}
       {project.latestPrintabilityStatus && (
         <span
           className={`absolute left-2 top-2 h-2.5 w-2.5 rounded-full ${STATUS_DOT[project.latestPrintabilityStatus]}`}
-          title={`Latest printability: ${project.latestPrintabilityStatus}`}
+          title={t("projectsList.latestPrintability", { status: project.latestPrintabilityStatus })}
         />
       )}
     </div>
@@ -55,6 +57,7 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
 }
 
 export default function ProjectsListPage() {
+  const { t } = useTranslation();
   const { isPro } = useAccountStatus();
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<"name" | "date-newest" | "date-oldest">("date-newest");
@@ -104,8 +107,8 @@ export default function ProjectsListPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink-50">Projects</h1>
-          <p className="mt-1 text-sm text-ink-400">Track and review 3D model versions</p>
+          <h1 className="text-2xl font-bold text-ink-50">{t("projectsList.title")}</h1>
+          <p className="mt-1 text-sm text-ink-400">{t("projectsList.subtitle")}</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {projects && projects.length > 0 && (
@@ -115,9 +118,9 @@ export default function ProjectsListPage() {
               onChange={(e) => handleSortChange(e.target.value as "name" | "date-newest" | "date-oldest")}
               className="rounded border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-300 hover:border-ink-500"
             >
-              <option value="date-newest">Newest first</option>
-              <option value="date-oldest">Oldest first</option>
-              <option value="name">Name (A-Z)</option>
+              <option value="date-newest">{t("projectsList.sortNewest")}</option>
+              <option value="date-oldest">{t("projectsList.sortOldest")}</option>
+              <option value="name">{t("projectsList.sortName")}</option>
             </select>
           )}
           <button
@@ -129,9 +132,9 @@ export default function ProjectsListPage() {
                 ? "bg-accent-500 text-chrome-950 hover:bg-accent-400"
                 : "bg-ink-700 text-ink-500 cursor-not-allowed"
             }`}
-            title={!isPro ? "Upgrade to Pro to create projects" : ""}
+            title={!isPro ? t("projectsList.upgradeToCreate") : ""}
           >
-            + New Project
+            {t("projectsList.newProject")}
           </button>
         </div>
       </div>
@@ -143,12 +146,12 @@ export default function ProjectsListPage() {
       )}
 
       {projects === null && !error && (
-        <div className="mt-6 text-sm text-ink-500">Loading…</div>
+        <div className="mt-6 text-sm text-ink-500">{t("projectsList.loading")}</div>
       )}
 
       {projects && projects.length === 0 && (
         <div className="mt-10 rounded-lg border border-dashed border-ink-800 py-16 text-center text-sm text-ink-500">
-          No projects yet. Create one to start tracking versions.
+          {t("projectsList.empty")}
         </div>
       )}
 
@@ -167,7 +170,7 @@ export default function ProjectsListPage() {
                     <p className="mt-2 line-clamp-2 text-xs text-ink-400">{project.description}</p>
                   )}
                   <div className="mt-3 flex items-center justify-between text-[11px] text-ink-600">
-                    <span>{project.versionCount} version{project.versionCount === 1 ? "" : "s"}</span>
+                    <span>{t("projectsList.version", { count: project.versionCount })}</span>
                     <span>{formatDate(project.updatedAt)}</span>
                   </div>
                 </div>
@@ -175,7 +178,7 @@ export default function ProjectsListPage() {
               <button
                 type="button"
                 onClick={() => setPendingDelete(project)}
-                title="Delete project"
+                title={t("projectsList.deleteProject")}
                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink-950/70 text-ink-400 opacity-0 transition hover:bg-red-500/20 hover:text-red-400 group-hover:opacity-100"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
@@ -197,18 +200,16 @@ export default function ProjectsListPage() {
             disabled={page <= 1}
             className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            ← Prev
+            {t("projectsList.prev")}
           </button>
-          <span className="text-ink-500">
-            Page {page} of {totalPages}
-          </span>
+          <span className="text-ink-500">{t("projectsList.pageOf", { page, totalPages })}</span>
           <button
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
             className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Next →
+            {t("projectsList.next")}
           </button>
         </div>
       )}
@@ -235,9 +236,9 @@ export default function ProjectsListPage() {
 
       {pendingDelete && (
         <ConfirmDialog
-          title={`Delete "${pendingDelete.name}"?`}
-          message="This permanently deletes the project and every version, comment, and file in it. This can't be undone."
-          confirmLabel="Delete"
+          title={t("projectsList.deleteTitle", { name: pendingDelete.name })}
+          message={t("projectsList.deleteMessage")}
+          confirmLabel={t("common.delete")}
           isDestructive
           isConfirming={isDeleting}
           onConfirm={() => void handleConfirmDelete()}

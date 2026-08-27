@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createProject, type ProjectSummary } from "../lib/projectsApi";
 
 export default function NewProjectModal({
@@ -8,6 +9,7 @@ export default function NewProjectModal({
   onClose: () => void;
   onCreated: (project: ProjectSummary) => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,19 +34,19 @@ export default function NewProjectModal({
         className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-ink-50">New Project</h3>
+        <h3 className="text-sm font-semibold text-ink-50">{t("newProjectModal.title")}</h3>
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2">
           <input
             type="text"
             required
             autoFocus
-            placeholder="Project name"
+            placeholder={t("newProjectModal.namePlaceholder")}
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
           />
           <textarea
-            placeholder="Description (optional)"
+            placeholder={t("newProjectModal.descriptionPlaceholder")}
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             rows={2}
@@ -56,14 +58,14 @@ export default function NewProjectModal({
               disabled={isSubmitting}
               className="flex-1 rounded bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
             >
-              {isSubmitting ? "Creating…" : "Create Project"}
+              {isSubmitting ? t("newProjectModal.creating") : t("newProjectModal.create")}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
           {error && <span className="text-xs text-red-400">{error}</span>}
