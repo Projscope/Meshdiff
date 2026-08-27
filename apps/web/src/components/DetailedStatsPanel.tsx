@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import CollapsibleSection, { PropertyList, PropertyRow } from "./CollapsibleSection";
 import { useDiffColors } from "../lib/diffPalette";
@@ -26,6 +27,7 @@ function SectionCard({ children }: { children: ReactNode }) {
 }
 
 export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB }: DetailedStatsPanelProps) {
+  const { t } = useTranslation();
   // Total volume isn't stored directly on VoxelDiffStats (only deltas are) —
   // derive it from the voxel counts rather than plumb a separate prop that
   // could drift out of sync with the same computation.
@@ -43,41 +45,41 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
     <div className="grid items-start gap-4 text-sm [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
       {hasComparison && (
         <SectionCard>
-          <CollapsibleSection title="Geometric Delta">
+          <CollapsibleSection title={t("statsPanel.geometricDelta")}>
             {!stats ? (
               <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-center text-xs text-ink-500">
-                No comparison available
+                {t("statsPanel.noComparison")}
               </div>
             ) : (
               <>
                 <PropertyList>
                   <PropertyRow
-                    label="Volume"
+                    label={t("statsPanel.volume")}
                     value={`${stats.approxVolumeDeltaMm3 < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaMm3).toFixed(0)} mm³`}
                     valueClassName={stats.approxVolumeDeltaMm3 < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
                   />
                   <PropertyRow
-                    label="Volume Change"
+                    label={t("statsPanel.volumeChange")}
                     value={`${stats.approxVolumeDeltaPercent < 0 ? "↓ " : "↑ "}${Math.abs(stats.approxVolumeDeltaPercent).toFixed(1)}%`}
                     valueClassName={stats.approxVolumeDeltaPercent < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
                   />
                   <PropertyRow
-                    label="Size Δ X"
+                    label={t("statsPanel.sizeDeltaX")}
                     value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
                     valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-ink-500"}
                   />
                   <PropertyRow
-                    label="Size Δ Y"
+                    label={t("statsPanel.sizeDeltaY")}
                     value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
                     valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-ink-500"}
                   />
                   <PropertyRow
-                    label="Size Δ Z"
+                    label={t("statsPanel.sizeDeltaZ")}
                     value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
                     valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-ink-500"}
                   />
                   <PropertyRow
-                    label="Triangles"
+                    label={t("statsPanel.triangles")}
                     value={`${stats.triangleDelta > 0 ? "↑ +" : stats.triangleDelta < 0 ? "↓ " : "→ "}${stats.triangleDelta}`}
                     valueClassName={
                       stats.triangleDelta > 0
@@ -88,19 +90,19 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                     }
                   />
                   <PropertyRow
-                    label="Surface Area"
+                    label={t("statsPanel.surfaceArea")}
                     value={`${stats.surfaceAreaDelta < 0 ? "↓ " : "↑ "}${Math.abs(stats.surfaceAreaDelta).toFixed(0)} mm²`}
                     valueClassName={stats.surfaceAreaDelta < 0 ? diffColors.removedTextClass : diffColors.addedTextClass}
                   />
                 </PropertyList>
                 {stats.thinWallWarning && (
                   <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-                    ⚠ Thin walls detected (&lt; 0.8mm)
+                    {t("statsPanel.thinWallWarning")}
                   </div>
                 )}
                 {stats.maxOverhangAngle > 45 && (
                   <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-                    ⚠ Overhangs detected ({stats.maxOverhangAngle.toFixed(1)}°)
+                    {t("statsPanel.overhangsDetected", { angle: stats.maxOverhangAngle.toFixed(1) })}
                   </div>
                 )}
               </>
@@ -110,33 +112,33 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
       )}
 
       <SectionCard>
-        <CollapsibleSection title="Model Size">
+        <CollapsibleSection title={t("statsPanel.modelSize")}>
           <PropertyList>
-            <PropertyRow label="Size X" value={`${boundingBoxB[0].toFixed(1)} mm`} />
-            <PropertyRow label="Size Y" value={`${boundingBoxB[1].toFixed(1)} mm`} />
-            <PropertyRow label="Size Z" value={`${boundingBoxB[2].toFixed(1)} mm`} />
+            <PropertyRow label={t("statsPanel.sizeX")} value={`${boundingBoxB[0].toFixed(1)} mm`} />
+            <PropertyRow label={t("statsPanel.sizeY")} value={`${boundingBoxB[1].toFixed(1)} mm`} />
+            <PropertyRow label={t("statsPanel.sizeZ")} value={`${boundingBoxB[2].toFixed(1)} mm`} />
           </PropertyList>
         </CollapsibleSection>
       </SectionCard>
 
       <SectionCard>
-        <CollapsibleSection title="Version Stats">
+        <CollapsibleSection title={t("statsPanel.versionStats")}>
           <PropertyList>
-            <PropertyRow label="Volume" value={stats ? `${volumeB.toFixed(0)} mm³` : "—"} />
+            <PropertyRow label={t("statsPanel.volume")} value={stats ? `${volumeB.toFixed(0)} mm³` : "—"} />
             <PropertyRow
-              label="Bounding Box"
+              label={t("statsPanel.boundingBox")}
               value={`${boundingBoxB[0].toFixed(0)} × ${boundingBoxB[1].toFixed(0)} × ${boundingBoxB[2].toFixed(0)} mm`}
             />
-            <PropertyRow label="Triangles" value={stats ? Math.round(stats.triangleDeltaB) : "—"} />
-            <PropertyRow label="Surface Area" value={stats ? `${stats.surfaceAreaB.toFixed(0)} mm²` : "—"} />
-            {stats?.fileFormatB && <PropertyRow label="File Format" value={stats.fileFormatB.toUpperCase()} />}
+            <PropertyRow label={t("statsPanel.triangles")} value={stats ? Math.round(stats.triangleDeltaB) : "—"} />
+            <PropertyRow label={t("statsPanel.surfaceArea")} value={stats ? `${stats.surfaceAreaB.toFixed(0)} mm²` : "—"} />
+            {stats?.fileFormatB && <PropertyRow label={t("statsPanel.fileFormat")} value={stats.fileFormatB.toUpperCase()} />}
           </PropertyList>
         </CollapsibleSection>
       </SectionCard>
 
       {stats && (
         <SectionCard>
-          <CollapsibleSection title="Printability Details">
+          <CollapsibleSection title={t("statsPanel.printabilityDetails")}>
             {stats.printabilityIssues.length > 0 && (
               <div className="space-y-1 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
                 {stats.printabilityIssues.map((issue, i) => (
@@ -147,9 +149,9 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
               </div>
             )}
             <PropertyList>
-              <PropertyRow label="Wall Thickness" value={`${stats.minWallThickness.toFixed(2)} – ${stats.maxWallThickness.toFixed(2)} mm`} />
-              <PropertyRow label="Max Overhang" value={`${stats.maxOverhangAngle.toFixed(1)}°`} />
-              <PropertyRow label="Unsupported Area" value={`${stats.overhangAreaPercent.toFixed(1)}%`} />
+              <PropertyRow label={t("statsPanel.wallThickness")} value={`${stats.minWallThickness.toFixed(2)} – ${stats.maxWallThickness.toFixed(2)} mm`} />
+              <PropertyRow label={t("statsPanel.maxOverhang")} value={`${stats.maxOverhangAngle.toFixed(1)}°`} />
+              <PropertyRow label={t("statsPanel.unsupportedArea")} value={`${stats.overhangAreaPercent.toFixed(1)}%`} />
             </PropertyList>
           </CollapsibleSection>
         </SectionCard>
@@ -157,35 +159,35 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
 
       {stats && (
         <SectionCard>
-          <CollapsibleSection title="Hole Inventory">
+          <CollapsibleSection title={t("statsPanel.holeInventory")}>
             {stats.holeCountB > 0 && stats.minHoleDiameterMm < 2 && (
               <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-                ⚠ Small hole diameter ({stats.minHoleDiameterMm.toFixed(2)}mm) may fill in during printing
+                {t("statsPanel.smallHoleWarning", { diameter: stats.minHoleDiameterMm.toFixed(2) })}
               </div>
             )}
             <PropertyList>
-              <PropertyRow label="Holes Detected" value={stats.holeCountB} />
+              <PropertyRow label={t("statsPanel.holesDetected")} value={stats.holeCountB} />
               {hasComparison && (
                 <>
                   <PropertyRow
-                    label="Added"
+                    label={t("statsPanel.added")}
                     value={stats.holesAdded > 0 ? `+${stats.holesAdded}` : "0"}
                     valueClassName={stats.holesAdded > 0 ? diffColors.addedTextClass : "text-ink-500"}
                   />
                   <PropertyRow
-                    label="Removed"
+                    label={t("statsPanel.removed")}
                     value={stats.holesRemoved > 0 ? `-${stats.holesRemoved}` : "0"}
                     valueClassName={stats.holesRemoved > 0 ? diffColors.removedTextClass : "text-ink-500"}
                   />
                   <PropertyRow
-                    label="Diameter Changed"
+                    label={t("statsPanel.diameterChanged")}
                     value={stats.holesDiameterChanged}
                     valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-400" : "text-ink-500"}
                   />
                 </>
               )}
               {stats.holeCountB > 0 && (
-                <PropertyRow label="Smallest Diameter" value={`${stats.minHoleDiameterMm.toFixed(2)} mm`} />
+                <PropertyRow label={t("statsPanel.smallestDiameter")} value={`${stats.minHoleDiameterMm.toFixed(2)} mm`} />
               )}
             </PropertyList>
           </CollapsibleSection>

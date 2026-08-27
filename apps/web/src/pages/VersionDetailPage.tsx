@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { Bounds, Line, OrbitControls } from "@react-three/drei";
@@ -137,6 +138,7 @@ function computeUniqueEdges(geometry: THREE.BufferGeometry): Array<[THREE.Vector
 }
 
 export default function VersionDetailPage() {
+  const { t } = useTranslation();
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
   const { user } = useAuth();
   const { isPro } = useAccountStatus();
@@ -709,8 +711,8 @@ export default function VersionDetailPage() {
               onClick={() => toggleMeasuring("distance")}
               title={
                 isToolActive("distance")
-                  ? "Click to clear this distance measurement"
-                  : "Measure distance between two points"
+                  ? t("viewer.clearDistanceTooltip")
+                  : t("viewer.measureDistanceTooltip")
               }
               className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                 isToolActive("distance")
@@ -723,7 +725,7 @@ export default function VersionDetailPage() {
             <button
               type="button"
               onClick={() => toggleMeasuring("radius")}
-              title={isToolActive("radius") ? "Click to clear this radius measurement" : "Measure a hole/boss radius"}
+              title={isToolActive("radius") ? t("viewer.clearRadiusTooltip") : t("viewer.measureRadiusTooltip")}
               className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                 isToolActive("radius")
                   ? "bg-sky-500/20 text-sky-400"
@@ -738,7 +740,7 @@ export default function VersionDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsPlacingComment((prev) => !prev)}
-                  title={isPlacingComment ? "Cancel adding a comment" : "Click a spot on the model to add a comment"}
+                  title={isPlacingComment ? t("viewer.cancelCommentTooltip") : t("viewer.addCommentTooltip")}
                   className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                     isPlacingComment
                       ? "bg-indigo-500/20 text-indigo-400"
@@ -753,7 +755,7 @@ export default function VersionDetailPage() {
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
-              title="Zoom to fit the model in view"
+              title={t("viewer.zoomToFit")}
               className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⛶
@@ -761,7 +763,7 @@ export default function VersionDetailPage() {
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
-              title="Reset camera to the loaded view"
+              title={t("viewer.resetViewTooltip")}
               className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⟲
@@ -918,14 +920,14 @@ export default function VersionDetailPage() {
         {isMeshLoading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink-950/80">
             <LoadingCube />
-            <p className="text-xs text-ink-400">Loading model…</p>
+            <p className="text-xs text-ink-400">{t("viewer.loadingModel")}</p>
           </div>
         )}
       </div>
 
       <div className="w-80 shrink-0 overflow-y-auto pr-3">
         <Link to={`/projects/${projectId}`} className="text-xs text-ink-500 hover:text-ink-300">
-          ← {version ? "Back to project" : "Back"}
+          ← {version ? t("versionDetail.backToProject") : t("versionDetail.back")}
         </Link>
 
         {error && (
@@ -944,18 +946,18 @@ export default function VersionDetailPage() {
             </div>
 
             <div className="mt-5">
-              <CollapsibleSection title="Summary">
+              <CollapsibleSection title={t("versionDetail.summary")}>
                 <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-xs leading-relaxed text-ink-300">
-                  {version.changeSummary ?? "No summary available."}
+                  {version.changeSummary ?? t("versionDetail.noSummary")}
                 </div>
               </CollapsibleSection>
             </div>
 
             <div className="mt-4">
-              <CollapsibleSection title="Printability Gate">
+              <CollapsibleSection title={t("versionDetail.printabilityGate")}>
                 <PropertyList>
                   <PropertyRow
-                    label="Status"
+                    label={t("versionDetail.status")}
                     value={
                       <PrintabilityRulesTooltip>
                         <PrintabilityBadge status={version.printabilityStatus} />
@@ -1022,14 +1024,14 @@ export default function VersionDetailPage() {
 
       {pendingDeleteComment && (
         <ConfirmDialog
-          title="Delete comment?"
+          title={t("versionDetail.deleteCommentTitle")}
           message={(() => {
             const replyCount = comments.filter((c) => c.parentCommentId === pendingDeleteComment.id).length;
             return replyCount > 0
-              ? `This will also delete ${replyCount} ${replyCount === 1 ? "reply" : "replies"}. This can't be undone.`
-              : "This can't be undone.";
+              ? t("versionDetail.deleteCommentWithReplies", { count: replyCount })
+              : t("versionDetail.deleteCommentMessage");
           })()}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           isDestructive
           isConfirming={isDeletingComment}
           onConfirm={() => void handleConfirmDeleteComment()}

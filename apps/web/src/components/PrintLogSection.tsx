@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import CollapsibleSection from "./CollapsibleSection";
 import {
   deletePrintPhoto,
@@ -32,8 +33,9 @@ export default function PrintLogSection({
   printPhoto,
   onChange,
 }: PrintLogSectionProps) {
+  const { t } = useTranslation();
   return (
-    <CollapsibleSection title="Print Log">
+    <CollapsibleSection title={t("printLog.title")}>
       <SlicerProfileBlock
         projectId={projectId}
         versionId={versionId}
@@ -61,6 +63,7 @@ function SlicerProfileBlock({
   attachment: SlicerProfileAttachment | null;
   onChange: () => void;
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +101,7 @@ function SlicerProfileBlock({
 
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-900 p-3">
-      <p className="text-xs font-semibold text-ink-300">Slicer profile</p>
+      <p className="text-xs font-semibold text-ink-300">{t("printLog.slicerProfile")}</p>
       {attachment ? (
         <div className="mt-2 flex items-center justify-between gap-2">
           <a
@@ -115,7 +118,7 @@ function SlicerProfileBlock({
             disabled={isBusy}
             className="shrink-0 text-[11px] text-ink-500 hover:text-red-400 disabled:opacity-50"
           >
-            Remove
+            {t("printLog.remove")}
           </button>
         </div>
       ) : (
@@ -136,7 +139,7 @@ function SlicerProfileBlock({
             disabled={isBusy}
             className="text-xs text-ink-400 hover:text-ink-200 disabled:opacity-50"
           >
-            {isBusy ? "Uploading…" : "+ Attach settings snapshot (.txt, .ini, .cfg — 2MB max)"}
+            {isBusy ? t("printLog.uploading") : t("printLog.attachSnapshot")}
           </button>
         </div>
       )}
@@ -156,6 +159,7 @@ function PrintPhotoBlock({
   attachment: PrintPhotoAttachment | null;
   onChange: () => void;
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +202,7 @@ function PrintPhotoBlock({
 
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-900 p-3">
-      <p className="text-xs font-semibold text-ink-300">Print result photo</p>
+      <p className="text-xs font-semibold text-ink-300">{t("printLog.printResultPhoto")}</p>
       {attachment ? (
         <div className="mt-2">
           <a href={attachment.downloadUrl} target="_blank" rel="noreferrer">
@@ -215,7 +219,7 @@ function PrintPhotoBlock({
             disabled={isBusy}
             className="mt-1.5 text-[11px] text-ink-500 hover:text-red-400 disabled:opacity-50"
           >
-            Remove
+            {t("printLog.remove")}
           </button>
         </div>
       ) : pendingFile ? (
@@ -229,7 +233,7 @@ function PrintPhotoBlock({
             type="text"
             value={caption}
             onChange={(event) => setCaption(event.target.value)}
-            placeholder="Caption (optional) — e.g. Clean print, no supports"
+            placeholder={t("printLog.captionPlaceholder")}
             className="w-full rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-xs text-ink-100 placeholder:text-ink-600 focus:border-accent-500 focus:outline-none"
           />
           <div className="flex gap-2">
@@ -239,7 +243,7 @@ function PrintPhotoBlock({
               disabled={isBusy}
               className="rounded bg-accent-500 px-2.5 py-1 text-[11px] font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
             >
-              {isBusy ? "Uploading…" : "Save"}
+              {isBusy ? t("printLog.uploading") : t("printLog.save")}
             </button>
             <button
               type="button"
@@ -247,7 +251,7 @@ function PrintPhotoBlock({
               disabled={isBusy}
               className="text-[11px] text-ink-500 hover:text-ink-300 disabled:opacity-50"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -269,7 +273,7 @@ function PrintPhotoBlock({
             onClick={() => inputRef.current?.click()}
             className="text-xs text-ink-400 hover:text-ink-200"
           >
-            + Add a photo of the printed part (10MB max)
+            {t("printLog.addPhoto")}
           </button>
         </div>
       )}

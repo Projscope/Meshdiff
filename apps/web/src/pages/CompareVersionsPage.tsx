@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { getVersion, listVersions, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
 import { loadMeshGeometry } from "../engine/loadMesh";
@@ -18,6 +19,7 @@ export default function CompareVersionsPage() {
     versionAId: string;
     versionBId: string;
   }>();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const diffColors = useDiffColors();
   const [versionA, setVersionA] = useState<VersionDetail | null>(null);
@@ -165,15 +167,15 @@ export default function CompareVersionsPage() {
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
           <ReadOnlyMeshViewer
             ref={viewerARef}
-            label={versionA ? `v${versionA.versionNumber}` : "View A"}
-            fallbackLabel="View A"
+            label={versionA ? `v${versionA.versionNumber}` : t("compare.viewA")}
+            fallbackLabel={t("compare.viewA")}
             geometry={geometryA}
             color="#4f8ff7"
           />
           <ReadOnlyMeshViewer
             ref={viewerBRef}
-            label={versionB ? `v${versionB.versionNumber}` : "View B"}
-            fallbackLabel="View B"
+            label={versionB ? `v${versionB.versionNumber}` : t("compare.viewB")}
+            fallbackLabel={t("compare.viewB")}
             geometry={geometryB}
             color="#4f8ff7"
           />
@@ -183,7 +185,7 @@ export default function CompareVersionsPage() {
             ref={diffViewRef}
             geometryA={geometryA}
             geometryB={geometryB}
-            label="Combined"
+            label={t("compare.combined")}
             mode={mode}
             onModeChange={setMode}
             toleranceMm={toleranceMm}
@@ -198,26 +200,26 @@ export default function CompareVersionsPage() {
         {stats && (
           <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-ink-500">Added voxels</div>
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.addedVoxels")}</div>
               <div className={`mt-0.5 text-lg font-semibold ${diffColors.addedTextClass}`}>
                 +{stats.addedCount.toLocaleString()}
               </div>
             </div>
             <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-ink-500">Removed voxels</div>
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.removedVoxels")}</div>
               <div className={`mt-0.5 text-lg font-semibold ${diffColors.removedTextClass}`}>
                 -{stats.removedCount.toLocaleString()}
               </div>
             </div>
             <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-ink-500">Volume delta</div>
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.volumeDelta")}</div>
               <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
                 {stats.approxVolumeDeltaPercent.toFixed(1)}%
               </div>
             </div>
             <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-ink-500">Tolerance</div>
+              <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.tolerance")}</div>
               <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.toleranceMm.toFixed(2)} mm
               </div>
@@ -235,7 +237,7 @@ export default function CompareVersionsPage() {
           to={`/projects/${projectId}`}
           className="text-xs text-ink-500 hover:text-ink-300"
         >
-          ← Back to project
+          ← {t("compare.backToProject")}
         </Link>
         <div className="mt-2 flex items-center gap-2">
           <button
@@ -243,7 +245,7 @@ export default function CompareVersionsPage() {
             onClick={handleShareClick}
             className="flex flex-1 items-center justify-center gap-1.5 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
           >
-            🔗 Share
+            🔗 {t("compare.share")}
           </button>
           {stats && (
             <button
@@ -257,14 +259,14 @@ export default function CompareVersionsPage() {
               }
               className="flex-1 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
             >
-              Download Report
+              {t("compare.downloadReport")}
             </button>
           )}
         </div>
 
         {allVersions.length > 1 && (
           <div className="mt-3 flex flex-col gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs">
-            <span className="font-semibold uppercase tracking-widest text-ink-500">Compare</span>
+            <span className="font-semibold uppercase tracking-widest text-ink-500">{t("compare.compareLabel")}</span>
             <div className="flex items-center gap-2">
               <select
                 value={versionAId ?? ""}
@@ -330,7 +332,7 @@ export default function CompareVersionsPage() {
       </div>
 
       {!isFullyLoaded && !error && (
-        <LoadingModal title="Loading comparison" subtitle="Fetching both models and computing the diff…" />
+        <LoadingModal title={t("compare.loadingTitle")} subtitle={t("compare.loadingSubtitle")} />
       )}
     </div>
   );
