@@ -8,12 +8,15 @@ import {
   getVersion,
   getDiff,
   getProject,
+  getTeam,
   listComments,
   createComment,
   deleteComment,
+  updateComment,
   type VersionDetail,
   type CommentSummary,
   type ProjectDetail,
+  type CommentPriority,
 } from "../lib/projectsApi";
 import { useAuth } from "../lib/AuthProvider";
 import { useAccountStatus } from "../components/ProjectsLayout";
@@ -171,6 +174,9 @@ export default function VersionDetailPage() {
   const [isMeshLoading, setIsMeshLoading] = useState(true);
 
   const [comments, setComments] = useState<CommentSummary[]>([]);
+  // Empty on a personal (Pro) project — there's no one else to assign a
+  // comment to or @mention (see PendingCommentPopover.tsx/CommentPopover.tsx).
+  const [members, setMembers] = useState<Array<{ userId: string; email: string | null }>>([]);
   const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [pendingDeleteComment, setPendingDeleteComment] = useState<CommentSummary | null>(null);
@@ -311,6 +317,24 @@ export default function VersionDetailPage() {
       cancelled = true;
     };
   }, [projectId, versionId]);
+
+  // Assignee/mention picker source — only meaningful on a Team project
+  // (personal Pro projects have no one else to assign to or mention).
+  useEffect(() => {
+    if (!project?.teamId) {
+      setMembers([]);
+      return;
+    }
+    let cancelled = false;
+    getTeam(project.teamId).then((result) => {
+      if (!cancelled && result.success) {
+        setMembers(result.data.members.map((m) => ({ userId: m.userId, email: m.email })));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.teamId]);
 
   // Snaps to the nearest of the clicked triangle's 3 vertices OR the nearest
   // point along any of its 3 edges, whichever is closer to the actual click
@@ -634,13 +658,40 @@ export default function VersionDetailPage() {
     setNearbyEdges([]);
   }
 
-  async function handleSubmitComment(body: string) {
+  async function handleSubmitComment(body: string, assigneeUserId?: string, priority?: CommentPriority) {
     if (!projectId || !versionId || !pendingPosition) return;
-    const result = await createComment(projectId, versionId, body, pendingPosition, pendingNormal);
+    const result = await createComment(
+      projectId,
+      versionId,
+      body,
+      pendingPosition,
+      pendingNormal,
+      undefined,
+      assigneeUserId,
+      priority,
+    );
     if (result.success) {
       setComments((prev) => [...prev, result.data]);
       setPendingPosition(null);
       setPendingNormal(undefined);
+    } else {
+      setError(result.error);
+    }
+  }
+
+  // Author, current assignee, or a moderator — mirrors the API's own
+  // status-change authorization (see comments.ts's PATCH handler).
+  function canChangeCommentStatus(comment: CommentSummary): boolean {
+    const canModerateAny = project?.myRole === "owner" || project?.myRole === "admin";
+    return canModerateAny || comment.authorUserId === user?.id || comment.assigneeUserId === user?.id;
+  }
+
+  async function handleToggleCommentStatus(comment: CommentSummary) {
+    if (!projectId || !versionId) return;
+    const nextStatus = comment.status === "resolved" ? "reopened" : "resolved";
+    const result = await updateComment(projectId, versionId, comment.id, { status: nextStatus });
+    if (result.success) {
+      setComments((prev) => prev.map((c) => (c.id === comment.id ? result.data : c)));
     } else {
       setError(result.error);
     }
@@ -840,8 +891,11 @@ export default function VersionDetailPage() {
                       key={comment.id}
                       comment={comment}
                       replies={comments.filter((c) => c.parentCommentId === comment.id)}
+                      members={members}
                       canDelete={canDeleteComment}
+                      canChangeStatus={canChangeCommentStatus}
                       onDelete={setPendingDeleteComment}
+                      onToggleStatus={(c) => void handleToggleCommentStatus(c)}
                       onReply={(body) => handleSubmitReply(comment, body)}
                       onClose={() => {
                         setSelectedCommentId(null);
@@ -854,6 +908,7 @@ export default function VersionDetailPage() {
                     <CommentPin position={pendingPosition} pending onDragStart={() => setIsDraggingPin(true)} />
                     <PendingCommentPopover
                       position={pendingPosition}
+                      members={members}
                       onSubmit={handleSubmitComment}
                       onCancel={() => {
                         setPendingPosition(null);
@@ -1015,6 +1070,9 @@ export default function VersionDetailPage() {
                   }}
                   canDeleteComment={canDeleteComment}
                   onRequestDelete={setPendingDeleteComment}
+                  canChangeStatus={canChangeCommentStatus}
+                  onToggleStatus={(c) => void handleToggleCommentStatus(c)}
+                  currentUserId={user?.id}
                 />
               </div>
             )}

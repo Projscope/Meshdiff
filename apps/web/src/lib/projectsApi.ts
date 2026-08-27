@@ -120,6 +120,9 @@ export interface StableVersion {
   downloadUrl: string;
 }
 
+export type CommentStatus = "open" | "resolved" | "reopened";
+export type CommentPriority = "low" | "normal" | "high";
+
 export interface CommentSummary {
   id: string;
   authorUserId: string | null;
@@ -128,6 +131,11 @@ export interface CommentSummary {
   body: string;
   position: [number, number, number];
   normal: [number, number, number] | null;
+  status: CommentStatus;
+  assigneeUserId: string | null;
+  assigneeEmail: string | null;
+  priority: CommentPriority | null;
+  statusChangedAt: string | null;
   createdAt: string;
 }
 
@@ -565,15 +573,29 @@ export function createComment(
   position: [number, number, number],
   normal?: [number, number, number],
   parentCommentId?: string,
+  assigneeUserId?: string,
+  priority?: CommentPriority,
 ): Promise<Result<CommentSummary>> {
   return request(`/projects/${projectId}/versions/${versionId}/comments`, {
     method: "POST",
-    body: JSON.stringify({ body, position, normal, parentCommentId }),
+    body: JSON.stringify({ body, position, normal, parentCommentId, assigneeUserId, priority }),
   });
 }
 
 export function deleteComment(projectId: string, versionId: string, commentId: string): Promise<Result<true>> {
   return request(`/projects/${projectId}/versions/${versionId}/comments/${commentId}`, { method: "DELETE" });
+}
+
+export function updateComment(
+  projectId: string,
+  versionId: string,
+  commentId: string,
+  updates: { status?: CommentStatus; assigneeUserId?: string | null; priority?: CommentPriority | null },
+): Promise<Result<CommentSummary>> {
+  return request(`/projects/${projectId}/versions/${versionId}/comments/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
 }
 
 /** Fetches the zip with the auth header attached (a plain <a href> can't send one) and triggers a browser download. */
