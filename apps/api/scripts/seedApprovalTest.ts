@@ -1,7 +1,7 @@
-// One-off local dev seeder: creates a Team project with versions in every
-// approval_status (pending/approved/rejected) plus threaded comments from
-// different roles, so the comment and version-approval UI can be tested
-// without clicking through real uploads/invites/subscriptions first.
+// One-off local dev seeder: creates a Team project with versions across the
+// review state machine (in_review/changes_requested/approved) plus threaded
+// comments from different roles, so the comment and version-approval UI can
+// be tested without clicking through real uploads/invites/subscriptions first.
 // Run with: npx tsx scripts/seedApprovalTest.ts <owner-email>   (from apps/api)
 //
 // The owner account must already exist (sign up normally first). Two
@@ -215,20 +215,21 @@ async function main() {
     .update({ approval_status: "approved", reviewed_by_user_id: ownerId, reviewed_at: new Date().toISOString() })
     .eq("id", v1Id);
 
-  // v2: rejected, with a reason — exercises RejectVersionModal / ApprovalBadge's rejected state
+  // v2: changes requested, with a reason — exercises RejectVersionModal /
+  // ApprovalBadge's changes_requested state
   await supabase
     .from("versions")
     .update({
-      approval_status: "rejected",
+      approval_status: "changes_requested",
       reviewed_by_user_id: approverId,
       reviewed_at: new Date().toISOString(),
       rejection_reason: "Wall thickness under 0.8mm near the mounting tab — please thicken before resubmitting.",
     })
     .eq("id", v2Id);
 
-  // v3: left as "pending" (create_version's default) — the one to actually
-  // approve/reject by hand while testing.
-  console.log(`v1=${v1Id} approved, v2=${v2Id} rejected, v3=${v3Id} pending`);
+  // v3: left as "in_review" (create_version's default) — the one to
+  // actually approve/request-changes by hand while testing.
+  console.log(`v1=${v1Id} approved, v2=${v2Id} changes_requested, v3=${v3Id} in_review`);
 
   // Comments: mix of authors and one reply thread per version so delete
   // permissions (owner/admin delete any; member deletes only their own)

@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { ulid } from "ulid";
 import archiver from "archiver";
 import { requireSupabase } from "../lib/requireSupabase.js";
@@ -60,6 +61,13 @@ export interface VersionRow {
   print_photo_file_name?: string | null;
   print_photo_caption?: string | null;
 }
+
+/** The 5-state review machine (see migration 0027) — replaces the old flat
+ * pending/approved/rejected. 'draft' is reachable only via an explicit
+ * future "save as draft" action (uploads still default straight to
+ * 'in_review'); 'superseded' is set automatically when a newer version in
+ * the same project is approved (see approve() below). */
+export type ApprovalStatus = "draft" | "in_review" | "changes_requested" | "approved" | "superseded";
 
 export function toVersionSummary(row: VersionRow, uploaderEmail: string | null = null) {
   return {
@@ -280,14 +288,16 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     },
   );
 
-  // Approve/reject only matter for Team projects (team_id set) — see plan.
-  // For personal (Pro) projects, finalize() already auto-approves, so
+  // State transitions only matter for Team projects (team_id set) — see
+  // plan. For personal (Pro) projects, finalize() already auto-approves, so
   // these routes have nothing useful to do there; requiring 'admin' or
   // 'approver' on a Team project but falling back to owner-only on a
   // personal one keeps the check meaningful in both cases without a
   // special-case error. 'approver' is an "upgraded member" — reviews only,
   // no invite/remove rights (those stay admin/owner-only, see teams.ts).
-  function canReviewVersions(access: { role: string | null; teamId: string | null }): boolean {
+  // Renamed from canReviewVersions() — same logic, now framed around the
+  // 5-state machine rather than a binary approve/reject.
+  function canTransitionVersionState(access: { role: string | null; teamId: string | null }): boolean {
     if (!access.role) return false;
     // The project owner can always review, team or not — getProjectAccess
     // resolves 'owner' before checking team_members, so an owner who's
@@ -295,6 +305,125 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     if (access.role === "owner") return true;
     return access.teamId ? access.role === "admin" || access.role === "approver" : false;
   }
+
+  /** Every transition writes the new approval_status, inserts a
+   * version_reviews history row (the array-of-latest-reviewer columns on
+   * `versions` can't represent history — this table can), and best-effort
+   * logs to the team audit log. Centralized here so the three transition
+   * routes below can't drift on this bookkeeping. */
+  async function recordTransition(
+    supabase: SupabaseClient,
+    params: {
+      projectId: string;
+      versionId: string;
+      actorUserId: string;
+      teamId: string | null;
+      fromStatus: string;
+      toStatus: ApprovalStatus;
+      reason: string | null;
+      auditAction: "version_approved" | "version_rejected" | "version_submitted_for_review";
+      auditVerb: string;
+    },
+  ): Promise<void> {
+    const { error: historyError } = await supabase.from("version_reviews").insert({
+      version_id: params.versionId,
+      actor_user_id: params.actorUserId,
+      from_status: params.fromStatus,
+      to_status: params.toStatus,
+      reason: params.reason,
+    });
+    if (historyError) app.log.warn(historyError, "Failed to record version_reviews history row");
+
+    // Audit log is team-scoped — no-op for personal/Pro projects (the
+    // majority of traffic), which have no team_id to log against.
+    if (params.teamId) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", params.projectId)
+        .maybeSingle();
+      await logTeamAudit(supabase, app.log, {
+        teamId: params.teamId,
+        actorUserId: params.actorUserId,
+        action: params.auditAction,
+        summary: `${params.auditVerb} of ${project?.name ?? "Unknown project"}${params.reason ? `: ${params.reason}` : ""}`,
+      });
+    }
+  }
+
+  app.post<{ Params: { projectId: string; versionId: string } }>(
+    "/projects/:projectId/versions/:versionId/submit-for-review",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId, versionId } = request.params;
+      const supabase = request.supabase!;
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
+
+        const { data: current, error: lookupError } = await supabase
+          .from("versions")
+          .select("approval_status, version_number")
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .maybeSingle();
+        if (lookupError) {
+          app.log.error(lookupError, "Failed to look up version for submit-for-review");
+          reply.code(502);
+          return { success: false, error: "Failed to submit version for review" };
+        }
+        if (!current) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+        const currentRow = current as { approval_status: string; version_number: number };
+        if (currentRow.approval_status !== "draft") {
+          reply.code(400);
+          return { success: false, error: "Only a draft version can be submitted for review" };
+        }
+
+        const { data: row, error } = await supabase
+          .from("versions")
+          .update({ approval_status: "in_review" })
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .select("*")
+          .maybeSingle();
+        if (error) {
+          app.log.error(error, "Failed to submit version for review");
+          reply.code(502);
+          return { success: false, error: "Failed to submit version for review" };
+        }
+        if (!row) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+
+        await recordTransition(supabase, {
+          projectId,
+          versionId,
+          actorUserId: request.userId!,
+          teamId: access.teamId,
+          fromStatus: "draft",
+          toStatus: "in_review",
+          reason: null,
+          auditAction: "version_submitted_for_review",
+          auditVerb: `Submitted v${currentRow.version_number} for review`,
+        });
+
+        return { success: true, data: toVersionSummary(row as VersionRow) };
+      } catch (err) {
+        app.log.error(err, "Version submit-for-review threw");
+        reply.code(502);
+        return { success: false, error: "Failed to submit version for review" };
+      }
+    },
+  );
 
   app.post<{ Params: { projectId: string; versionId: string } }>(
     "/projects/:projectId/versions/:versionId/approve",
@@ -310,10 +439,27 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Project not found" };
         }
         if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
-        if (!canReviewVersions(access)) {
+        if (!canTransitionVersionState(access)) {
           reply.code(403);
           return { success: false, error: "Only a team admin can approve versions" };
         }
+
+        const { data: beforeRow, error: beforeError } = await supabase
+          .from("versions")
+          .select("approval_status")
+          .eq("id", versionId)
+          .eq("project_id", projectId)
+          .maybeSingle();
+        if (beforeError) {
+          app.log.error(beforeError, "Failed to look up version before approving");
+          reply.code(502);
+          return { success: false, error: "Failed to approve version" };
+        }
+        if (!beforeRow) {
+          reply.code(404);
+          return { success: false, error: "Version not found" };
+        }
+        const fromStatus = (beforeRow as { approval_status: string }).approval_status;
 
         const { data: row, error } = await supabase
           .from("versions")
@@ -337,17 +483,47 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Version not found" };
         }
 
-        // Audit log is team-scoped — no-op for personal/Pro projects
-        // (the majority of traffic), which have no team_id to log against.
-        if (access.teamId) {
-          const { data: project } = await supabase.from("projects").select("name").eq("id", projectId).maybeSingle();
-          await logTeamAudit(supabase, app.log, {
-            teamId: access.teamId,
-            actorUserId: request.userId!,
-            action: "version_approved",
-            summary: `Approved v${(row as VersionRow).version_number} of ${project?.name ?? "Unknown project"}`,
-          });
+        // Only one version can be the current Approved one — any other
+        // version in this project still marked 'approved' (from a prior
+        // approval, now being superseded by this one) transitions to
+        // 'superseded' in the same request. Simpler than a partial unique
+        // index, and matches how getStableVersion() already picks the
+        // highest-version-number approved row.
+        const { data: superseded, error: supersedeError } = await supabase
+          .from("versions")
+          .update({ approval_status: "superseded" })
+          .eq("project_id", projectId)
+          .eq("approval_status", "approved")
+          .neq("id", versionId)
+          .select("id");
+        if (supersedeError) {
+          app.log.warn(supersedeError, "Failed to supersede prior approved version");
+        } else {
+          for (const supersededRow of (superseded ?? []) as Array<{ id: string }>) {
+            const { error: supersedeHistoryError } = await supabase.from("version_reviews").insert({
+              version_id: supersededRow.id,
+              actor_user_id: request.userId,
+              from_status: "approved",
+              to_status: "superseded",
+              reason: null,
+            });
+            if (supersedeHistoryError) {
+              app.log.warn(supersedeHistoryError, "Failed to record supersede history row");
+            }
+          }
         }
+
+        await recordTransition(supabase, {
+          projectId,
+          versionId,
+          actorUserId: request.userId!,
+          teamId: access.teamId,
+          fromStatus,
+          toStatus: "approved",
+          reason: null,
+          auditAction: "version_approved",
+          auditVerb: `Approved v${(row as VersionRow).version_number}`,
+        });
 
         return { success: true, data: toVersionSummary(row as VersionRow) };
       } catch (err) {
@@ -358,12 +534,106 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     },
   );
 
+  // Shared by /reject (kept for backward compatibility with the current
+  // two-button UI) and the new, more accurately-named /request-changes —
+  // both transition in_review -> changes_requested.
+  async function handleRequestChanges(
+    request: FastifyRequest<{ Params: { projectId: string; versionId: string }; Body: { reason?: string } }>,
+    reply: FastifyReply,
+  ) {
+    const { projectId, versionId } = request.params;
+    const { reason } = request.body ?? {};
+    const supabase = request.supabase!;
+
+    try {
+      const access = await getProjectAccess(supabase, projectId, request.userId!);
+      if (!access.role) {
+        reply.code(404);
+        return { success: false, error: "Project not found" };
+      }
+      if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
+      if (!canTransitionVersionState(access)) {
+        reply.code(403);
+        return { success: false, error: "Only a team admin can request changes on versions" };
+      }
+
+      const { data: beforeRow, error: beforeError } = await supabase
+        .from("versions")
+        .select("approval_status")
+        .eq("id", versionId)
+        .eq("project_id", projectId)
+        .maybeSingle();
+      if (beforeError) {
+        app.log.error(beforeError, "Failed to look up version before requesting changes");
+        reply.code(502);
+        return { success: false, error: "Failed to request changes on version" };
+      }
+      if (!beforeRow) {
+        reply.code(404);
+        return { success: false, error: "Version not found" };
+      }
+      const fromStatus = (beforeRow as { approval_status: string }).approval_status;
+      const trimmedReason = typeof reason === "string" && reason.trim() ? reason.trim() : null;
+
+      const { data: row, error } = await supabase
+        .from("versions")
+        .update({
+          approval_status: "changes_requested",
+          reviewed_by_user_id: request.userId,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: trimmedReason,
+        })
+        .eq("id", versionId)
+        .eq("project_id", projectId)
+        .select("*")
+        .maybeSingle();
+      if (error) {
+        app.log.error(error, "Failed to request changes on version");
+        reply.code(502);
+        return { success: false, error: "Failed to request changes on version" };
+      }
+      if (!row) {
+        reply.code(404);
+        return { success: false, error: "Version not found" };
+      }
+
+      await recordTransition(supabase, {
+        projectId,
+        versionId,
+        actorUserId: request.userId!,
+        teamId: access.teamId,
+        fromStatus,
+        toStatus: "changes_requested",
+        reason: trimmedReason,
+        auditAction: "version_rejected",
+        auditVerb: `Requested changes on v${(row as VersionRow).version_number}`,
+      });
+
+      return { success: true, data: toVersionSummary(row as VersionRow) };
+    } catch (err) {
+      app.log.error(err, "Version request-changes threw");
+      reply.code(502);
+      return { success: false, error: "Failed to request changes on version" };
+    }
+  }
+
   app.post<{ Params: { projectId: string; versionId: string }; Body: { reason?: string } }>(
     "/projects/:projectId/versions/:versionId/reject",
     { preHandler: requireAuth },
+    handleRequestChanges,
+  );
+
+  app.post<{ Params: { projectId: string; versionId: string }; Body: { reason?: string } }>(
+    "/projects/:projectId/versions/:versionId/request-changes",
+    { preHandler: requireAuth },
+    handleRequestChanges,
+  );
+
+  app.get<{ Params: { projectId: string; versionId: string } }>(
+    "/projects/:projectId/versions/:versionId/review-history",
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const { reason } = request.body ?? {};
       const supabase = request.supabase!;
 
       try {
@@ -372,50 +642,56 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
-        if (!(await requireProjectWriteAccess(supabase, request.userId!, access, reply))) return;
-        if (!canReviewVersions(access)) {
-          reply.code(403);
-          return { success: false, error: "Only a team admin can reject versions" };
-        }
+        // Read — unrestricted for anyone with project access, same
+        // convention as every other GET in this file.
 
-        const { data: row, error } = await supabase
-          .from("versions")
-          .update({
-            approval_status: "rejected",
-            reviewed_by_user_id: request.userId,
-            reviewed_at: new Date().toISOString(),
-            rejection_reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
-          })
-          .eq("id", versionId)
-          .eq("project_id", projectId)
+        const { data: rows, error } = await supabase
+          .from("version_reviews")
           .select("*")
-          .maybeSingle();
+          .eq("version_id", versionId)
+          .order("created_at", { ascending: true });
         if (error) {
-          app.log.error(error, "Failed to reject version");
+          app.log.error(error, "Failed to load version review history");
           reply.code(502);
-          return { success: false, error: "Failed to reject version" };
-        }
-        if (!row) {
-          reply.code(404);
-          return { success: false, error: "Version not found" };
+          return { success: false, error: "Failed to load review history" };
         }
 
-        if (access.teamId) {
-          const { data: project } = await supabase.from("projects").select("name").eq("id", projectId).maybeSingle();
-          const trimmedReason = typeof reason === "string" && reason.trim() ? reason.trim() : null;
-          await logTeamAudit(supabase, app.log, {
-            teamId: access.teamId,
-            actorUserId: request.userId!,
-            action: "version_rejected",
-            summary: `Rejected v${(row as VersionRow).version_number} of ${project?.name ?? "Unknown project"}${trimmedReason ? `: ${trimmedReason}` : ""}`,
+        const historyRows = (rows ?? []) as Array<{
+          id: string;
+          actor_user_id: string | null;
+          from_status: string;
+          to_status: string;
+          reason: string | null;
+          created_at: string;
+        }>;
+        const actorIds = [...new Set(historyRows.map((r) => r.actor_user_id).filter((id): id is string => !!id))];
+        let emailByUserId = new Map<string, string>();
+        if (actorIds.length > 0) {
+          const { data: emailRows, error: emailError } = await supabase.rpc("get_user_emails_by_ids", {
+            p_ids: actorIds,
           });
+          if (emailError) {
+            app.log.warn(emailError, "Failed to resolve review-history actor emails");
+          } else {
+            emailByUserId = new Map((emailRows ?? []).map((r: { id: string; email: string }) => [r.id, r.email]));
+          }
         }
 
-        return { success: true, data: toVersionSummary(row as VersionRow) };
+        return {
+          success: true,
+          data: historyRows.map((r) => ({
+            id: r.id,
+            actorEmail: r.actor_user_id ? (emailByUserId.get(r.actor_user_id) ?? null) : null,
+            fromStatus: r.from_status,
+            toStatus: r.to_status,
+            reason: r.reason,
+            createdAt: r.created_at,
+          })),
+        };
       } catch (err) {
-        app.log.error(err, "Version reject threw");
+        app.log.error(err, "Version review-history threw");
         reply.code(502);
-        return { success: false, error: "Failed to reject version" };
+        return { success: false, error: "Failed to load review history" };
       }
     },
   );

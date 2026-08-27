@@ -21,6 +21,7 @@ import {
 } from "../lib/projectsApi";
 import { uploadVersion } from "../lib/uploadVersion";
 import ApprovalBadge, { APPROVAL_DOT_COLOR } from "../components/ApprovalBadge";
+import VersionActionButtons from "../components/VersionActionButtons";
 import { useDiffColors } from "../lib/diffPalette";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
@@ -345,11 +346,11 @@ export default function ProjectDetailPage() {
   }
 
   // Only a team admin/approver (or the owner, who can always review — see
-  // canReviewVersions() server-side) sees approve/reject controls, and
-  // only on Team projects; Pro projects auto-approve on upload so there's
-  // never anything pending to review there. 'approver' is an "upgraded
-  // member" — reviews only, no other admin-gated capability.
-  const canReview =
+  // canTransitionVersionState() server-side) sees approve/request-changes
+  // controls, and only on Team projects; Pro projects auto-approve on
+  // upload so there's never anything to review there. 'approver' is an
+  // "upgraded member" — reviews only, no other admin-gated capability.
+  const canTransitionVersionState =
     !!project?.teamId &&
     (project.myRole === "owner" || project.myRole === "admin" || project.myRole === "approver");
 
@@ -361,8 +362,8 @@ export default function ProjectDetailPage() {
     return pool.length > 0 ? pool[pool.length - 1].id : null;
   })();
 
-  const openReviews = versions.filter((v) => v.approvalStatus === "pending").length;
-  const decided = versions.filter((v) => v.versionNumber > 1 && v.approvalStatus !== "pending").length;
+  const openReviews = versions.filter((v) => v.approvalStatus === "in_review").length;
+  const decided = versions.filter((v) => v.versionNumber > 1 && v.approvalStatus !== "in_review" && v.approvalStatus !== "draft").length;
   const approved = versions.filter((v) => v.versionNumber > 1 && v.approvalStatus === "approved").length;
   const approvalRate = decided === 0 ? null : Math.round((approved / decided) * 100);
 
@@ -737,30 +738,12 @@ export default function ProjectDetailPage() {
                   <span className="shrink-0 text-xs text-ink-500">
                     {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}
                   </span>
-                  {/* Both actions stay available after a decision, not just
-                      while pending — the backend has no "final" state, so a
-                      reviewer can change their mind (e.g. un-reject a
-                      version once a fix lands) rather than being stuck with
-                      whatever was clicked first. Only the action that would
-                      actually change the current status is shown. */}
-                  {canReview && version.approvalStatus !== "approved" && (
-                    <button
-                      type="button"
-                      onClick={() => void handleApprove(version.id)}
-                      className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-400 hover:border-accent-500"
-                    >
-                      {t("projectDetail.approve")}
-                    </button>
-                  )}
-                  {canReview && version.approvalStatus !== "rejected" && (
-                    <button
-                      type="button"
-                      onClick={() => setPendingReject({ id: version.id, versionNumber: version.versionNumber })}
-                      className="shrink-0 rounded border border-red-800 px-2.5 py-1 text-xs text-red-400 hover:border-red-600"
-                    >
-                      {t("projectDetail.reject")}
-                    </button>
-                  )}
+                  <VersionActionButtons
+                    status={version.approvalStatus}
+                    canTransition={canTransitionVersionState}
+                    onApprove={() => void handleApprove(version.id)}
+                    onRequestChanges={() => setPendingReject({ id: version.id, versionNumber: version.versionNumber })}
+                  />
                   <Link
                     to={`/projects/${projectId}/versions/${version.id}`}
                     className="shrink-0 rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
@@ -793,7 +776,7 @@ export default function ProjectDetailPage() {
                     </svg>
                   </button>
                 </div>
-                {version.approvalStatus === "rejected" && version.rejectionReason && (
+                {version.approvalStatus === "changes_requested" && version.rejectionReason && (
                   <p className="pl-1 text-xs text-red-400">
                     {t("projectDetail.rejectedReason", { reason: version.rejectionReason })}
                   </p>

@@ -22,6 +22,13 @@ export interface ProjectsPage {
   total: number;
 }
 
+/** The 5-state review machine (see API migration 0027) — replaces the old
+ * flat pending/approved/rejected. 'draft' is reachable only via an
+ * explicit "save as draft" action (uploads still default straight to
+ * 'in_review'); 'superseded' is set automatically when a newer version in
+ * the same project is approved. */
+export type ApprovalStatus = "draft" | "in_review" | "changes_requested" | "approved" | "superseded";
+
 export interface VersionSummary {
   id: string;
   versionNumber: number;
@@ -31,10 +38,19 @@ export interface VersionSummary {
   triangleCount: number | null;
   changeSummary: string | null;
   printabilityStatus: "pass" | "warn" | "fail" | null;
-  approvalStatus: "pending" | "approved" | "rejected";
+  approvalStatus: ApprovalStatus;
   rejectionReason: string | null;
   createdAt: string;
   uploaderEmail: string | null;
+}
+
+export interface ReviewHistoryEntry {
+  id: string;
+  actorEmail: string | null;
+  fromStatus: string;
+  toStatus: string;
+  reason: string | null;
+  createdAt: string;
 }
 
 export interface SlicerProfileAttachment {
@@ -87,7 +103,7 @@ export interface StableVersion {
   versionId: string;
   versionNumber: number;
   fileName: string;
-  approvalStatus: "pending" | "approved" | "rejected";
+  approvalStatus: ApprovalStatus;
   downloadUrl: string;
 }
 
@@ -338,6 +354,9 @@ export function approveVersion(projectId: string, versionId: string): Promise<Re
   return request(`/projects/${projectId}/versions/${versionId}/approve`, { method: "POST" });
 }
 
+/** Kept as "reject" (route + name) for backward compatibility with the
+ * existing two-button UI — the server treats this identically to the
+ * newer /request-changes route (see versions.ts's handleRequestChanges). */
 export function rejectVersion(
   projectId: string,
   versionId: string,
@@ -347,6 +366,17 @@ export function rejectVersion(
     method: "POST",
     body: JSON.stringify({ reason }),
   });
+}
+
+export function submitVersionForReview(projectId: string, versionId: string): Promise<Result<VersionSummary>> {
+  return request(`/projects/${projectId}/versions/${versionId}/submit-for-review`, { method: "POST" });
+}
+
+export function getVersionReviewHistory(
+  projectId: string,
+  versionId: string,
+): Promise<Result<ReviewHistoryEntry[]>> {
+  return request(`/projects/${projectId}/versions/${versionId}/review-history`);
 }
 
 export function getStableVersion(projectId: string): Promise<Result<StableVersion>> {
