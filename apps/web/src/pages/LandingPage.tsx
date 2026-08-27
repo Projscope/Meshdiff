@@ -1,38 +1,30 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  CheckCircle,
+  Buildings,
   ChatCircle,
-  ClockCounterClockwise,
+  CheckCircle,
+  Circle,
   Cube,
+  Factory,
   GitBranch,
   LinkSimple,
   Palette,
+  PaperPlaneTilt,
+  Printer,
+  Rocket,
   ShieldCheck,
-  User,
-  Users,
-  UsersThree,
+  UploadSimple,
+  Warning,
 } from "@phosphor-icons/react";
 import FaqAccordion from "../components/FaqAccordion";
 import SectionHeader from "../components/SectionHeader";
 import PricingCards from "../components/PricingCards";
+import ApprovalBadge, { APPROVAL_DOT_COLOR } from "../components/ApprovalBadge";
 import { useCountUp } from "../hooks/useCountUp";
 import { useScrollReveal } from "../hooks/useScrollReveal";
-import liveDiffPreview from "../assets/live-diff-preview.png";
-import liveDiffPreviewWebp from "../assets/live-diff-preview.webp";
 import { SHOW_MONETIZATION } from "../lib/featureFlags";
-
-// R3F/Three.js/the voxel-diff worker only download once someone actually
-// clicks to try the demo (see the click-to-activate state below) — an
-// always-embedded version of this previously got pulled from this exact
-// page for its page-weight cost (three.js vendor chunk 77-82% unused on
-// first paint, per the Lighthouse audit that drove the original removal).
-const LandingLiveDemo = lazy(() => import("../components/LandingLiveDemo"));
-
-import teamsImg from '../assets/teams.webp';
-import proImg from '../assets/pro.jpeg';
-import soloImg from '../assets/solo.webp';
 
 interface HeroStat {
   target: number;
@@ -51,125 +43,198 @@ const HERO_STATS: HeroStat[] = [
 interface DemoHistoryRow {
   title: string;
   description: string;
-  added: number | null;
-  removed: number | null;
+  added: number;
+  removed: number;
   addedPercent: number;
   removedPercent: number;
-  failed: boolean;
+  status: "changes_requested" | "in_review" | "approved";
   time: string;
 }
 
-// Illustrates the real Projects History view (ProjectDetailPage.tsx) with
-// made-up demo data — not tied to any account, purely decorative in the
-// hero.
+// The hero's decorative panel — illustrates the real Projects History view
+// (ProjectDetailPage.tsx): same row layout, same status dot/badge colors
+// (ApprovalBadge.tsx / APPROVAL_DOT_COLOR), with the exact numbers from a
+// real seeded "Robot Housing" project (v13 Changes Requested, v14 In
+// Review, v15 Approved), not an invented mockup.
 const DEMO_HISTORY_ROWS: DemoHistoryRow[] = [
   {
-    title: "v3 → v4",
-    description: "Volume increased by 359,162 mm³ (294.2%). Bounding box changed by 100.1 × 80.6 × 70.2 mm.",
-    added: 3860,
-    removed: 886,
-    addedPercent: 81,
-    removedPercent: 19,
-    failed: true,
-    time: "4d ago",
+    title: "v14 → v15",
+    description: "Volume increased by 1,768 mm³ (6.7%). Bounding box changed by 2.0 × 0.0 × 0.0 mm.",
+    added: 782,
+    removed: 0,
+    addedPercent: 100,
+    removedPercent: 0,
+    status: "approved",
+    time: "5m ago",
   },
   {
-    title: "v2 → v3",
-    description: "Volume increased by 120,097 mm³ (1779.2%). Bounding box changed by 33.3 × 63.5 × 29.8 mm.",
-    added: 902,
-    removed: 48,
-    addedPercent: 95,
-    removedPercent: 5,
-    failed: true,
-    time: "4d ago",
+    title: "v13 → v14",
+    description: "Volume increased by 3,000 mm³ (12.5%). Bounding box changed by 0.0 × 0.0 × 2.0 mm.",
+    added: 1536,
+    removed: 0,
+    addedPercent: 100,
+    removedPercent: 0,
+    status: "in_review",
+    time: "5m ago",
   },
   {
-    title: "v1 → v2",
-    description: "Volume increased by 1,640 mm³ (42.9%). Bounding box changed by 0.0 × 4.0 × 0.0 mm. Printability: pass.",
-    added: 6264,
-    removed: 1218,
-    addedPercent: 84,
-    removedPercent: 16,
-    failed: false,
-    time: "5d ago",
-  },
-  {
-    title: "v1",
-    description: "Initial upload",
-    added: null,
-    removed: null,
+    title: "v13",
+    description: "Wall thickness near the mounting boss dropped to 0.6mm — changes requested.",
+    added: 0,
+    removed: 0,
     addedPercent: 0,
     removedPercent: 0,
-    failed: false,
-    time: "5d ago",
+    status: "changes_requested",
+    time: "5m ago",
   },
 ];
 
-const PROCESS_STEPS = [
+// The comment shown under the history panel — a single, concrete example
+// of "discuss it, then decide" rather than an abstract feature list.
+const DEMO_COMMENT = {
+  author: "Alex",
+  body: "This wall looks too thin.",
+};
+
+// Second panel, right below the hero — the 3D-diff viewport (added/removed
+// geometry + a comment pin, same red-circle-with-📍 marker CommentPin.tsx
+// renders in the real viewer), a short comment thread, and an
+// approval-gate checklist with an Approve action.
+const DEMO_COMMENTS = [
+  { author: "Alex", body: "Wall thickness is too thin here." },
+  { author: "Sarah", body: "Fixed in v18." },
+];
+
+const DEMO_GATES: Array<{ label: string; done: boolean }> = [
+  { label: "Geometry reviewed", done: true },
+  { label: "Printability checked", done: true },
+  { label: "Manufacturing review", done: false },
+];
+
+// Merges what used to be two separate sections (a numbered "how it works"
+// process and a "Built for 3D design reviews" feature-card grid) — same
+// four-step story, told once. Each step answers the question an engineer
+// actually has at that point: What changed? What needs fixing? Was it
+// fixed? Can we manufacture it?
+const WORKFLOW_STEPS = [
   {
     number: "01",
-    title: "Drop your files",
-    description: "Upload two STL, 3MF, or OBJ versions — parsed entirely in your browser, nothing leaves your machine unless you share.",
+    icon: Cube,
+    label: "Compare",
+    question: "What changed?",
+    detail: "See exactly what was added, removed, or modified.",
   },
   {
     number: "02",
-    title: "Instant voxel diff",
-    description: "Meshdiff voxelizes both meshes and aligns them automatically — added geometry in green, removed in red.",
+    icon: ChatCircle,
+    label: "Discuss",
+    question: "What needs fixing?",
+    detail: "Pin comments directly to the geometry.",
   },
   {
     number: "03",
-    title: "Check printability",
-    description: "Real wall-thickness, overhang, and unsupported-area analysis flags problems before you waste filament.",
+    icon: Buildings,
+    label: "Resolve",
+    question: "Was it fixed?",
+    detail: "Track feedback across revisions.",
   },
   {
     number: "04",
-    title: "Share or approve",
-    description: "Send a link for a quick review, or — on Team — route it through comments and approval before it ships.",
+    icon: CheckCircle,
+    label: "Approve",
+    question: "Is this the one we manufacture?",
+    detail: "Give the team a clear final revision.",
   },
 ];
 
-const TEAM_WORKFLOW = [
-  { icon: Cube, label: "Compare", detail: "Upload a new version, see the voxel diff instantly." },
-  { icon: ChatCircle, label: "Pin comment", detail: "Click a spot on the model, leave feedback right there." },
-  { icon: CheckCircle, label: "Approve or reject", detail: "An admin or approver signs off, with a reason if rejected." },
-  { icon: ClockCounterClockwise, label: "Preserve history", detail: "Every decision stays on the record, reversible any time." },
+const MESSY_FILENAMES = [
+  "bracket_final.stl",
+  "bracket_final_v2.stl",
+  "bracket_final_v2_REAL.stl",
+  "bracket_final_USE_THIS_ONE.stl",
+];
+
+type RevisionStatus = "superseded" | "changes_requested" | "in_review" | "approved";
+
+// Same dot-and-connecting-line "commit graph" the real Projects History
+// view renders (see ProjectDetailPage.tsx / APPROVAL_DOT_COLOR) — v12 is
+// shown as superseded (the 5th review state) since v16 is now the current
+// approved version, so all 5 states appear across the timeline. v14 shows
+// a comment count instead of a badge — people, not just states, moving a
+// revision forward. This is what makes it an engineering workflow rather
+// than plain version control: someone requested changes, the team argued
+// it out in the comments, someone re-reviewed, someone approved.
+const REVISION_TIMELINE: Array<{
+  version: string;
+  description: string;
+  status: RevisionStatus;
+  commentCount?: number;
+}> = [
+  { version: "v12", description: "Superseded once v16 was approved.", status: "superseded" },
+  { version: "v13", description: "Wall thickness dropped to 0.6mm near the mounting boss.", status: "changes_requested" },
+  { version: "v14", description: "Alex and Sarah discussed the fix.", status: "in_review", commentCount: 3 },
+  { version: "v15", description: "Wall thickened, awaiting sign-off.", status: "in_review" },
+  { version: "v16", description: "Approved — the version everyone builds on.", status: "approved" },
+];
+
+const AUDIENCES = [
+  {
+    icon: Rocket,
+    title: "Hardware Startups",
+    description: "Review prototype revisions quickly without adding another heavyweight CAD system.",
+  },
+  {
+    icon: Buildings,
+    title: "Engineering Teams",
+    description: "Keep design-review discussions tied to the actual geometry.",
+  },
+  {
+    icon: Printer,
+    title: "3D Printing Teams",
+    description: "Know exactly which revision is ready to print.",
+  },
+  {
+    icon: Factory,
+    title: "Manufacturers",
+    description: "Review customer revisions without requiring CAD software.",
+  },
 ];
 
 const FEATURES = [
   {
     icon: Cube,
-    title: "Voxel diff",
-    description: "Both meshes are voxelized into a shared grid — added geometry in green, removed in red.",
+    title: "Geometry diff",
+    description: "See exactly what was added or removed between two versions, highlighted in green and red.",
     tags: ["STL", "3MF", "OBJ"],
   },
   {
     icon: Palette,
     title: "Surface heatmap",
-    description: "A per-vertex signed-distance overlay shows exactly how far each surface point moved.",
-    tags: ["SDF", "Per-vertex"],
+    description: "See how far the surface actually moved, down to the millimeter, everywhere it changed.",
+    tags: ["High precision"],
   },
   {
     icon: ShieldCheck,
-    title: "Printability gate",
-    description: "Real wall-thickness, overhang, and unsupported-area analysis, not a placeholder check.",
+    title: "Printability check",
+    description: "Thin walls, steep overhangs, and unsupported areas get flagged automatically, before you print.",
     tags: ["FDM", "Pass / Warn / Fail"],
   },
   {
     icon: LinkSimple,
     title: "Shareable links",
-    description: "One link reproduces the exact comparison for anyone, no account or install required.",
+    description: "Share one link and anyone sees the exact same comparison — no account, no install.",
     tags: ["No signup", "1–7 day expiry"],
   },
   {
     icon: ChatCircle,
     title: "3D-pinned comments",
-    description: "Click anywhere on a model to leave feedback right where it matters, in the Projects workspace.",
+    description: "Click anywhere on the model to leave feedback exactly where it matters.",
     tags: ["Projects"],
   },
   {
     icon: GitBranch,
     title: "Version history & approvals",
-    description: "Every upload keeps a traceable history, with team review before it becomes the stable version.",
+    description: "Every upload is saved, with your team's review built in before anything ships.",
     tags: ["Team"],
   },
 ];
@@ -188,18 +253,166 @@ function HeroStatItem({ stat }: { stat: HeroStat }) {
   );
 }
 
-export default function LandingPage() {
-  const servicesRef = useScrollReveal<HTMLDivElement>();
-  const processRef = useScrollReveal<HTMLDivElement>();
-  // ?demo=open auto-activates the hero demo on load — a testing/sharing
-  // convenience (e.g. re-running a Lighthouse pass against the "always
-  // embedded" case), not something surfaced to real visitors. Default
-  // behavior (click-to-activate) is unchanged for everyone else.
-  const [isDemoActive, setIsDemoActive] = useState(
-    // typeof window guard: this component is also rendered in Node during
-    // the build-time prerender pass (see scripts/prerender.mjs).
-    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "open",
+const ANIMATION_STEPS = [
+  { icon: UploadSimple, label: "Upload v17" },
+  { icon: Cube, label: "Compare" },
+  { icon: ChatCircle, label: "📍 Comment" },
+  { icon: UploadSimple, label: "Upload v18" },
+  { icon: CheckCircle, label: "Resolve" },
+  { icon: CheckCircle, label: "Approve" },
+];
+
+const ANIMATION_STEP_MS = 2000;
+
+/** A tiny, looping "how it works" sequence — no video, no marketing
+ * animation, just the actual product's own steps advancing on a timer.
+ * Six steps at 2s each is a ~12s loop, in the 10-15s range that's long
+ * enough to read without feeling frozen. */
+// Vertical dot-and-line timeline — same visual language as the Revision
+// History panel below (APPROVAL_DOT_COLOR's dot-on-a-line pattern), so this
+// reads as a sibling of that panel, not an unrelated new widget. Its own
+// section, right after the 4-step workflow cards, since it's illustrating
+// exactly what that section just described.
+function WorkflowAnimation() {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % ANIMATION_STEPS.length);
+    }, ANIMATION_STEP_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col justify-between overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
+      {ANIMATION_STEPS.map((step, index) => {
+        const Icon = step.icon;
+        const isActive = index === activeIndex;
+        return (
+          <div key={`${step.label}-${index}`} className="flex flex-1 items-stretch gap-3 px-4 py-2.5">
+            <div className="flex w-3 shrink-0 flex-col items-center">
+              <div className={`w-px flex-1 ${index === 0 ? "bg-transparent" : "bg-ink-800"}`} />
+              <span
+                className={`h-2.5 w-2.5 shrink-0 rounded-full transition-colors duration-500 ${
+                  isActive ? "bg-accent-400" : "bg-ink-700"
+                }`}
+              />
+              <div className={`w-px flex-1 ${index === ANIMATION_STEPS.length - 1 ? "bg-transparent" : "bg-ink-800"}`} />
+            </div>
+            <div className="flex items-center gap-1.5 py-0.5">
+              <Icon
+                size={14}
+                weight={isActive ? "fill" : "light"}
+                className={`shrink-0 transition-colors duration-500 ${isActive ? "text-accent-400" : "text-ink-600"}`}
+              />
+              <span
+                className={`text-xs transition-colors duration-500 ${
+                  isActive ? "font-semibold text-ink-50" : "text-ink-500"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
+}
+
+/** The product-visualization panel: a 3D-diff viewport, comment thread, and
+ * approval checklist (see ProjectDetailPage.tsx / VersionDetailPage.tsx /
+ * ApprovalGateChecklist.tsx) with demo data — not wired to any account.
+ * Used both in the hero and as the standalone "product visualization" block
+ * right below it, so the two don't drift apart. The comment pin reuses
+ * CommentPin.tsx's exact red-circle-with-📍 marker for visual consistency. */
+function BracketAssemblyPanel() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900 shadow-2xl">
+      <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-4 py-2.5">
+        <div>
+          <span className="block text-sm font-semibold text-ink-50">Bracket Assembly</span>
+          <span className="block font-mono text-[11px] text-ink-500">v17 &rarr; v18</span>
+        </div>
+        <ApprovalBadge status="in_review" />
+      </div>
+
+      {/* Abstract 3D-diff viewport: green = added geometry, red = removed,
+          with a comment pin over the changed region. */}
+      <div className="relative h-40 overflow-hidden bg-ink-950">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #ffffff08 1px, transparent 1px), linear-gradient(to bottom, #ffffff08 1px, transparent 1px)",
+            backgroundSize: "20px 20px",
+          }}
+        />
+        <div className="absolute left-[18%] top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-red-500/25 blur-lg" />
+        <div className="absolute left-[30%] top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-accent-500/25 blur-lg" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Cube size={56} weight="thin" className="text-ink-700" />
+        </div>
+        <div className="absolute left-[38%] top-[38%] flex -translate-x-1/2 -translate-y-1/2 items-center gap-1">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-red-400 bg-red-500 text-[10px] shadow">
+            📍
+          </span>
+          <span className="rounded bg-ink-950/90 px-1.5 py-0.5 text-[10px] font-medium text-ink-200 shadow">
+            #12
+          </span>
+        </div>
+      </div>
+
+      {/* Comment thread — a real back-and-forth, not an abstract feature
+          bullet. */}
+      <div className="flex flex-col gap-3 border-b border-ink-800 px-4 py-3">
+        {DEMO_COMMENTS.map((comment) => (
+          <div key={comment.author} className="flex items-start gap-2.5">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">
+              {comment.author[0]}
+            </span>
+            <div className="min-w-0">
+              <span className="text-[11px] font-medium text-ink-400">{comment.author}</span>
+              <p className="text-xs text-ink-200">{comment.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Approval checklist — same idea as ApprovalGateChecklist.tsx: some
+          gates satisfied, one still open. */}
+      <div className="px-4 py-3">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">
+          Engineering Review
+        </span>
+        <div className="mt-2 flex flex-col gap-1.5">
+          {DEMO_GATES.map((gate) => (
+            <div key={gate.label} className="flex items-center gap-2 text-xs">
+              {gate.done ? (
+                <CheckCircle size={16} weight="fill" className="shrink-0 text-accent-400" />
+              ) : (
+                <Circle size={16} weight="bold" className="shrink-0 text-ink-600" />
+              )}
+              <span className={gate.done ? "text-ink-300" : "text-ink-500"}>{gate.label}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="mt-3 w-full rounded-lg bg-accent-500 py-2 text-xs font-semibold text-chrome-950 transition hover:bg-accent-400"
+        >
+          Approve Revision
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  const workflowRef = useScrollReveal<HTMLDivElement>();
+  const servicesRef = useScrollReveal<HTMLDivElement>();
+  const audiencesRef = useScrollReveal<HTMLDivElement>();
 
   function scrollToPricing() {
     const pricingSection = document.getElementById("pricing");
@@ -222,37 +435,46 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <main>
-        
-        {/* Hero: eyebrow pill, accent-split headline, dual CTAs, HUD demo panel */}
+
+        {/* Hero: eyebrow pill, headline, workflow indicator, dual CTAs, HUD demo panel */}
         <section className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-20 bg-ink-950">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-ink-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-accent-400" />
-                3D_Model_Diff &middot; Client-Side
+                3D_Design_Review &middot; Team_Workflow
               </span>
               <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-tight text-ink-50 md:text-5xl">
-                See exactly what <span className="text-accent-400">changed</span> between two model versions.
+                Review 3D model changes before they become <span className="text-accent-400">expensive mistakes</span>.
               </h1>
               <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-ink-400">
-                Meshdiff computes voxel and surface-heatmap diffs of STL, 3MF, and OBJ files —
-                added material, removed material, and dimensional drift, down to the millimetre.
-                Everything runs in your browser. Nothing is uploaded.
+                Compare revisions, discuss changes directly on the model, and approve the
+                version your team is ready to manufacture.
               </p>
+
+              {/* Workflow indicator — the whole product story in one line. */}
+              <div className="mt-6 flex flex-wrap items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wide text-ink-300">
+                {["Compare", "Comment", "Review", "Approve"].map((step, i) => (
+                  <span key={step} className="flex items-center gap-2">
+                    <span className="rounded-full border border-ink-700 bg-ink-900 px-3 py-1">{step}</span>
+                    {i < 3 && <ArrowRight size={14} weight="bold" className="text-ink-600" />}
+                  </span>
+                ))}
+              </div>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
-                  to="/live"
+                  to="/login?mode=signup"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
                 >
-                  Try it in your browser
+                  Start a Free Review
                   <ArrowRight size={16} weight="bold" />
                 </Link>
                 <a
-                  href="#process"
+                  href="#workflow"
                   className="rounded-lg border border-ink-700 px-5 py-2.5 text-sm font-medium text-ink-200 transition hover:border-ink-500 active:scale-[0.98]"
                 >
-                  How it works
+                  See How It Works
                 </a>
               </div>
 
@@ -263,128 +485,80 @@ export default function LandingPage() {
             </div>
 
             {/* Static decorative panel — no click/link. Illustrates the real
-                Projects History view (see ProjectDetailPage.tsx) with demo
-                data; not wired to any account. */}
+                Projects History view (see ProjectDetailPage.tsx) plus a
+                comment (see VersionDetailPage.tsx) with demo data; not
+                wired to any account. */}
             <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-900 shadow-2xl">
               <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
-                <span>History</span>
+                <span>Robot Housing &middot; History</span>
                 <span>Updated</span>
               </div>
 
-              {DEMO_HISTORY_ROWS.map((row, index) => (
-                <div
-                  key={row.title}
-                  className="flex items-stretch gap-3 border-b border-ink-800 px-4 py-3 text-sm last:border-b-0"
-                >
-                  <div className="flex w-3 shrink-0 flex-col items-center">
-                    <div className={`w-px flex-1 ${index === 0 ? "bg-transparent" : "bg-ink-800"}`} />
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent-400" />
-                    <div className={`w-px flex-1 ${index === DEMO_HISTORY_ROWS.length - 1 ? "bg-transparent" : "bg-ink-800"}`} />
-                  </div>
+              {DEMO_HISTORY_ROWS.map((row, index) => {
+                const isSynthetic = row.added === 0 && row.removed === 0;
+                return (
+                  <div
+                    key={row.title}
+                    className="flex items-stretch gap-3 border-b border-ink-800 px-4 py-3 text-sm last:border-b-0"
+                  >
+                    <div className="flex w-3 shrink-0 flex-col items-center">
+                      <div className={`w-px flex-1 ${index === 0 ? "bg-transparent" : "bg-ink-800"}`} />
+                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${APPROVAL_DOT_COLOR[row.status]}`} />
+                      <div className={`w-px flex-1 ${index === DEMO_HISTORY_ROWS.length - 1 ? "bg-transparent" : "bg-ink-800"}`} />
+                    </div>
 
-                  <div className="flex min-w-0 flex-1 items-center gap-4 py-0.5">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex min-w-0 flex-1 items-center gap-4 py-0.5">
+                      <div className="min-w-0 flex-1">
                         <span className="font-mono text-sm font-semibold text-ink-50">{row.title}</span>
-                        {row.failed && (
-                          <span title="Printability check failed" className="text-red-400">
-                            &#10005;
-                          </span>
-                        )}
+                        <span className="block truncate text-xs text-ink-500">{row.description}</span>
                       </div>
-                      <span className="block truncate text-xs text-ink-500">{row.description}</span>
-                    </div>
 
-                    <div className="flex shrink-0 items-center gap-3">
-                      <div className="text-right">
-                        {row.added !== null ? (
-                          <>
-                            <div className="whitespace-nowrap font-mono text-xs">
-                              <span className="text-accent-400">+{row.added.toLocaleString()}</span>{" "}
-                              <span className="text-red-400">-{row.removed!.toLocaleString()}</span>
-                            </div>
-                            <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-ink-800">
-                              <div className="bg-accent-500" style={{ width: `${row.addedPercent}%` }} />
-                              <div className="bg-red-500" style={{ width: `${row.removedPercent}%` }} />
-                            </div>
-                          </>
-                        ) : (
-                          <span className="whitespace-nowrap font-mono text-xs text-ink-500">12 tris</span>
-                        )}
+                      <div className="flex shrink-0 items-center gap-3">
+                        <div className="text-right">
+                          {isSynthetic ? (
+                            <span className="whitespace-nowrap font-mono text-xs text-ink-500">12 tris</span>
+                          ) : (
+                            <>
+                              <div className="whitespace-nowrap font-mono text-xs">
+                                <span className="text-accent-400">+{row.added.toLocaleString()}</span>{" "}
+                                <span className="text-red-400">-{row.removed.toLocaleString()}</span>
+                              </div>
+                              <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-ink-800">
+                                <div className="bg-accent-500" style={{ width: `${row.addedPercent}%` }} />
+                                <div className="bg-red-500" style={{ width: `${row.removedPercent}%` }} />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {row.status !== "approved" && <ApprovalBadge status={row.status} />}
+                        <span className="whitespace-nowrap text-xs text-ink-500">{row.time}</span>
                       </div>
-                      <span className="rounded border border-accent-800 bg-accent-500/10 px-2 py-0.5 text-[11px] font-medium text-accent-400">
-                        Approved
-                      </span>
-                      <span className="whitespace-nowrap text-xs text-ink-500">{row.time}</span>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
-              <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 text-xs">
-                <span className="font-semibold uppercase tracking-widest text-ink-500">Compare any two</span>
-                <span className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200">
-                  v4 — Planter_Hearth_60mm.3mf
+              {/* A single concrete comment — "discuss it, then decide," not
+                  an abstract feature bullet. Pinned on v13, the row above
+                  that's Changes Requested. */}
+              <div className="flex items-start gap-2.5 px-4 py-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">
+                  {DEMO_COMMENT.author[0]}
                 </span>
-                <span className="text-ink-600">&rarr;</span>
-                <span className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200">
-                  v5 — bracket-v2.stl
-                </span>
-                <span className="ml-auto rounded bg-accent-500 px-3 py-1.5 font-medium text-chrome-950">
-                  Compare
-                </span>
+                <div className="min-w-0">
+                  <span className="text-[11px] font-medium text-ink-400">{DEMO_COMMENT.author} &middot; on v13</span>
+                  <p className="text-xs text-ink-200">{DEMO_COMMENT.body}</p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Live tool preview, restored in its original click-to-activate
-              form: static screenshot until clicked, then the real tool
-              lazy-loads in (see LandingLiveDemo.tsx's own comment for why
-              this stays deferred rather than always-embedded). */}
-          <div className="mx-auto mt-12 max-w-6xl">
-            {isDemoActive ? (
-              <Suspense
-                fallback={
-                  <div className="flex h-[320px] items-center justify-center rounded-xl border border-ink-800 bg-ink-900 text-sm text-ink-400 shadow-2xl sm:h-[380px]">
-                    Loading the live demo…
-                  </div>
-                }
-              >
-                <LandingLiveDemo />
-              </Suspense>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsDemoActive(true)}
-                aria-label="Try the live diff demo"
-                className="group relative block w-full overflow-hidden rounded-xl border border-ink-800 shadow-2xl transition hover:border-ink-600"
-              >
-                <picture>
-                  <source srcSet={liveDiffPreviewWebp} type="image/webp" />
-                  <img
-                    src={liveDiffPreview}
-                    alt="Meshdiff Live Diff tool: side-by-side 3D viewers for Version A and Version B, with a voxel diff panel showing added and removed geometry"
-                    className="block w-full"
-                    fetchPriority="high"
-                    width={1200}
-                    height={801}
-                  />
-                </picture>
-                <div className="absolute inset-0 flex items-center justify-center bg-ink-950/0 opacity-0 transition group-hover:bg-ink-950/60 group-hover:opacity-100">
-                  <span className="rounded-full bg-ink-900/90 px-4 py-2 text-xs font-medium text-accent-400 shadow-lg">
-                    &#9654; Try it live, right here
-                  </span>
-                </div>
-              </button>
-            )}
-          </div>
-
-          <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-ink-900 pt-8 text-xs text-ink-500">
-            <span className="font-mono uppercase tracking-widest text-ink-500">Reads_Natively</span>
-            <span className="rounded border border-ink-700 px-2 py-1 font-mono text-ink-300">.stl</span>
-            <span className="rounded border border-ink-700 px-2 py-1 font-mono text-ink-300">.3mf</span>
-            <span className="rounded border border-ink-700 px-2 py-1 font-mono text-ink-300">.obj</span>
-            <span>Binary or ASCII &middot; WebAssembly + WebGL</span>
+          {/* Second look at the same panel, large and centered — replaces
+              the old static Live-Diff-tool screenshot. The interactive
+              try-it-live experience still lives at /live (see the header's
+              "Free Diff tool" link and the hero's primary CTA). */}
+          <div className="mx-auto mt-12 max-w-2xl">
+            <BracketAssemblyPanel />
           </div>
 
           <div className="mx-auto mt-8 grid max-w-lg grid-cols-4 gap-4 border-t border-ink-900 pt-8">
@@ -392,79 +566,205 @@ export default function LandingPage() {
               <HeroStatItem key={stat.label} stat={stat} />
             ))}
           </div>
-
         </section>
 
-        {/* Personas: asymmetric 1+2 grid, not three identical cards */}
-        <section className="mx-auto max-w-6xl px-6 py-14">
-          <h2 className="max-w-lg text-2xl font-semibold text-ink-50">
-            Built for anyone who exports a mesh.
-          </h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-12">
-            {/* Hardware teams (Top-Left Aligned Text) */}
-            <div
-              className="relative flex flex-col justify-start items-start min-h-[480px] rounded-xl border border-ink-700 bg-ink-900 p-6 md:col-span-8 bg-cover bg-center bg-no-repeat overflow-hidden group"
-              style={{ backgroundImage: `url(${teamsImg})` }}
-            >
-              {/* Top-down gradient overlay for top text contrast */}
-              <div className="absolute inset-0 bg-gradient-to-b from-ink-950 via-ink-950/60 to-transparent pointer-events-none" />
-
-              <div className="relative z-10">
-                <UsersThree size={28} weight="light" className="text-ink-400" />
-                <h3 className="mt-4 text-base font-semibold text-ink-50">Hardware teams</h3>
-                <p className="mt-2 max-w-sm text-sm text-ink-400">
-                  Review revisions together, approve changes, and keep a
-                  traceable history across every version anyone ships.
-                </p>
-              </div>
-            </div>
-
-            {/* Right column */}
-            <div className="flex flex-col gap-4 md:col-span-4">
-              {/* Solo makers */}
-              <div
-                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-ink-800 bg-ink-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
-                style={{ backgroundImage: `url(${soloImg})` }}
+        {/* External review: no CAD software required — the bridge between
+            internal engineering and outside customers/suppliers. Moved up
+            near the hero — expanding who can even open the file (a
+            customer without SolidWorks, a manufacturer who doesn't want
+            another CAD license) is one of the strongest differentiators,
+            not a footnote. */}
+        <section className="border-t border-ink-900 px-6 py-16">
+          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
+            <div>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-ink-50 md:text-3xl">
+                Send a 3D review without sending a CAD file.
+              </h2>
+              <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-400">
+                Give customers, suppliers, and teammates a browser link. They can see exactly
+                what changed and leave feedback without installing CAD software.
+              </p>
+              <Link
+                to="/live"
+                className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/60 to-transparent pointer-events-none" />
+                <PaperPlaneTilt size={16} weight="bold" />
+                Share a Review
+              </Link>
+            </div>
+            <div className="flex flex-col gap-3">
+              {[
+                { label: "1 day", detail: "Quick internal check" },
+                { label: "3 days", detail: "Client review window" },
+                { label: "7 days", detail: "Longer async review" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-3 rounded-lg border border-ink-800 bg-ink-900 px-4 py-3"
+                >
+                  <LinkSimple size={18} weight="light" className="shrink-0 text-ink-400" />
+                  <span className="w-14 shrink-0 text-sm font-semibold text-ink-50">{item.label}</span>
+                  <span className="text-xs text-ink-400">{item.detail}</span>
+                </div>
+              ))}
+              <p className="mt-1 text-xs text-ink-400">
+                Links expire automatically. Free on the Community plan.
+              </p>
+            </div>
+          </div>
+        </section>
 
-                <div className="relative z-10">
-                  <User size={24} weight="light" className="text-ink-400" />
-                  <h3 className="mt-3 text-sm font-semibold text-ink-50">Solo makers</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-ink-400">
-                    Grabbed a remix off Thingiverse? See exactly what changed
-                    before you commit filament.
-                  </p>
+        {/* Version confusion: the relatable pain point before the pitch. */}
+        <section className="border-t border-ink-900 px-6 py-16">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink-50 md:text-3xl">
+              Stop guessing which 3D file is the latest.
+            </h2>
+            <div className="mx-auto mt-8 max-w-md rounded-xl border border-ink-800 bg-ink-900 p-5 text-left font-mono text-sm text-ink-400 shadow-xl">
+              {MESSY_FILENAMES.map((name, i) => (
+                <div
+                  key={name}
+                  className={`flex items-center gap-2 py-1.5 ${i < MESSY_FILENAMES.length - 1 ? "border-b border-ink-800" : ""}`}
+                >
+                  <span className="text-ink-600">📄</span>
+                  <span className={i === MESSY_FILENAMES.length - 1 ? "text-amber-400" : ""}>{name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 flex items-center justify-center gap-2 text-sm font-semibold text-ink-300">
+              <Warning size={18} weight="fill" className="text-amber-400" />
+              Sound familiar?
+            </p>
+            <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-ink-400">
+              Email, Slack, and filenames weren't designed for engineering change control.
+              Meshdiff gives your team one place to compare revisions, discuss changes, and
+              approve the version that gets manufactured.
+            </p>
+          </div>
+        </section>
+
+        {/* Team workflow: the four-step story, connected end to end. */}
+        <section id="workflow" className="border-t border-ink-900 px-6 py-16">
+          <div className="mx-auto max-w-5xl">
+            <SectionHeader tag="The Workflow" title="A review workflow your engineering team can actually use." />
+            <div ref={workflowRef} className="grid gap-4 md:grid-cols-4">
+              {WORKFLOW_STEPS.map((step, i) => {
+                const Icon = step.icon;
+                return (
+                  <div key={step.label} data-animate className="reveal relative rounded-xl border border-ink-800 bg-ink-900 p-5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-ink-600">{step.number}</span>
+                      <Icon size={20} weight="light" className="text-ink-400" />
+                    </div>
+                    <h3 className="mt-3 text-sm font-semibold text-ink-50">{step.label}</h3>
+                    <p className="mt-1.5 text-xs font-semibold text-ink-300">{step.question}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-400">{step.detail}</p>
+                    {i < WORKFLOW_STEPS.length - 1 && (
+                      <ArrowRight
+                        size={16}
+                        weight="bold"
+                        className="absolute -right-2.5 top-1/2 hidden -translate-y-1/2 text-ink-700 md:block"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Revision history: a real approval-state timeline, using the same
+            ApprovalBadge component the actual Projects workspace renders —
+            paired with the looping "how it works" sequence (see
+            WorkflowAnimation), each with its own caption, opposite sides of
+            the same row since both are illustrating the same revision
+            moving through the workflow. */}
+        <section className="border-t border-ink-900 px-6 py-16">
+          <div className="mx-auto max-w-6xl">
+            <SectionHeader
+              tag="Revision History"
+              title="From revision to approval"
+              description="Every revision has a history. Every comment stays connected to the geometry. Everyone knows which version was approved."
+            />
+            <div className="grid gap-10 sm:grid-cols-2">
+              <div className="flex flex-col">
+                <p className="mb-4 text-sm font-semibold text-ink-300">
+                  Watch a revision move through the workflow.
+                </p>
+                <div className="flex-1">
+                  <WorkflowAnimation />
                 </div>
               </div>
-
-              {/* CAD and print engineers */}
-              <div
-                className="relative flex flex-col justify-end min-h-[230px] flex-1 rounded-xl border border-ink-800 bg-ink-900 p-5 bg-cover bg-center bg-no-repeat overflow-hidden"
-                style={{ backgroundImage: `url(${proImg})` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/60 to-transparent pointer-events-none" />
-
-                <div className="relative z-10">
-                  <Users size={24} weight="light" className="text-ink-400" />
-                  <h3 className="mt-3 text-sm font-semibold text-ink-50">CAD and print engineers</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-ink-400">
-                    Catch dimensional drift, thin walls, and unintended scaling
-                    before a part fails on the bed.
-                  </p>
+              <div className="flex flex-col">
+                <p className="mb-4 text-sm font-semibold text-ink-300">
+                  Every decision stays on the record.
+                </p>
+                <div className="flex-1 overflow-hidden rounded-xl border border-ink-800 bg-ink-900">
+                  {REVISION_TIMELINE.map((row, index) => (
+                    <div
+                      key={row.version}
+                      className="flex items-stretch gap-3 border-b border-ink-800 px-4 py-3 text-sm last:border-b-0"
+                    >
+                      <div className="flex w-3 shrink-0 flex-col items-center">
+                        <div className={`w-px flex-1 ${index === 0 ? "bg-transparent" : "bg-ink-800"}`} />
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${APPROVAL_DOT_COLOR[row.status]}`} />
+                        <div className={`w-px flex-1 ${index === REVISION_TIMELINE.length - 1 ? "bg-transparent" : "bg-ink-800"}`} />
+                      </div>
+                      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 py-0.5">
+                        <div className="min-w-0">
+                          <span className="font-mono text-sm font-semibold text-ink-50">{row.version}</span>
+                          <span className="block truncate text-xs text-ink-500">{row.description}</span>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          {row.commentCount ? (
+                            <span className="flex items-center gap-1 rounded border border-ink-700 bg-ink-950 px-2 py-0.5 text-[11px] font-medium text-ink-300">
+                              <ChatCircle size={12} weight="fill" />
+                              {row.commentCount} comments
+                            </span>
+                          ) : (
+                            <ApprovalBadge status={row.status} />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Services: what Meshdiff actually does, shipped today */}
+        {/* Audiences: built for teams that make physical things. */}
+        <section className="border-t border-ink-900 px-6 py-16">
+          <div className="mx-auto max-w-6xl">
+            <SectionHeader tag="Who It's For" title="Built for teams that make physical things." />
+            <div ref={audiencesRef} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {AUDIENCES.map((audience) => {
+                const Icon = audience.icon;
+                return (
+                  <div
+                    key={audience.title}
+                    data-animate
+                    className="reveal rounded-xl border border-ink-800 bg-ink-900 p-6 transition hover:-translate-y-0.5 hover:border-ink-700"
+                  >
+                    <Icon size={28} weight="light" className="text-ink-400" />
+                    <h3 className="mt-4 text-base font-semibold text-ink-50">{audience.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-ink-400">{audience.description}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Technical capabilities: the diff engine that powers the review
+            workflow above — real, but no longer the top of the page. */}
         <section id="features" className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto max-w-6xl">
             <SectionHeader
-              tag="What It Does"
-              title="What Meshdiff does"
-              description="Everything below runs on real geometry, computed for real — no placeholders, no fake mockups."
+              tag="Under The Hood"
+              title="Powerful 3D comparison under the hood"
+              description="The workflow above runs on a real comparison engine, not a mockup — here's what's actually happening under it."
             />
             <div ref={servicesRef} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((feature) => {
@@ -495,103 +795,23 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Process: how a comparison actually flows, start to finish */}
-        <section id="process" className="border-t border-ink-900 px-6 py-16">
-          <div className="mx-auto max-w-3xl">
-            <SectionHeader
-              tag="How It Works"
-              title="From upload to approved"
-              description="A proven path from a raw file to a decision your team can stand behind."
-            />
-            <div ref={processRef} className="relative">
-              <div
-                aria-hidden="true"
-                className="absolute bottom-0 left-6 top-0 w-px bg-gradient-to-b from-ink-700 to-ink-900"
-              />
-              <div className="flex flex-col gap-10">
-                {PROCESS_STEPS.map((step) => (
-                  <div key={step.number} data-animate className="reveal relative flex gap-6">
-                    <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-ink-700 bg-ink-900 font-mono text-sm font-bold text-ink-300">
-                      {step.number}
-                    </div>
-                    <div className="pt-1.5">
-                      <h3 className="text-base font-semibold text-ink-50">{step.title}</h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-ink-400">{step.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Sharing feature: vertical stack, no fake screenshot mockup */}
+        {/* Privacy: a short version of the same fact-checked claims used on
+            /pricing (PricingPage.tsx's "A note on privacy" section) — same
+            facts, condensed for a skim. The full version, with the caching
+            fallback detail, stays on /pricing for anyone who wants it. */}
         <section className="border-t border-ink-900 px-6 py-14">
-          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-ink-50">
-                Send a diff, not a 40 MB attachment
-              </h2>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-400">
-                Hit Share in the viewer toolbar and Meshdiff generates a link
-                to the exact comparison, same alignment, tolerance, and view.
-                Recipients open it in any browser, no account or software
-                needed.
-              </p>
-            </div>
-            <div className="flex flex-col gap-3">
-              {[
-                { label: "1 day", detail: "Quick internal check" },
-                { label: "3 days", detail: "Client review window" },
-                { label: "7 days", detail: "Longer async review" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-3 rounded-lg border border-ink-800 bg-ink-900 px-4 py-3"
-                >
-                  <LinkSimple size={18} weight="light" className="shrink-0 text-ink-400" />
-                  <span className="w-14 shrink-0 text-sm font-semibold text-ink-50">{item.label}</span>
-                  <span className="text-xs text-ink-400">{item.detail}</span>
-                </div>
-              ))}
-              <p className="mt-1 text-xs text-ink-400">
-                Links expire automatically. Free on the Community plan.
-              </p>
-            </div>
+          <div className="mx-auto max-w-3xl">
+            <h2 className="flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink-50">
+              <ShieldCheck size={24} weight="fill" className="text-accent-400" />
+              Your 3D models are your IP.
+            </h2>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-400">
+              Meshdiff computes diffs in your browser — comparing two models never requires
+              uploading them. On Pro and Team, projects are stored so your history and
+              comments persist, but your files are never sent to a third party.
+            </p>
           </div>
         </section>
-
-        {/* Team workflow: compact proof block for what Team actually buys, right before pricing */}
-        {SHOW_MONETIZATION && (
-          <section className="border-t border-ink-900 px-6 py-14">
-            <div className="mx-auto max-w-5xl">
-              <SectionHeader
-                tag="For Teams"
-                title="What Team unlocks (we will release it soon)"
-                description="Every upload goes through the same four steps before it becomes the version everyone builds on."
-              />
-              <div className="grid gap-4 md:grid-cols-4">
-                {TEAM_WORKFLOW.map((step, i) => {
-                  const Icon = step.icon;
-                  return (
-                    <div key={step.label} className="relative rounded-xl border border-ink-800 bg-ink-900 p-5">
-                      <Icon size={22} weight="light" className="text-ink-400" />
-                      <h3 className="mt-3 text-sm font-semibold text-ink-50">{step.label}</h3>
-                      <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{step.detail}</p>
-                      {i < TEAM_WORKFLOW.length - 1 && (
-                        <ArrowRight
-                          size={16}
-                          weight="bold"
-                          className="absolute -right-2.5 top-1/2 hidden -translate-y-1/2 text-ink-700 md:block"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Pricing (hidden until Stripe billing is wired up) — card grid is
             shared with the standalone /pricing page, see PricingCards.tsx */}
@@ -600,7 +820,7 @@ export default function LandingPage() {
             <div className="mx-auto max-w-5xl">
               <SectionHeader
                 tag="Pricing"
-                title="Diff for free. Upgrade to save, review, and share."
+                title="Diff for free. Upgrade to review, approve, and ship with your team."
                 description="The comparison tool is free forever. Founding members get 50% off Pro and Team for 3 months."
               />
               <PricingCards />
@@ -633,47 +853,32 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Early access / waitlist */}
-        {/* <section id="early-access" className="px-6 py-20">
-          <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2">
-            <div>
-              <span className="mb-3 block text-xs font-semibold uppercase tracking-widest text-accent-500">
-                Get Started
-              </span>
-              <h2 className="text-3xl font-bold leading-tight text-ink-50 md:text-4xl">
-                Save projects, track versions, and review with your team.
-              </h2>
-              <p className="mt-3 max-w-md text-sm text-ink-400">
-                The diff engine ships today. Pro and Team are launching soon,
-                built in the open with early-access members shaping what
-                lands next.
-              </p>
-              <ul className="mt-6 flex flex-col gap-3 text-sm text-ink-300">
-                {PLANNED_FEATURES.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-accent-500/40 bg-accent-500/10">
-                      <Check size={12} weight="bold" className="text-accent-400" />
-                    </span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-xl border border-accent-500/20 bg-ink-900 p-8">
-              <p className="text-sm font-semibold text-ink-50">Claim your founding spot</p>
-              <p className="mt-1 text-xs text-ink-400">
-                50% off Pro and Team for 3 months, before public launch.
-              </p>
-              <div className="mt-4">
-                <WaitlistForm />
-              </div>
-              <p className="mt-4 text-center text-xs text-ink-400">
-                No spam. One launch email, then you decide.
-              </p>
+        {/* Final CTA */}
+        <section className="border-t border-ink-900 px-6 py-20">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-bold tracking-tight text-ink-50 md:text-4xl">
+              Your next revision is coming.
+            </h2>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-400">
+              Make sure everyone knows what changed — and which version is approved.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                to="/login?mode=signup"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-chrome-950 transition hover:bg-accent-400 active:scale-[0.98]"
+              >
+                Start Your First Free Review
+                <ArrowRight size={16} weight="bold" />
+              </Link>
+              <Link
+                to="/live"
+                className="rounded-lg border border-ink-700 px-5 py-2.5 text-sm font-medium text-ink-200 transition hover:border-ink-500 active:scale-[0.98]"
+              >
+                Compare Two Models
+              </Link>
             </div>
           </div>
-        </section> */}
+        </section>
 
         {/* FAQ */}
         <section id="faq" className="px-6 py-16">
