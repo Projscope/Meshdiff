@@ -131,6 +131,15 @@ const fr: TranslationResource = {
     uploadingTitle: "Importation de {{fileName}}",
     uploadingSubtitle: "Voxélisation du maillage et vérification de l'imprimabilité…",
   },
+  approvalGates: {
+    title: "Critères d'approbation",
+    none: "Aucun critère configuré.",
+    addPlaceholder: "Ajouter un critère…",
+    add: "Ajouter",
+    removeTooltip: "Supprimer ce critère",
+    blocksApproveTooltip: "Tous les critères d'approbation doivent être cochés avant que cette version puisse être approuvée",
+    gateCount: "{{satisfied}}/{{total}} critères",
+  },
   viewer: {
     measureDistanceTooltip: "Mesurer la distance entre deux points",
     clearDistanceTooltip: "Cliquez pour effacer cette mesure de distance",

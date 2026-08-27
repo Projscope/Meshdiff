@@ -131,6 +131,15 @@ const es: TranslationResource = {
     uploadingTitle: "Subiendo {{fileName}}",
     uploadingSubtitle: "Voxelizando la malla y comprobando la imprimibilidad…",
   },
+  approvalGates: {
+    title: "Requisitos de aprobación",
+    none: "No hay requisitos configurados.",
+    addPlaceholder: "Añadir un requisito…",
+    add: "Añadir",
+    removeTooltip: "Eliminar este requisito",
+    blocksApproveTooltip: "Todos los requisitos de aprobación deben estar marcados antes de poder aprobar esta versión",
+    gateCount: "{{satisfied}}/{{total}} requisitos",
+  },
   viewer: {
     measureDistanceTooltip: "Medir la distancia entre dos puntos",
     clearDistanceTooltip: "Haz clic para borrar esta medición de distancia",

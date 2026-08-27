@@ -29,6 +29,12 @@ export interface ProjectsPage {
  * the same project is approved. */
 export type ApprovalStatus = "draft" | "in_review" | "changes_requested" | "approved" | "superseded";
 
+/** null on non-team (Pro) projects — gates don't apply there. */
+export interface GateStatus {
+  satisfiedCount: number;
+  totalCount: number;
+}
+
 export interface VersionSummary {
   id: string;
   versionNumber: number;
@@ -42,6 +48,13 @@ export interface VersionSummary {
   rejectionReason: string | null;
   createdAt: string;
   uploaderEmail: string | null;
+  gateStatus: GateStatus | null;
+}
+
+export interface ApprovalGate {
+  id: string;
+  label: string;
+  sortOrder: number;
 }
 
 export interface ReviewHistoryEntry {
@@ -381,6 +394,44 @@ export function getVersionReviewHistory(
 
 export function getStableVersion(projectId: string): Promise<Result<StableVersion>> {
   return request(`/projects/${projectId}/stable-version`);
+}
+
+export interface VersionGateFulfillment extends ApprovalGate {
+  satisfied: boolean;
+}
+
+export function listApprovalGates(projectId: string): Promise<Result<ApprovalGate[]>> {
+  return request(`/projects/${projectId}/approval-gates`);
+}
+
+export function listVersionApprovalGates(
+  projectId: string,
+  versionId: string,
+): Promise<Result<VersionGateFulfillment[]>> {
+  return request(`/projects/${projectId}/versions/${versionId}/approval-gates`);
+}
+
+export function createApprovalGate(projectId: string, label: string): Promise<Result<ApprovalGate>> {
+  return request(`/projects/${projectId}/approval-gates`, {
+    method: "POST",
+    body: JSON.stringify({ label }),
+  });
+}
+
+export function deleteApprovalGate(projectId: string, gateId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}/approval-gates/${gateId}`, { method: "DELETE" });
+}
+
+export function setGateFulfillment(
+  projectId: string,
+  versionId: string,
+  gateId: string,
+  satisfied: boolean,
+): Promise<Result<true>> {
+  return request(`/projects/${projectId}/versions/${versionId}/approval-gates/${gateId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ satisfied }),
+  });
 }
 
 export function createProject(name: string, description: string): Promise<Result<ProjectSummary>> {

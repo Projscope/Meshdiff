@@ -132,6 +132,15 @@ const en = {
     uploadingTitle: "Uploading {{fileName}}",
     uploadingSubtitle: "Voxelizing mesh and checking printability…",
   },
+  approvalGates: {
+    title: "Approval Gates",
+    none: "No gates configured.",
+    addPlaceholder: "Add a gate…",
+    add: "Add",
+    removeTooltip: "Remove this gate",
+    blocksApproveTooltip: "All approval gates must be checked off before this version can be approved",
+    gateCount: "{{satisfied}}/{{total}} gates",
+  },
   viewer: {
     measureDistanceTooltip: "Measure distance between two points",
     clearDistanceTooltip: "Click to clear this distance measurement",

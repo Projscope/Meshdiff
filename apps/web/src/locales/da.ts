@@ -131,6 +131,15 @@ const da: TranslationResource = {
     uploadingTitle: "Uploader {{fileName}}",
     uploadingSubtitle: "Voxeliserer mesh og kontrollerer printbarhed…",
   },
+  approvalGates: {
+    title: "Godkendelseskontroller",
+    none: "Ingen kontroller konfigureret.",
+    addPlaceholder: "Tilføj en kontrol…",
+    add: "Tilføj",
+    removeTooltip: "Fjern denne kontrol",
+    blocksApproveTooltip: "Alle godkendelseskontroller skal være afkrydset, før denne version kan godkendes",
+    gateCount: "{{satisfied}}/{{total}} kontroller",
+  },
   viewer: {
     measureDistanceTooltip: "Mål afstand mellem to punkter",
     clearDistanceTooltip: "Klik for at rydde denne afstandsmåling",

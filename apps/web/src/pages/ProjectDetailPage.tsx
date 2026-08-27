@@ -22,6 +22,7 @@ import {
 import { uploadVersion } from "../lib/uploadVersion";
 import ApprovalBadge, { APPROVAL_DOT_COLOR } from "../components/ApprovalBadge";
 import VersionActionButtons from "../components/VersionActionButtons";
+import ApprovalGateChecklist from "../components/ApprovalGateChecklist";
 import { useDiffColors } from "../lib/diffPalette";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
@@ -734,6 +735,14 @@ export default function ProjectDetailPage() {
                   {project?.teamId && version.approvalStatus !== "approved" && (
                     <ApprovalBadge status={version.approvalStatus} />
                   )}
+                  {version.gateStatus && version.gateStatus.totalCount > 0 && (
+                    <span className="shrink-0 rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
+                      {t("approvalGates.gateCount", {
+                        satisfied: version.gateStatus.satisfiedCount,
+                        total: version.gateStatus.totalCount,
+                      })}
+                    </span>
+                  )}
                   <span className="min-w-0 flex-1 truncate text-ink-300">{version.fileName}</span>
                   <span className="shrink-0 text-xs text-ink-500">
                     {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}
@@ -743,6 +752,7 @@ export default function ProjectDetailPage() {
                     canTransition={canTransitionVersionState}
                     onApprove={() => void handleApprove(version.id)}
                     onRequestChanges={() => setPendingReject({ id: version.id, versionNumber: version.versionNumber })}
+                    gateStatus={version.gateStatus}
                   />
                   <Link
                     to={`/projects/${projectId}/versions/${version.id}`}
@@ -780,6 +790,14 @@ export default function ProjectDetailPage() {
                   <p className="pl-1 text-xs text-red-400">
                     {t("projectDetail.rejectedReason", { reason: version.rejectionReason })}
                   </p>
+                )}
+                {project?.teamId && version.approvalStatus !== "approved" && version.approvalStatus !== "superseded" && projectId && (
+                  <ApprovalGateChecklist
+                    projectId={projectId}
+                    versionId={version.id}
+                    canConfigure={project.myRole === "owner" || project.myRole === "admin"}
+                    onChanged={() => void refresh()}
+                  />
                 )}
                 </div>
               ))}

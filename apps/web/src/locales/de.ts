@@ -131,6 +131,15 @@ const de: TranslationResource = {
     uploadingTitle: "{{fileName}} wird hochgeladen",
     uploadingSubtitle: "Mesh wird voxelisiert und Druckbarkeit geprüft…",
   },
+  approvalGates: {
+    title: "Freigabe-Checkliste",
+    none: "Keine Prüfpunkte konfiguriert.",
+    addPlaceholder: "Prüfpunkt hinzufügen…",
+    add: "Hinzufügen",
+    removeTooltip: "Diesen Prüfpunkt entfernen",
+    blocksApproveTooltip: "Alle Freigabe-Prüfpunkte müssen abgehakt sein, bevor diese Version freigegeben werden kann",
+    gateCount: "{{satisfied}}/{{total}} Prüfpunkte",
+  },
   viewer: {
     measureDistanceTooltip: "Abstand zwischen zwei Punkten messen",
     clearDistanceTooltip: "Klicken, um diese Abstandsmessung zu löschen",

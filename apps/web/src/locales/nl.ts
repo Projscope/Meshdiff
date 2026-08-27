@@ -131,6 +131,15 @@ const nl: TranslationResource = {
     uploadingTitle: "{{fileName}} wordt geüpload",
     uploadingSubtitle: "Mesh wordt gevoxeliseerd en printbaarheid wordt gecontroleerd…",
   },
+  approvalGates: {
+    title: "Goedkeuringscontroles",
+    none: "Geen controles geconfigureerd.",
+    addPlaceholder: "Controle toevoegen…",
+    add: "Toevoegen",
+    removeTooltip: "Deze controle verwijderen",
+    blocksApproveTooltip: "Alle goedkeuringscontroles moeten zijn afgevinkt voordat deze versie kan worden goedgekeurd",
+    gateCount: "{{satisfied}}/{{total}} controles",
+  },
   viewer: {
     measureDistanceTooltip: "Afstand tussen twee punten meten",
     clearDistanceTooltip: "Klik om deze afstandsmeting te wissen",

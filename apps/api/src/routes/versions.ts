@@ -69,7 +69,16 @@ export interface VersionRow {
  * the same project is approved (see approve() below). */
 export type ApprovalStatus = "draft" | "in_review" | "changes_requested" | "approved" | "superseded";
 
-export function toVersionSummary(row: VersionRow, uploaderEmail: string | null = null) {
+export interface GateStatus {
+  satisfiedCount: number;
+  totalCount: number;
+}
+
+export function toVersionSummary(
+  row: VersionRow,
+  uploaderEmail: string | null = null,
+  gateStatus: GateStatus | null = null,
+) {
   return {
     id: row.id,
     versionNumber: row.version_number,
@@ -83,7 +92,48 @@ export function toVersionSummary(row: VersionRow, uploaderEmail: string | null =
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
     uploaderEmail,
+    gateStatus,
   };
+}
+
+/** Team projects only — fetches active gate definitions for a project and
+ * how many this version has satisfied, for the "2/3 gates" summary and the
+ * approve-gating check. Returns null for non-team projects (gates don't
+ * apply there) rather than a vacuous 0/0. */
+async function getVersionGateStatus(
+  supabase: SupabaseClient,
+  versionId: string,
+  teamId: string | null,
+): Promise<GateStatus | null> {
+  if (!teamId) return null;
+
+  const { data: fulfillments, error } = await supabase
+    .from("approval_gate_fulfillments")
+    .select("satisfied, approval_gate_definitions!inner(id, is_active)")
+    .eq("version_id", versionId)
+    .eq("approval_gate_definitions.is_active", true);
+  if (error) return null;
+
+  const rows = (fulfillments ?? []) as Array<{ satisfied: boolean }>;
+  return { satisfiedCount: rows.filter((r) => r.satisfied).length, totalCount: rows.length };
+}
+
+/** Called once per finalize() on a Team project — creates one fulfillment
+ * row per currently-active gate definition so the checklist UI has
+ * something to render immediately, rather than lazily on first GET (a read
+ * should never have side effects). Personal (Pro) projects never call this;
+ * gates are Team-tier only (see migration 0028). */
+async function seedGateFulfillments(supabase: SupabaseClient, projectId: string, versionId: string): Promise<void> {
+  const { data: definitions, error } = await supabase
+    .from("approval_gate_definitions")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("is_active", true);
+  if (error || !definitions || definitions.length === 0) return;
+
+  await supabase.from("approval_gate_fulfillments").insert(
+    (definitions as Array<{ id: string }>).map((d) => ({ version_id: versionId, gate_definition_id: d.id })),
+  );
 }
 
 export default async function versionsRoute(app: FastifyInstance): Promise<void> {
@@ -269,6 +319,10 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           if (diffCacheError) {
             app.log.warn(diffCacheError, "Failed to cache version diff");
           }
+        }
+
+        if (access.teamId) {
+          await seedGateFulfillments(supabase, projectId, versionId);
         }
 
         return {
@@ -460,6 +514,35 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Version not found" };
         }
         const fromStatus = (beforeRow as { approval_status: string }).approval_status;
+
+        if (access.teamId) {
+          const { data: fulfillments, error: gatesError } = await supabase
+            .from("approval_gate_fulfillments")
+            .select("satisfied, approval_gate_definitions!inner(label, is_active)")
+            .eq("version_id", versionId)
+            .eq("approval_gate_definitions.is_active", true);
+          if (gatesError) {
+            app.log.warn(gatesError, "Failed to check approval gates before approving");
+          } else {
+            // PostgREST returns the embedded !inner relation as a single
+            // object at runtime, but the untyped client can't express that
+            // statically — cast to the actual shape rather than the
+            // to-many array shape TS infers by default.
+            type FulfillmentRow = { satisfied: boolean; approval_gate_definitions: { label: string } };
+            const unmet = ((fulfillments ?? []) as unknown as FulfillmentRow[])
+              .filter((f) => !f.satisfied)
+              .map((f) => f.approval_gate_definitions.label);
+            if (unmet.length > 0) {
+              reply.code(403);
+              return {
+                success: false,
+                error: `Unmet approval gates: ${unmet.join(", ")}`,
+                code: "gates_unsatisfied",
+                unmetGates: unmet,
+              };
+            }
+          }
+        }
 
         const { data: row, error } = await supabase
           .from("versions")
@@ -736,10 +819,18 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           }
         }
 
+        const gateStatuses = access.teamId
+          ? await Promise.all(versionRows.map((row) => getVersionGateStatus(supabase, row.id, access.teamId)))
+          : versionRows.map(() => null);
+
         return {
           success: true,
-          data: versionRows.map((row) =>
-            toVersionSummary(row, row.uploaded_by_user_id ? (emailByUserId.get(row.uploaded_by_user_id) ?? null) : null),
+          data: versionRows.map((row, index) =>
+            toVersionSummary(
+              row,
+              row.uploaded_by_user_id ? (emailByUserId.get(row.uploaded_by_user_id) ?? null) : null,
+              gateStatuses[index],
+            ),
           ),
         };
       } catch (err) {
@@ -825,10 +916,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           }
         }
 
+        const gateStatus = await getVersionGateStatus(supabase, versionRow.id, access.teamId);
+
         return {
           success: true,
           data: {
-            ...toVersionSummary(versionRow),
+            ...toVersionSummary(versionRow, null, gateStatus),
             downloadUrl: download.signedUrl,
             previousVersionId,
             slicerProfile,

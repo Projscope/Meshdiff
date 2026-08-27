@@ -207,6 +207,23 @@ async function main() {
     versionIds.push(versionId);
   }
 
+  // Approval gates: created after the versions exist, since this script
+  // inserts version rows directly via RPC rather than going through the
+  // API's finalize() route (which is what normally auto-seeds a
+  // fulfillment row per active gate on upload — see seedGateFulfillments()
+  // in apps/api/src/routes/versions.ts). Fulfillment rows are inserted by
+  // hand below to reproduce that for the seeded versions.
+  const { data: gateRows, error: gatesError } = await supabase
+    .from("approval_gate_definitions")
+    .insert([
+      { project_id: projectId, label: "Geometry reviewed", sort_order: 0 },
+      { project_id: projectId, label: "Printability passed", sort_order: 1 },
+    ])
+    .select("id");
+  if (gatesError || !gateRows) throw gatesError ?? new Error("Failed to create approval gates");
+  const [geometryGateId, printabilityGateId] = (gateRows as Array<{ id: string }>).map((g) => g.id);
+  console.log(`Created approval gates: geometry=${geometryGateId}, printability=${printabilityGateId}`);
+
   const [v1Id, v2Id, v3Id] = versionIds;
 
   // v1: approved baseline
@@ -230,6 +247,19 @@ async function main() {
   // v3: left as "in_review" (create_version's default) — the one to
   // actually approve/request-changes by hand while testing.
   console.log(`v1=${v1Id} approved, v2=${v2Id} changes_requested, v3=${v3Id} in_review`);
+
+  // Fulfillments: v1 fully satisfied (it's already approved, both gates
+  // checked retroactively); v3 only partially satisfied, so approving it
+  // by hand should 403 with "gates_unsatisfied" until the second gate is
+  // checked off — the blocked case the plan's verification checklist calls
+  // for. v2 gets no fulfillment rows (changes_requested doesn't need one to
+  // exercise the checklist UI's empty state).
+  await supabase.from("approval_gate_fulfillments").insert([
+    { version_id: v1Id, gate_definition_id: geometryGateId, satisfied: true, satisfied_by_user_id: ownerId, satisfied_at: new Date().toISOString() },
+    { version_id: v1Id, gate_definition_id: printabilityGateId, satisfied: true, satisfied_by_user_id: ownerId, satisfied_at: new Date().toISOString() },
+    { version_id: v3Id, gate_definition_id: geometryGateId, satisfied: true, satisfied_by_user_id: memberId, satisfied_at: new Date().toISOString() },
+    { version_id: v3Id, gate_definition_id: printabilityGateId, satisfied: false },
+  ]);
 
   // Comments: mix of authors and one reply thread per version so delete
   // permissions (owner/admin delete any; member deletes only their own)
