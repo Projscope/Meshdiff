@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import type { DragEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -53,6 +54,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
   { demoUrl },
   ref,
 ) {
+  const { t } = useTranslation();
   const [fileName, setFileName] = useState<string | null>(null);
   const [displayGeometry, setDisplayGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [hasVertexColors, setHasVertexColors] = useState(false);
@@ -309,7 +311,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
             <h1 className="truncate text-sm font-semibold text-ink-50">{fileName}</h1>
 
             <div className="mt-5">
-              <CollapsibleSection title="Printability Gate">
+              <CollapsibleSection title={t("versionDetail.printabilityGate")}>
                 <PropertyList>
                   <PropertyRow
                     label="Status"

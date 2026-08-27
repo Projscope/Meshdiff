@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDiffPalette } from "../lib/diffPalette";
 
 /**
@@ -6,17 +7,18 @@ import { useDiffPalette } from "../lib/diffPalette";
  * not workflow-status color like Approve/Reject or Stable badges.
  */
 export default function DiffPaletteSelect() {
+  const { t } = useTranslation();
   const [palette, setPalette] = useDiffPalette();
   return (
     <select
       value={palette}
       onChange={(event) => setPalette(event.target.value as "classic" | "colorblind" | "contrast")}
-      title="Diff color scheme — pick a colorblind-safe pairing if red/green is hard to tell apart"
+      title={t("viewer.diffPaletteTooltip")}
       className="rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-[11px] text-ink-200"
     >
-      <option value="classic">Colors: Classic</option>
-      <option value="colorblind">Colors: Colorblind</option>
-      <option value="contrast">Colors: Contrast</option>
+      <option value="classic">{t("viewer.colorsClassic")}</option>
+      <option value="colorblind">{t("viewer.colorsColorblind")}</option>
+      <option value="contrast">{t("viewer.colorsContrast")}</option>
     </select>
   );
 }

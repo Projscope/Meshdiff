@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CONTROL_SCHEME_LEGEND, useControlScheme } from "../lib/controlScheme";
 
 /**
@@ -19,17 +20,18 @@ interface ControlSchemeSelectProps {
 }
 
 export default function ControlSchemeSelect({ showLegend = true }: ControlSchemeSelectProps) {
+  const { t } = useTranslation();
   const [scheme, setScheme] = useControlScheme();
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <select
         value={scheme}
         onChange={(event) => setScheme(event.target.value === "cad" ? "cad" : "meshdiff")}
-        title="Camera controls: which mouse scheme to use for orbit/pan/zoom"
+        title={t("viewer.controlSchemeTooltip")}
         className="rounded border border-ink-700 bg-ink-950 px-1.5 py-0.5 text-[11px] text-ink-300 hover:border-ink-500"
       >
-        <option value="meshdiff">Controls: Meshdiff</option>
-        <option value="cad">Controls: CAD (Fusion/AutoCAD)</option>
+        <option value="meshdiff">{t("viewer.controlsMeshdiff")}</option>
+        <option value="cad">{t("viewer.controlsCad")}</option>
       </select>
       {showLegend ? (
         CONTROL_SCHEME_LEGEND[scheme].map(({ label, combo }) => (

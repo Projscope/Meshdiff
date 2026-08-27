@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import ControlSchemeSelect from "./ControlSchemeSelect";
 import ShadingModeToggle from "./ShadingModeToggle";
 import GridToggle from "./GridToggle";
@@ -13,6 +14,7 @@ interface MeasureToolbarProps {
  * and camera controls with an info tooltip — the DOM half of a measure
  * tool, paired with MeasureSceneOverlay for the in-scene rendering. */
 export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: MeasureToolbarProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-950/70 p-1">
       <button
@@ -20,8 +22,8 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         onClick={() => measure.toggleMeasuring("distance")}
         title={
           measure.isToolActive("distance")
-            ? "Click to clear this distance measurement"
-            : "Measure distance between two points"
+            ? t("viewer.clearDistanceTooltip")
+            : t("viewer.measureDistanceTooltip")
         }
         className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
           measure.isToolActive("distance")
@@ -35,7 +37,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         type="button"
         onClick={() => measure.toggleMeasuring("radius")}
         title={
-          measure.isToolActive("radius") ? "Click to clear this radius measurement" : "Measure a hole/boss radius"
+          measure.isToolActive("radius") ? t("viewer.clearRadiusTooltip") : t("viewer.measureRadiusTooltip")
         }
         className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
           measure.isToolActive("radius")
@@ -49,7 +51,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
       <button
         type="button"
         onClick={onZoomToFit}
-        title="Zoom to fit the model in view"
+        title={t("viewer.zoomToFit")}
         className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
       >
         ⛶
@@ -57,7 +59,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
       <button
         type="button"
         onClick={onResetView}
-        title="Reset camera to the loaded view"
+        title={t("viewer.resetViewTooltip")}
         className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
       >
         ⟲
