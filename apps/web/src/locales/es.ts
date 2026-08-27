@@ -140,6 +140,12 @@ const es: TranslationResource = {
     blocksApproveTooltip: "Todos los requisitos de aprobación deben estar marcados antes de poder aprobar esta versión",
     gateCount: "{{satisfied}}/{{total}} requisitos",
   },
+  notifications: {
+    title: "Notificaciones",
+    markAllRead: "Marcar todo como leído",
+    loading: "Cargando…",
+    empty: "Aún no hay notificaciones.",
+  },
   viewer: {
     measureDistanceTooltip: "Medir la distancia entre dos puntos",
     clearDistanceTooltip: "Haz clic para borrar esta medición de distancia",

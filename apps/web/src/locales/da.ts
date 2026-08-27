@@ -140,6 +140,12 @@ const da: TranslationResource = {
     blocksApproveTooltip: "Alle godkendelseskontroller skal være afkrydset, før denne version kan godkendes",
     gateCount: "{{satisfied}}/{{total}} kontroller",
   },
+  notifications: {
+    title: "Notifikationer",
+    markAllRead: "Markér alle som læst",
+    loading: "Indlæser…",
+    empty: "Ingen notifikationer endnu.",
+  },
   viewer: {
     measureDistanceTooltip: "Mål afstand mellem to punkter",
     clearDistanceTooltip: "Klik for at rydde denne afstandsmåling",

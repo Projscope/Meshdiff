@@ -141,6 +141,12 @@ const en = {
     blocksApproveTooltip: "All approval gates must be checked off before this version can be approved",
     gateCount: "{{satisfied}}/{{total}} gates",
   },
+  notifications: {
+    title: "Notifications",
+    markAllRead: "Mark all read",
+    loading: "Loading…",
+    empty: "No notifications yet.",
+  },
   viewer: {
     measureDistanceTooltip: "Measure distance between two points",
     clearDistanceTooltip: "Click to clear this distance measurement",

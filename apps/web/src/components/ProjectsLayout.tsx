@@ -22,6 +22,7 @@ import UpgradeToTeamModal from "./UpgradeToTeamModal";
 import ManagePlanModal from "./ManagePlanModal";
 import EditWorkspaceModal from "./EditWorkspaceModal";
 import LanguageSelect from "./LanguageSelect";
+import NotificationBell from "./NotificationBell";
 
 // UI convenience only — hides the sidebar link for everyone else. The real
 // admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
@@ -578,17 +579,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="relative border-t border-ink-800 p-3">
+          <div className="relative flex items-center gap-1 border-t border-ink-800 p-3">
             <button
               type="button"
               onClick={() => setIsMenuOpen((open) => !open)}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-ink-900"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-ink-900"
             >
               <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">
                 {emailInitial}
               </div>
               <span className="min-w-0 flex-1 truncate text-xs text-ink-400">{user?.email ?? ""}</span>
             </button>
+            <NotificationBell />
             {isMenuOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-ink-800 bg-ink-900 shadow-xl">
                 <button

@@ -140,6 +140,12 @@ const fr: TranslationResource = {
     blocksApproveTooltip: "Tous les critères d'approbation doivent être cochés avant que cette version puisse être approuvée",
     gateCount: "{{satisfied}}/{{total}} critères",
   },
+  notifications: {
+    title: "Notifications",
+    markAllRead: "Tout marquer comme lu",
+    loading: "Chargement…",
+    empty: "Aucune notification pour le moment.",
+  },
   viewer: {
     measureDistanceTooltip: "Mesurer la distance entre deux points",
     clearDistanceTooltip: "Cliquez pour effacer cette mesure de distance",

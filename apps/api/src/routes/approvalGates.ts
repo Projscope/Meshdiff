@@ -3,6 +3,7 @@ import { requireSupabase } from "../lib/requireSupabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectWriteAccess } from "../lib/requireProjectTierAccess.js";
+import { notifyGateCompleted } from "../lib/notify.js";
 
 interface GateDefinitionRow {
   id: string;
@@ -333,6 +334,36 @@ export default async function approvalGatesRoute(app: FastifyInstance): Promise<
         if (!row) {
           reply.code(404);
           return { success: false, error: "Gate not found for this version" };
+        }
+
+        // Only worth notifying reviewers when THIS toggle is what brought
+        // the version from not-all-satisfied to all-satisfied — not on
+        // every checkbox click, and not on an unchecking.
+        if (satisfied && access.teamId) {
+          const { data: fulfillments } = await supabase
+            .from("approval_gate_fulfillments")
+            .select("satisfied, approval_gate_definitions!inner(is_active)")
+            .eq("version_id", versionId)
+            .eq("approval_gate_definitions.is_active", true);
+          const allSatisfied = (fulfillments ?? []).every((f: { satisfied: boolean }) => f.satisfied);
+          if (allSatisfied) {
+            const { data: project } = await supabase.from("projects").select("owner_user_id").eq("id", projectId).maybeSingle();
+            const { data: members } = await supabase
+              .from("team_members")
+              .select("user_id")
+              .eq("team_id", access.teamId)
+              .in("role", ["admin", "approver"]);
+            const reviewerIds = (members ?? []).map((m: { user_id: string }) => m.user_id);
+            if (project?.owner_user_id) reviewerIds.push(project.owner_user_id);
+            const { data: version } = await supabase.from("versions").select("version_number").eq("id", versionId).maybeSingle();
+            await notifyGateCompleted(supabase, app.log, {
+              recipientUserIds: reviewerIds,
+              actorUserId: request.userId!,
+              projectId,
+              versionId,
+              summary: `All approval gates satisfied on v${(version as { version_number: number } | null)?.version_number ?? "?"} — ready to approve`,
+            });
+          }
         }
 
         return { success: true, data: true };

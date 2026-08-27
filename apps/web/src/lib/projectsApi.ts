@@ -434,6 +434,35 @@ export function setGateFulfillment(
   });
 }
 
+// In-app only for this milestone — no email delivery (see plan). Polled by
+// NotificationBell rather than pushed.
+export interface NotificationSummary {
+  id: string;
+  type: "mention" | "comment_assigned" | "version_state_changed" | "review_requested" | "gate_completed";
+  projectId: string | null;
+  versionId: string | null;
+  commentId: string | null;
+  summary: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export function listNotifications(unreadOnly = false): Promise<Result<NotificationSummary[]>> {
+  return request(`/notifications${unreadOnly ? "?unreadOnly=true" : ""}`);
+}
+
+export function getUnreadNotificationCount(): Promise<Result<{ count: number }>> {
+  return request("/notifications/unread-count");
+}
+
+export function markNotificationRead(id: string): Promise<Result<true>> {
+  return request(`/notifications/${id}/read`, { method: "POST" });
+}
+
+export function markAllNotificationsRead(): Promise<Result<true>> {
+  return request("/notifications/mark-all-read", { method: "POST" });
+}
+
 export function createProject(name: string, description: string): Promise<Result<ProjectSummary>> {
   return request("/projects", {
     method: "POST",

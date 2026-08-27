@@ -140,6 +140,12 @@ const de: TranslationResource = {
     blocksApproveTooltip: "Alle Freigabe-Prüfpunkte müssen abgehakt sein, bevor diese Version freigegeben werden kann",
     gateCount: "{{satisfied}}/{{total}} Prüfpunkte",
   },
+  notifications: {
+    title: "Benachrichtigungen",
+    markAllRead: "Alle als gelesen markieren",
+    loading: "Wird geladen…",
+    empty: "Noch keine Benachrichtigungen.",
+  },
   viewer: {
     measureDistanceTooltip: "Abstand zwischen zwei Punkten messen",
     clearDistanceTooltip: "Klicken, um diese Abstandsmessung zu löschen",

@@ -12,6 +12,7 @@ import { requireProjectWriteAccess, requireProUploadAccess } from "../lib/requir
 import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES } from "../lib/fileSizeLimit.js";
 import { logTeamAudit } from "../lib/teamAuditLog.js";
+import { notifyVersionStateChanged } from "../lib/notify.js";
 
 // Diffing now runs client-side (see finalize() below and
 // ProjectDetailPage.tsx/projectsApi.ts) — the server never parses or
@@ -360,16 +361,36 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     return access.teamId ? access.role === "admin" || access.role === "approver" : false;
   }
 
+  /** Team projects only — the project owner plus any admin/approver team
+   * member, i.e. everyone canTransitionVersionState() would admit. Used to
+   * fan out "review requested" notifications; the actor themselves is
+   * filtered out by notify.ts's insertNotification(), not here. */
+  async function getReviewerUserIds(supabase: SupabaseClient, projectId: string, teamId: string): Promise<string[]> {
+    const { data: project } = await supabase.from("projects").select("owner_user_id").eq("id", projectId).maybeSingle();
+    const { data: members } = await supabase
+      .from("team_members")
+      .select("user_id")
+      .eq("team_id", teamId)
+      .in("role", ["admin", "approver"]);
+    const ids = (members ?? []).map((m: { user_id: string }) => m.user_id);
+    if (project?.owner_user_id) ids.push(project.owner_user_id);
+    return ids;
+  }
+
   /** Every transition writes the new approval_status, inserts a
    * version_reviews history row (the array-of-latest-reviewer columns on
-   * `versions` can't represent history — this table can), and best-effort
-   * logs to the team audit log. Centralized here so the three transition
+   * `versions` can't represent history — this table can), best-effort logs
+   * to the team audit log, and best-effort notifies whoever cares: the
+   * uploader on a decision (approved/changes_requested), every reviewer on
+   * a new submission (in_review). Centralized here so the three transition
    * routes below can't drift on this bookkeeping. */
   async function recordTransition(
     supabase: SupabaseClient,
     params: {
       projectId: string;
       versionId: string;
+      versionNumber: number;
+      uploadedByUserId: string | null;
       actorUserId: string;
       teamId: string | null;
       fromStatus: string;
@@ -402,6 +423,22 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         action: params.auditAction,
         summary: `${params.auditVerb} of ${project?.name ?? "Unknown project"}${params.reason ? `: ${params.reason}` : ""}`,
       });
+
+      const recipientUserIds =
+        params.toStatus === "in_review"
+          ? await getReviewerUserIds(supabase, params.projectId, params.teamId)
+          : params.uploadedByUserId
+            ? [params.uploadedByUserId]
+            : [];
+      if (recipientUserIds.length > 0) {
+        await notifyVersionStateChanged(supabase, app.log, {
+          recipientUserIds,
+          actorUserId: params.actorUserId,
+          projectId: params.projectId,
+          versionId: params.versionId,
+          summary: `${params.auditVerb} (v${params.versionNumber})`,
+        });
+      }
     }
   }
 
@@ -461,6 +498,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         await recordTransition(supabase, {
           projectId,
           versionId,
+          versionNumber: currentRow.version_number,
+          uploadedByUserId: null,
           actorUserId: request.userId!,
           teamId: access.teamId,
           fromStatus: "draft",
@@ -599,6 +638,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         await recordTransition(supabase, {
           projectId,
           versionId,
+          versionNumber: (row as VersionRow).version_number,
+          uploadedByUserId: (row as VersionRow).uploaded_by_user_id,
           actorUserId: request.userId!,
           teamId: access.teamId,
           fromStatus,
@@ -683,6 +724,8 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       await recordTransition(supabase, {
         projectId,
         versionId,
+        versionNumber: (row as VersionRow).version_number,
+        uploadedByUserId: (row as VersionRow).uploaded_by_user_id,
         actorUserId: request.userId!,
         teamId: access.teamId,
         fromStatus,

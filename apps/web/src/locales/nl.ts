@@ -140,6 +140,12 @@ const nl: TranslationResource = {
     blocksApproveTooltip: "Alle goedkeuringscontroles moeten zijn afgevinkt voordat deze versie kan worden goedgekeurd",
     gateCount: "{{satisfied}}/{{total}} controles",
   },
+  notifications: {
+    title: "Meldingen",
+    markAllRead: "Alles als gelezen markeren",
+    loading: "Bezig met laden…",
+    empty: "Nog geen meldingen.",
+  },
   viewer: {
     measureDistanceTooltip: "Afstand tussen twee punten meten",
     clearDistanceTooltip: "Klik om deze afstandsmeting te wissen",
