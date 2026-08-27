@@ -27,7 +27,7 @@ alter table versions alter column approval_status set default 'in_review';
 
 create table version_reviews (
   id uuid primary key default gen_random_uuid(),
-  version_id uuid not null references versions(id) on delete cascade,
+  version_id text not null references versions(id) on delete cascade, -- versions.id is a ULID, stored as text
   actor_user_id uuid references auth.users(id) on delete set null,
   from_status text not null,
   to_status text not null check (to_status in ('draft', 'in_review', 'changes_requested', 'approved', 'superseded')),
