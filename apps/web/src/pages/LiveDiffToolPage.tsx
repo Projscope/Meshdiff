@@ -8,6 +8,7 @@ import DiffView, { type DiffViewHandle, type DiffMode, type DiffAlignment } from
 import MeasureViewer, { type MeasureViewerHandle } from "../components/MeasureViewer";
 import ShareModal, { type ExpiresInDays } from "../components/ShareModal";
 import ShareErrorModal from "../components/ShareErrorModal";
+import FeedbackModal from "../components/FeedbackModal";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
 import { WAITLIST_ENDPOINT, SHARE_CREATE_ENDPOINT, shareGetEndpoint } from "../lib/api";
 import { useAuth } from "../lib/AuthProvider";
@@ -90,6 +91,7 @@ export default function LiveDiffToolPage({
   const { user } = useAuth();
   const [isProOrTeam, setIsProOrTeam] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isShareSubmitting, setIsShareSubmitting] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -672,30 +674,40 @@ export default function LiveDiffToolPage({
                   </button>
                 )}
               </div>
-              {activeTool === "compare" && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={!fileA || !fileB}
-                    onClick={() => {
-                      setShareUrl(null);
-                      setShareError(null);
-                      setIsShareModalOpen(true);
-                    }}
-                    className="rounded border border-ink-700 px-3 py-1.5 text-ink-200 hover:border-ink-500 disabled:cursor-not-allowed disabled:text-ink-600"
-                  >
-                    Share This Diff
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!stats}
-                    onClick={handleDownloadReport}
-                    className="rounded bg-accent-500 px-3 py-1.5 font-medium text-chrome-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-ink-800 disabled:text-ink-600"
-                  >
-                    Download Report
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {activeTool === "compare" && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={!fileA || !fileB}
+                      onClick={() => {
+                        setShareUrl(null);
+                        setShareError(null);
+                        setIsShareModalOpen(true);
+                      }}
+                      className="rounded border border-ink-700 px-3 py-1.5 text-ink-200 hover:border-ink-500 disabled:cursor-not-allowed disabled:text-ink-600"
+                    >
+                      Share This Diff
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!stats}
+                      onClick={handleDownloadReport}
+                      className="rounded bg-accent-500 px-3 py-1.5 font-medium text-chrome-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-ink-800 disabled:text-ink-600"
+                    >
+                      Download Report
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsFeedbackModalOpen(true)}
+                  className="relative rounded border border-accent-500/40 bg-accent-500/10 px-3 py-1.5 text-accent-300 hover:border-accent-400"
+                >
+                  <span className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full bg-accent-400" />
+                  💬 Add Feedback
+                </button>
+              </div>
             </div>
 
             {/* Privacy Banner */}
@@ -855,6 +867,8 @@ export default function LiveDiffToolPage({
           shareUrl={shareUrl}
         />
       )}
+
+      {isFeedbackModalOpen && <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />}
     </div>
   );
 }

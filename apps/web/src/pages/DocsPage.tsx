@@ -82,6 +82,36 @@ export default function DocsPage() {
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
+      <div className="mb-12">
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-500">Guides</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Link
+            to="/docs/managing-team-members"
+            className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900 px-4 py-3 text-sm font-medium text-ink-200 transition hover:border-ink-700 hover:text-ink-50"
+          >
+            Managing Team Members
+          </Link>
+          <Link
+            to="/docs/comments-and-mentions"
+            className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900 px-4 py-3 text-sm font-medium text-ink-200 transition hover:border-ink-700 hover:text-ink-50"
+          >
+            Comments and Mentions
+          </Link>
+          <Link
+            to="/docs/version-review-workflow"
+            className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900 px-4 py-3 text-sm font-medium text-ink-200 transition hover:border-ink-700 hover:text-ink-50"
+          >
+            Version Review Workflow
+          </Link>
+          <Link
+            to="/docs/approval-gates"
+            className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900 px-4 py-3 text-sm font-medium text-ink-200 transition hover:border-ink-700 hover:text-ink-50"
+          >
+            Approval Gates
+          </Link>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-10">
         {FAQS.map((faq) => (
           <div key={faq.q}>

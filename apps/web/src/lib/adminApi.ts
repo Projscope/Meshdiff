@@ -63,6 +63,8 @@ export function getAdminDashboard(granularity: SignupGranularity = "week"): Prom
   return request(`/admin/stats?granularity=${granularity}`);
 }
 
+export type AnalyticsGranularity = "day" | "week" | "month";
+
 export interface AnalyticsTrendPoint {
   date: string;
   pageviews: number;
@@ -86,15 +88,21 @@ export interface AnalyticsSummary {
   topCountries: AnalyticsBreakdownEntry[];
   topLanguages: AnalyticsBreakdownEntry[];
   topReferrers: AnalyticsBreakdownEntry[];
+  topDevices: AnalyticsBreakdownEntry[];
 }
 
 /** Self-hosted, cookie-less pageview analytics — see
  * netlify/functions/track.mts (write side) and CLAUDE.md/the analytics
  * plan. `from`/`to` are YYYY-MM-DD; defaults to the last 30 days. */
-export function getAdminAnalytics(from?: string, to?: string): Promise<Result<AnalyticsSummary>> {
+export function getAdminAnalytics(
+  from?: string,
+  to?: string,
+  granularity?: AnalyticsGranularity,
+): Promise<Result<AnalyticsSummary>> {
   const params = new URLSearchParams();
   if (from) params.set("from", from);
   if (to) params.set("to", to);
+  if (granularity) params.set("granularity", granularity);
   const query = params.toString();
   return request(`/admin/analytics${query ? `?${query}` : ""}`);
 }

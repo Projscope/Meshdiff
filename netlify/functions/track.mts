@@ -48,6 +48,18 @@ function referrerHost(referrer: string | undefined, ownOrigin: string): string {
  * same page, but without this they'd land as two separate Top Pages rows
  * depending on how the link was typed/clicked. The root path is the one
  * exception: "/" has no non-slash form to normalize to. */
+/** Coarse mobile/tablet/desktop classification from the User-Agent header
+ * alone — the same simplified heuristic privacy-friendly analytics tools
+ * commonly use, not full device/browser fingerprinting. iPadOS 13+ reports
+ * as a desktop Mac UA and can't be reliably told apart from one server-side
+ * without a client-side touch-support hint, so it's counted as desktop —
+ * an accepted limitation rather than added client-side complexity. */
+function classifyDevice(userAgent: string): string {
+  if (/iPad|Android(?!.*Mobile)|Tablet|Silk/i.test(userAgent)) return "tablet";
+  if (/Mobi|iPhone|iPod|Android.*Mobile|Windows Phone/i.test(userAgent)) return "mobile";
+  return "desktop";
+}
+
 function cleanPath(path: string | undefined): string {
   if (!path) return "/";
   const withoutQuery = path.split("?")[0]!.split("#")[0]!;
@@ -97,6 +109,7 @@ export default async function track(req: Request, context: NetlifyContext): Prom
   const ip = context.ip ?? "unknown";
   const userAgent = req.headers.get("user-agent") ?? "unknown";
   const visitorHash = createHash("sha256").update(`${ip}|${userAgent}|${day}|${salt}`).digest("hex");
+  const device = classifyDevice(userAgent);
 
   try {
     const { data: inserted, error: dedupeError } = await supabase
@@ -117,6 +130,7 @@ export default async function track(req: Request, context: NetlifyContext): Prom
       ["country", country],
       ["language", language],
       ["referrer", referrer],
+      ["device", device],
     ];
 
     for (const [dimensionType, dimensionValue] of dimensions) {
