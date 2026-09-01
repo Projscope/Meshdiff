@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import LoadingCube from "./LoadingCube";
+import FloatingFeedbackButton from "./FloatingFeedbackButton";
 import { useTrackPageview } from "../hooks/useTrackPageview";
 
 export default function RootLayout() {
@@ -60,6 +61,7 @@ export default function RootLayout() {
         </Suspense>
       </div>
       {!isDashboard && <SiteFooter />}
+      <FloatingFeedbackButton />
     </div>
   );
 }

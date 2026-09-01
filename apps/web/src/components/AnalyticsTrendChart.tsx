@@ -1,14 +1,17 @@
-import type { AnalyticsTrendPoint } from "../lib/adminApi";
+import type { AnalyticsGranularity, AnalyticsTrendPoint } from "../lib/adminApi";
 
 const WIDTH = 640;
 const HEIGHT = 160;
 const PADDING_TOP = 16;
 const PADDING_BOTTOM = 20;
 
-function formatDateLabel(iso: string): string {
+function formatDateLabel(iso: string, granularity: AnalyticsGranularity): string {
   // "day" is a UTC-midnight date string ("2026-08-01") — format in UTC too,
   // same reasoning as SignupsChart.tsx's formatPeriodLabel (a behind-UTC
   // timezone would otherwise roll it back a day).
+  if (granularity === "month") {
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", year: "numeric", timeZone: "UTC" });
+  }
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
@@ -20,7 +23,13 @@ function formatDateLabel(iso: string): string {
  * won't have a row in the data at all (see analyticsStats.ts), so gaps are
  * filled with zero-height bars/points here rather than skipped, keeping
  * the x-axis evenly spaced by calendar day. */
-export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPoint[] }) {
+export default function AnalyticsTrendChart({
+  trend,
+  granularity = "day",
+}: {
+  trend: AnalyticsTrendPoint[];
+  granularity?: AnalyticsGranularity;
+}) {
   const max = Math.max(1, ...trend.map((point) => point.pageviews));
   const top = PADDING_TOP;
   const bottom = HEIGHT - PADDING_BOTTOM;
@@ -58,7 +67,7 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
         const y = bottom - barHeight;
         return (
           <g key={point.date}>
-            <title>{`${formatDateLabel(point.date)}: ${point.pageviews.toLocaleString()} pageviews, ${point.visitors.toLocaleString()} unique visitors`}</title>
+            <title>{`${formatDateLabel(point.date, granularity)}: ${point.pageviews.toLocaleString()} pageviews, ${point.visitors.toLocaleString()} unique visitors`}</title>
             <rect
               x={x + barWidth * 0.15}
               y={y}
@@ -73,7 +82,7 @@ export default function AnalyticsTrendChart({ trend }: { trend: AnalyticsTrendPo
                   {point.pageviews.toLocaleString()}
                 </text>
                 <text x={xFor(i)} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
-                  {formatDateLabel(point.date)}
+                  {formatDateLabel(point.date, granularity)}
                 </text>
               </>
             )}

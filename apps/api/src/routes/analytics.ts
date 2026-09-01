@@ -2,11 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
-import { getAnalyticsSummary } from "../lib/analyticsStats.js";
+import { getAnalyticsSummary, type AnalyticsGranularity } from "../lib/analyticsStats.js";
 
 interface AnalyticsQuery {
   from?: string;
   to?: string;
+  granularity?: string;
 }
 
 function isoDate(date: Date): string {
@@ -29,9 +30,13 @@ export default async function analyticsRoute(app: FastifyInstance): Promise<void
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const from = request.query.from ?? isoDate(thirtyDaysAgo);
       const to = request.query.to ?? isoDate(now);
+      const granularity: AnalyticsGranularity =
+        request.query.granularity === "week" || request.query.granularity === "month"
+          ? request.query.granularity
+          : "day";
 
       try {
-        const result = await getAnalyticsSummary(supabase, from, to);
+        const result = await getAnalyticsSummary(supabase, from, to, granularity);
         if (!result.success) {
           app.log.error("Failed to compute analytics summary: " + result.error);
           reply.code(502);

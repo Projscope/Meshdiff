@@ -12,6 +12,10 @@ import ObjDiffPage from "./pages/ObjDiffPage";
 import VersionControlPage from "./pages/VersionControlPage";
 import VsManualComparisonPage from "./pages/VsManualComparisonPage";
 import DocsPage from "./pages/DocsPage";
+import ManagingTeamMembersPage from "./pages/ManagingTeamMembersPage";
+import CommentsAndMentionsPage from "./pages/CommentsAndMentionsPage";
+import VersionReviewWorkflowPage from "./pages/VersionReviewWorkflowPage";
+import ApprovalGatesPage from "./pages/ApprovalGatesPage";
 import PricingPage from "./pages/PricingPage";
 import BlogIndexPage from "./pages/BlogIndexPage";
 import BlogPostPage from "./pages/BlogPostPage";
@@ -21,6 +25,7 @@ import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
 import AdminBlogPage from "./pages/AdminBlogPage";
 import AdminBlogEditorPage from "./pages/AdminBlogEditorPage";
+import AdminFeedbackPage from "./pages/AdminFeedbackPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
 import RootLayout from "./components/RootLayout";
@@ -75,6 +80,10 @@ export const router = createBrowserRouter([
       { path: "/3d-print-version-control", element: <VersionControlPage /> },
       { path: "/vs-manual-comparison", element: <VsManualComparisonPage /> },
       { path: "/docs", element: <DocsPage /> },
+      { path: "/docs/managing-team-members", element: <ManagingTeamMembersPage /> },
+      { path: "/docs/comments-and-mentions", element: <CommentsAndMentionsPage /> },
+      { path: "/docs/version-review-workflow", element: <VersionReviewWorkflowPage /> },
+      { path: "/docs/approval-gates", element: <ApprovalGatesPage /> },
       { path: "/pricing", element: <PricingPage /> },
       { path: "/blog", element: <BlogIndexPage /> },
       { path: "/blog/:slug", element: <BlogPostPage /> },
@@ -180,6 +189,16 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ProjectsLayout>
               <AdminBlogEditorPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin/feedback",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <AdminFeedbackPage />
             </ProjectsLayout>
           </ProtectedRoute>
         ),

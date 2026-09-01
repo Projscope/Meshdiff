@@ -511,6 +511,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     >
                       Blog
                     </Link>
+                    <Link
+                      to="/admin/feedback"
+                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                    >
+                      Feedback
+                    </Link>
                   </div>
                 </div>
                 )}

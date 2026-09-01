@@ -1,8 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export type AnalyticsGranularity = "day" | "week" | "month";
+
 export interface AnalyticsTrendPoint {
   date: string;
   pageviews: number;
+  /** For "day" granularity this is a true daily unique count. For "week"/
+   * "month" it's a SUM of daily uniques across the bucket's days, which
+   * double-counts a visitor active on more than one day within it — the
+   * same "only correct per individual day" caveat the per-day rollup
+   * already carries (see totalUniqueVisitors below), just extended across
+   * more days. A true period-unique count per bucket would need one
+   * count_distinct_visitors call per bucket; not worth it for a trend
+   * chart where the shape matters more than exactness. */
   visitors: number;
 }
 
@@ -26,6 +36,7 @@ export interface AnalyticsSummary {
   topCountries: AnalyticsBreakdownEntry[];
   topLanguages: AnalyticsBreakdownEntry[];
   topReferrers: AnalyticsBreakdownEntry[];
+  topDevices: AnalyticsBreakdownEntry[];
 }
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -38,6 +49,45 @@ const TOP_N = 50;
 
 function todayUTC(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+// Same Monday-start-week/1st-of-month convention as adminStats.ts's
+// getSignupBuckets() — kept as its own small copy here rather than shared,
+// since each stats module is otherwise self-contained.
+function startOfWeekUTC(date: Date): Date {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay(); // 0=Sun..6=Sat
+  const diff = (day === 0 ? -6 : 1) - day; // shift back to Monday
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d;
+}
+
+function startOfMonthUTC(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+/** Re-buckets a daily trend into weekly or monthly points by summing each
+ * bucket's days — a no-op for "day". Buckets are keyed by their period
+ * start and returned oldest-first, same ordering the daily rows already
+ * come in. */
+function bucketTrend(daily: AnalyticsTrendPoint[], granularity: AnalyticsGranularity): AnalyticsTrendPoint[] {
+  if (granularity === "day") return daily;
+  const startOfPeriod = granularity === "week" ? startOfWeekUTC : startOfMonthUTC;
+
+  const bucketByKey = new Map<string, AnalyticsTrendPoint>();
+  const order: string[] = [];
+  for (const point of daily) {
+    const key = startOfPeriod(new Date(`${point.date}T00:00:00Z`)).toISOString().slice(0, 10);
+    let bucket = bucketByKey.get(key);
+    if (!bucket) {
+      bucket = { date: key, pageviews: 0, visitors: 0 };
+      bucketByKey.set(key, bucket);
+      order.push(key);
+    }
+    bucket.pageviews += point.pageviews;
+    bucket.visitors += point.visitors;
+  }
+  return order.map((key) => bucketByKey.get(key)!);
 }
 
 async function topBreakdown(
@@ -112,23 +162,26 @@ export async function getAnalyticsSummary(
   supabase: SupabaseClient,
   from: string,
   to: string,
+  granularity: AnalyticsGranularity = "day",
 ): Promise<Result<AnalyticsSummary>> {
   const today = todayUTC();
-  const [totalRow, uniqueResult, pagesResult, countriesResult, languagesResult, referrersResult] = await Promise.all([
-    supabase
-      .from("analytics_daily_rollup")
-      .select("day, pageview_count, visitor_count")
-      .eq("dimension_type", "total")
-      .eq("dimension_value", "total")
-      .gte("day", from)
-      .lte("day", to)
-      .order("day", { ascending: true }),
-    supabase.rpc("count_distinct_visitors", { p_from: from, p_to: to }),
-    topBreakdown(supabase, "page", from, to, today),
-    topBreakdown(supabase, "country", from, to, today),
-    topBreakdown(supabase, "language", from, to, today),
-    topBreakdown(supabase, "referrer", from, to, today),
-  ]);
+  const [totalRow, uniqueResult, pagesResult, countriesResult, languagesResult, referrersResult, devicesResult] =
+    await Promise.all([
+      supabase
+        .from("analytics_daily_rollup")
+        .select("day, pageview_count, visitor_count")
+        .eq("dimension_type", "total")
+        .eq("dimension_value", "total")
+        .gte("day", from)
+        .lte("day", to)
+        .order("day", { ascending: true }),
+      supabase.rpc("count_distinct_visitors", { p_from: from, p_to: to }),
+      topBreakdown(supabase, "page", from, to, today),
+      topBreakdown(supabase, "country", from, to, today),
+      topBreakdown(supabase, "language", from, to, today),
+      topBreakdown(supabase, "referrer", from, to, today),
+      topBreakdown(supabase, "device", from, to, today),
+    ]);
 
   if (totalRow.error) return { success: false, error: totalRow.error.message };
   if (uniqueResult.error) return { success: false, error: uniqueResult.error.message };
@@ -136,13 +189,18 @@ export async function getAnalyticsSummary(
   if (!countriesResult.success) return countriesResult;
   if (!languagesResult.success) return languagesResult;
   if (!referrersResult.success) return referrersResult;
+  if (!devicesResult.success) return devicesResult;
 
-  const dailyTrend: AnalyticsTrendPoint[] = (
+  // Kept at daily granularity for the totals/today stat cards below
+  // regardless of what the chart is bucketed to — "today" shouldn't change
+  // meaning just because the trend chart is showing months.
+  const dailyPoints: AnalyticsTrendPoint[] = (
     totalRow.data as Array<{ day: string; pageview_count: number; visitor_count: number }>
   ).map((row) => ({ date: row.day, pageviews: row.pageview_count, visitors: row.visitor_count }));
 
-  const totalPageviews = dailyTrend.reduce((sum, point) => sum + point.pageviews, 0);
-  const todayPoint = dailyTrend.find((point) => point.date === today);
+  const totalPageviews = dailyPoints.reduce((sum, point) => sum + point.pageviews, 0);
+  const todayPoint = dailyPoints.find((point) => point.date === today);
+  const dailyTrend = bucketTrend(dailyPoints, granularity);
 
   return {
     success: true,
@@ -156,6 +214,7 @@ export async function getAnalyticsSummary(
       topCountries: countriesResult.data,
       topLanguages: languagesResult.data,
       topReferrers: referrersResult.data,
+      topDevices: devicesResult.data,
     },
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAdminAnalytics, type AnalyticsSummary } from "../lib/adminApi";
+import { getAdminAnalytics, type AnalyticsGranularity, type AnalyticsSummary } from "../lib/adminApi";
 import AnalyticsStatsGrid from "../components/AnalyticsStatsGrid";
 import AnalyticsTrendChart from "../components/AnalyticsTrendChart";
 import AnalyticsRankedList from "../components/AnalyticsRankedList";
@@ -9,6 +9,10 @@ type RangePreset = "30d" | "6m";
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function rangeFor(preset: RangePreset): { from: string; to: string } {
@@ -21,8 +25,15 @@ function rangeFor(preset: RangePreset): { from: string; to: string } {
  * Analytics for now (see apps/web/src/lib/analytics.ts), not a replacement
  * yet. A separate page from AdminDashboardPage.tsx on purpose, to keep
  * that one focused on user/subscription stats. */
+const GRANULARITIES: Array<{ id: AnalyticsGranularity; label: string }> = [
+  { id: "day", label: "Days" },
+  { id: "week", label: "Weeks" },
+  { id: "month", label: "Months" },
+];
+
 export default function AdminAnalyticsPage() {
   const [preset, setPreset] = useState<RangePreset>("30d");
+  const [granularity, setGranularity] = useState<AnalyticsGranularity>("day");
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,21 +41,21 @@ export default function AdminAnalyticsPage() {
     setData(null);
     setError(null);
     const { from, to } = rangeFor(preset);
-    getAdminAnalytics(from, to).then((result) => {
+    getAdminAnalytics(from, to, granularity).then((result) => {
       if (result.success) {
         setData(result.data);
       } else {
         setError(result.error);
       }
     });
-  }, [preset]);
+  }, [preset, granularity]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink-50">Analytics</h1>
-          <p className="mt-1 text-sm text-ink-400">Visitors, pages, countries, languages, and referrers</p>
+          <p className="mt-1 text-sm text-ink-400">Visitors, pages, countries, languages, referrers, and devices</p>
         </div>
         <div className="flex overflow-hidden rounded border border-ink-700 text-xs">
           <button
@@ -78,7 +89,23 @@ export default function AdminAnalyticsPage() {
 
           <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Traffic</p>
+              <div className="flex items-center gap-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Traffic</p>
+                <div className="flex overflow-hidden rounded border border-ink-700 text-[10px]">
+                  {GRANULARITIES.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setGranularity(option.id)}
+                      className={`px-2 py-1 ${
+                        granularity === option.id ? "bg-accent-500 text-chrome-950" : "text-ink-400 hover:bg-ink-800"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-3 text-[10px] text-ink-500">
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-2.5 w-2.5 rounded-sm bg-accent-500/70" />
@@ -98,7 +125,7 @@ export default function AdminAnalyticsPage() {
               </div>
             </div>
             <div className="mt-3">
-              <AnalyticsTrendChart trend={data.dailyTrend} />
+              <AnalyticsTrendChart trend={data.dailyTrend} granularity={granularity} />
             </div>
           </div>
 
@@ -107,6 +134,7 @@ export default function AdminAnalyticsPage() {
             <AnalyticsRankedList title="Top Countries" entries={data.topCountries} formatValue={countryName} />
             <AnalyticsRankedList title="Top Languages" entries={data.topLanguages} formatValue={languageName} />
             <AnalyticsRankedList title="Top Referrers" entries={data.topReferrers} />
+            <AnalyticsRankedList title="Devices" entries={data.topDevices} formatValue={capitalize} />
           </div>
         </>
       )}
