@@ -13,6 +13,11 @@ export default function RoadmapPage() {
   const roadmapItems = {
     planned: [
       {
+        icon: "📧",
+        title: "Email notifications for reviews and mentions",
+        description: "Get notified by email when you're mentioned, assigned a comment, or a version needs your review — not just in-app, so nothing gets missed when you're away from the dashboard.",
+      },
+      {
         icon: "🔐",
         title: "Forgot password & OAuth",
         description: "Self-serve password reset and login with Google OAuth for simpler account recovery and authentication.",
