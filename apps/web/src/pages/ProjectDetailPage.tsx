@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   getProject,
   getVersion,
@@ -20,6 +21,8 @@ import {
 } from "../lib/projectsApi";
 import { uploadVersion } from "../lib/uploadVersion";
 import ApprovalBadge, { APPROVAL_DOT_COLOR } from "../components/ApprovalBadge";
+import VersionActionButtons from "../components/VersionActionButtons";
+import ApprovalGateChecklist from "../components/ApprovalGateChecklist";
 import { useDiffColors } from "../lib/diffPalette";
 import ConfirmDialog from "../components/ConfirmDialog";
 import EditProjectModal from "../components/EditProjectModal";
@@ -73,7 +76,7 @@ function timeAgo(iso: string): string {
 
 function StatCard({ label, value, accent }: { label: string; value: React.ReactNode; accent?: "amber" }) {
   return (
-    <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+    <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
       <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-400" : "text-ink-50"}`}>
         {value}
@@ -83,6 +86,7 @@ function StatCard({ label, value, accent }: { label: string; value: React.ReactN
 }
 
 export default function ProjectDetailPage() {
+  const { t } = useTranslation();
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { isPro } = useAccountStatus();
@@ -343,11 +347,11 @@ export default function ProjectDetailPage() {
   }
 
   // Only a team admin/approver (or the owner, who can always review — see
-  // canReviewVersions() server-side) sees approve/reject controls, and
-  // only on Team projects; Pro projects auto-approve on upload so there's
-  // never anything pending to review there. 'approver' is an "upgraded
-  // member" — reviews only, no other admin-gated capability.
-  const canReview =
+  // canTransitionVersionState() server-side) sees approve/request-changes
+  // controls, and only on Team projects; Pro projects auto-approve on
+  // upload so there's never anything to review there. 'approver' is an
+  // "upgraded member" — reviews only, no other admin-gated capability.
+  const canTransitionVersionState =
     !!project?.teamId &&
     (project.myRole === "owner" || project.myRole === "admin" || project.myRole === "approver");
 
@@ -359,8 +363,8 @@ export default function ProjectDetailPage() {
     return pool.length > 0 ? pool[pool.length - 1].id : null;
   })();
 
-  const openReviews = versions.filter((v) => v.approvalStatus === "pending").length;
-  const decided = versions.filter((v) => v.versionNumber > 1 && v.approvalStatus !== "pending").length;
+  const openReviews = versions.filter((v) => v.approvalStatus === "in_review").length;
+  const decided = versions.filter((v) => v.versionNumber > 1 && v.approvalStatus !== "in_review" && v.approvalStatus !== "draft").length;
   const approved = versions.filter((v) => v.versionNumber > 1 && v.approvalStatus === "approved").length;
   const approvalRate = decided === 0 ? null : Math.round((approved / decided) * 100);
 
@@ -373,7 +377,15 @@ export default function ProjectDetailPage() {
   // printability and volume change instead, which is actually actionable.
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
   const latestVolumeDeltaPercent = comparisons.length > 0 ? comparisons[comparisons.length - 1].volumeDeltaPercent : null;
-  const PRINTABILITY_LABEL: Record<"pass" | "warn" | "fail", string> = { pass: "Pass", warn: "Warning", fail: "Fail" };
+  // Across every version, not just the latest — comments exist on Pro
+  // projects too, so this isn't gated behind isTeam like Open Reviews/
+  // Approval Rate above.
+  const totalUnresolvedComments = versions.reduce((sum, v) => sum + v.unresolvedCommentCount, 0);
+  const PRINTABILITY_LABEL: Record<"pass" | "warn" | "fail", string> = {
+    pass: t("projectDetail.printabilityPass"),
+    warn: t("projectDetail.printabilityWarn"),
+    fail: t("projectDetail.printabilityFail"),
+  };
   const PRINTABILITY_COLOR: Record<"pass" | "warn" | "fail", string> = {
     pass: "text-accent-400",
     warn: "text-amber-400",
@@ -382,7 +394,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div
-      className="mx-auto max-w-5xl px-6 py-8"
+      className="px-6 py-8"
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragOver(true);
@@ -402,11 +414,11 @@ export default function ProjectDetailPage() {
         }}
       />
 
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <p className="text-xs text-ink-500">
             <Link to="/projects" className="hover:text-ink-300">
-              Projects
+              {t("projectDetail.breadcrumbProjects")}
             </Link>
             {project && <> / {project.name}</>}
           </p>
@@ -416,7 +428,7 @@ export default function ProjectDetailPage() {
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(true)}
-                title="Edit project name and description"
+                title={t("projectDetail.editProjectTooltip")}
                 className="shrink-0 rounded p-1 text-ink-500 hover:bg-ink-800 hover:text-ink-200"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
@@ -428,16 +440,16 @@ export default function ProjectDetailPage() {
           </div>
           {project?.description && <p className="mt-1 text-sm text-ink-400">{project.description}</p>}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
           {project?.myRole === "owner" && myTeams.length > 0 && (
             <select
               value={project.teamId ?? ""}
               disabled={isChangingTeam}
               onChange={(event) => void handleChangeTeam(event.target.value || null)}
-              title="Move this project into a team, or keep it personal"
+              title={t("projectDetail.teamSelectTooltip")}
               className="rounded border border-ink-700 bg-ink-950 px-2 py-2 text-xs text-ink-300 disabled:opacity-50"
             >
-              <option value="">Personal</option>
+              <option value="">{t("projectDetail.personalOption")}</option>
               {myTeams.map((team) => (
                 <option key={team.id} value={team.id}>
                   {team.name}
@@ -451,26 +463,26 @@ export default function ProjectDetailPage() {
               onClick={() => void handleShare()}
               className="flex items-center gap-1.5 rounded border border-ink-700 px-3 py-2 text-xs font-medium text-ink-200 hover:border-ink-500"
             >
-              🔗 {shareCopied ? "Copied!" : "Share Project"}
+              🔗 {shareCopied ? t("projectDetail.shareCopied") : t("projectDetail.shareProject")}
             </button>
           )}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || !isPro}
-            title={!isPro ? "Upgrade to Pro to upload new versions" : ""}
+            title={!isPro ? t("projectDetail.uploadUpgradeTooltip") : ""}
             className="flex items-center gap-2 rounded bg-accent-500 px-3 py-2 text-xs font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
           >
-            {isUploading ? "Uploading" : "Upload"}
+            {isUploading ? t("projectDetail.uploading") : t("projectDetail.upload")}
           </button>
           {project && (project.myRole === "owner" || project.myRole === "admin") && (
             <button
               type="button"
               onClick={() => setIsDeleteProjectOpen(true)}
-              title="Delete this project"
+              title={t("projectDetail.deleteProjectTooltip")}
               className="rounded border border-ink-700 px-3 py-2 text-xs font-medium text-red-400 hover:border-red-500/60 hover:bg-red-500/10"
             >
-              Delete
+              {t("common.delete")}
             </button>
           )}
         </div>
@@ -478,7 +490,7 @@ export default function ProjectDetailPage() {
 
       {isDragOver && (
         <div className="mt-4 rounded-lg border-2 border-dashed border-accent-500 bg-accent-500/5 py-4 text-center text-sm text-accent-300">
-          Drop STL, 3MF, or OBJ to upload a new version
+          {t("projectDetail.dropToUpload")}
         </div>
       )}
 
@@ -488,7 +500,7 @@ export default function ProjectDetailPage() {
           <button
             type="button"
             onClick={() => setError(null)}
-            aria-label="Dismiss error"
+            aria-label={t("projectDetail.dismissError")}
             className="shrink-0 text-red-400 hover:text-red-200"
           >
             ✕
@@ -496,14 +508,18 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className="mt-6 flex gap-6 rounded-lg border border-ink-800 bg-ink-900 p-6">
+      <div
+        className={`mt-6 grid gap-6 rounded-lg border border-ink-800 bg-ink-900 p-6 ${
+          project?.thumbnailUrl ? "lg:grid-cols-[280px_1fr]" : "grid-cols-1"
+        }`}
+      >
         {project?.thumbnailUrl && (
           <div className="shrink-0">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Latest Model</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.latestModel")}</p>
             <img
               src={project.thumbnailUrl}
               alt={project.name}
-              className="mt-3 h-64 w-64 rounded bg-ink-950 object-contain"
+              className="mt-3 aspect-square w-full rounded bg-ink-950 object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
@@ -511,13 +527,13 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        <div className="flex-1 space-y-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {isTeam ? (
           <>
-            <StatCard label="Comparisons" value={Math.max(0, versions.length - 1)} />
-            <StatCard label="Open Reviews" value={openReviews} accent={openReviews > 0 ? "amber" : undefined} />
-            <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Approval Rate</p>
+            <StatCard label={t("projectDetail.comparisons")} value={Math.max(0, versions.length - 1)} />
+            <StatCard label={t("projectDetail.openReviews")} value={openReviews} accent={openReviews > 0 ? "amber" : undefined} />
+            <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.approvalRate")}</p>
               <p className="mt-1.5 text-2xl font-bold text-accent-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
               {approvalRate !== null && (
                 <div className="mt-2 h-1 overflow-hidden rounded-full bg-ink-800">
@@ -528,9 +544,9 @@ export default function ProjectDetailPage() {
           </>
         ) : (
           <>
-            <PrintabilityRulesTooltip className="block">
-              <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Last Model Printability</p>
+            <PrintabilityRulesTooltip className="block h-full">
+              <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.lastModelPrintability")}</p>
                 <p
                   className={`mt-1.5 text-2xl font-bold ${
                     latestVersion?.printabilityStatus ? PRINTABILITY_COLOR[latestVersion.printabilityStatus] : "text-ink-500"
@@ -541,7 +557,7 @@ export default function ProjectDetailPage() {
               </div>
             </PrintabilityRulesTooltip>
             <StatCard
-              label="Latest Volume Δ"
+              label={t("projectDetail.latestVolumeDelta")}
               value={
                 latestVolumeDeltaPercent === null
                   ? "—"
@@ -550,19 +566,33 @@ export default function ProjectDetailPage() {
             />
           </>
         )}
-        <StatCard label="Versions" value={versions.length} />
+        <StatCard
+          label={t("projectDetail.unresolvedComments")}
+          value={totalUnresolvedComments}
+          accent={totalUnresolvedComments > 0 ? "amber" : undefined}
+        />
+        <StatCard label={t("projectDetail.versions")} value={versions.length} />
+        {latestVersion?.gateStatus && latestVersion.gateStatus.totalCount > 0 && (
+          <StatCard
+            label={t("projectDetail.latestVersionGates")}
+            value={t("approvalGates.gateCount", {
+              satisfied: latestVersion.gateStatus.satisfiedCount,
+              total: latestVersion.gateStatus.totalCount,
+            })}
+          />
+        )}
         </div>
       </div>
 
       {versions.length === 0 ? (
         <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 px-4 py-10 text-center text-sm text-ink-500">
-          No models yet — drop a file or click "Upload" to get started.
+          {t("projectDetail.noModelsYet")}
         </div>
       ) : (
         <div className="mt-6 overflow-hidden rounded-lg border border-ink-800">
           <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
-            <span>History</span>
-            <span>Updated</span>
+            <span>{t("projectDetail.history")}</span>
+            <span>{t("projectDetail.updated")}</span>
           </div>
 
           {comparisons
@@ -598,17 +628,17 @@ export default function ProjectDetailPage() {
                     <div className={`w-px flex-1 ${isLastRow ? "bg-transparent" : "bg-ink-800"}`} />
                   </div>
 
-                  <div className="flex min-w-0 flex-1 items-center gap-4 py-0.5">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 py-0.5">
+                    <div className="min-w-0 w-full flex-1 sm:w-auto">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-sm font-semibold text-ink-50">
+                        <span className="whitespace-nowrap font-mono text-sm font-semibold text-ink-50">
                           {isSynthetic
                             ? `v${comparison.toVersion.versionNumber}`
                             : `v${comparison.fromVersion!.versionNumber} → v${comparison.toVersion.versionNumber}`}
                         </span>
                         {(printability === "warn" || printability === "fail") && (
                           <span
-                            title={printability === "fail" ? "Printability check failed" : "Printability warning"}
+                            title={printability === "fail" ? t("projectDetail.printabilityCheckFailed") : t("projectDetail.printabilityWarning")}
                             className={printability === "fail" ? "text-red-400" : "text-amber-400"}
                           >
                             {printability === "fail" ? "✕" : "⚠"}
@@ -619,12 +649,12 @@ export default function ProjectDetailPage() {
                         className="block truncate text-xs text-ink-500"
                         title={comparison.toVersion.changeSummary ?? undefined}
                       >
-                        {isSynthetic ? "Initial upload" : comparison.toVersion.changeSummary ?? "Version uploaded"}
+                        {isSynthetic ? t("projectDetail.initialUpload") : comparison.toVersion.changeSummary ?? t("projectDetail.versionUploaded")}
                         {comparison.toVersion.uploaderEmail && ` · ${comparison.toVersion.uploaderEmail}`}
                       </span>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="flex w-full shrink-0 items-center gap-3 sm:w-auto">
                       <div className="text-right">
                         {bar ? (
                           <>
@@ -657,7 +687,7 @@ export default function ProjectDetailPage() {
 
       {versions.length > 1 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs">
-          <span className="font-semibold uppercase tracking-widest text-ink-500">Compare any two</span>
+          <span className="font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.compareAnyTwo")}</span>
           <select
             value={compareAId}
             onChange={(event) => setCompareAId(event.target.value)}
@@ -694,7 +724,7 @@ export default function ProjectDetailPage() {
                 : "cursor-not-allowed bg-ink-800 text-ink-600"
             }`}
           >
-            Compare
+            {t("projectDetail.compare")}
           </Link>
         </div>
       )}
@@ -703,7 +733,7 @@ export default function ProjectDetailPage() {
         <div className="mt-8">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-500">
-              All versions ({versions.length})
+              {t("projectDetail.allVersions", { count: versions.length })}
             </h2>
           </div>
           <div className="mt-3 flex flex-col gap-2">
@@ -715,80 +745,93 @@ export default function ProjectDetailPage() {
                   key={version.id}
                   className="flex flex-col gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-4 py-2.5 text-sm"
                 >
-                <div className="flex items-center gap-3">
-                  <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold text-ink-300">
-                    v{version.versionNumber}
-                  </span>
-                  {version.id === stableVersionId && (
-                    <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400">
-                      Stable
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold text-ink-300">
+                      v{version.versionNumber}
                     </span>
-                  )}
-                  {project?.teamId && version.approvalStatus !== "approved" && (
-                    <ApprovalBadge status={version.approvalStatus} />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-ink-300">{version.fileName}</span>
-                  <span className="shrink-0 text-xs text-ink-500">
-                    {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}
-                  </span>
-                  {/* Both actions stay available after a decision, not just
-                      while pending — the backend has no "final" state, so a
-                      reviewer can change their mind (e.g. un-reject a
-                      version once a fix lands) rather than being stuck with
-                      whatever was clicked first. Only the action that would
-                      actually change the current status is shown. */}
-                  {canReview && version.approvalStatus !== "approved" && (
+                    {version.id === stableVersionId && (
+                      <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400">
+                        {t("projectDetail.stable")}
+                      </span>
+                    )}
+                    {project?.teamId && version.approvalStatus !== "approved" && (
+                      <ApprovalBadge status={version.approvalStatus} />
+                    )}
+                    {version.gateStatus && version.gateStatus.totalCount > 0 && (
+                      <span className="shrink-0 rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
+                        {t("approvalGates.gateCount", {
+                          satisfied: version.gateStatus.satisfiedCount,
+                          total: version.gateStatus.totalCount,
+                        })}
+                      </span>
+                    )}
+                    {version.unresolvedCommentCount > 0 && (
+                      <span
+                        title={t("projectDetail.unresolvedTooltip", { count: version.unresolvedCommentCount })}
+                        className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400"
+                      >
+                        {t("projectDetail.unresolvedCount", { count: version.unresolvedCommentCount })}
+                      </span>
+                    )}
+                    <span className="min-w-0 truncate text-ink-300">{version.fileName}</span>
+                    <span className="shrink-0 text-xs text-ink-500">
+                      {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                    <VersionActionButtons
+                      status={version.approvalStatus}
+                      canTransition={canTransitionVersionState}
+                      onApprove={() => void handleApprove(version.id)}
+                      onRequestChanges={() => setPendingReject({ id: version.id, versionNumber: version.versionNumber })}
+                      gateStatus={version.gateStatus}
+                    />
+                    <Link
+                      to={`/projects/${projectId}/versions/${version.id}`}
+                      className="shrink-0 rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
+                    >
+                      {t("projectDetail.view")}
+                    </Link>
                     <button
                       type="button"
-                      onClick={() => void handleApprove(version.id)}
-                      className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-400 hover:border-accent-500"
+                      onClick={() => void handleDownloadVersion(version.id)}
+                      title={t("projectDetail.downloadVersionTooltip")}
+                      className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-200 hover:border-ink-500"
                     >
-                      Approve
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
                     </button>
-                  )}
-                  {canReview && version.approvalStatus !== "rejected" && (
                     <button
                       type="button"
-                      onClick={() => setPendingReject({ id: version.id, versionNumber: version.versionNumber })}
-                      className="shrink-0 rounded border border-red-800 px-2.5 py-1 text-xs text-red-400 hover:border-red-600"
+                      onClick={() => setPendingDelete({ id: version.id, versionNumber: version.versionNumber })}
+                      title={t("projectDetail.deleteVersionTooltip")}
+                      className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-400 hover:border-red-700 hover:text-red-400"
                     >
-                      Reject
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
                     </button>
-                  )}
-                  <Link
-                    to={`/projects/${projectId}/versions/${version.id}`}
-                    className="shrink-0 rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
-                  >
-                    View
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void handleDownloadVersion(version.id)}
-                    title="Download this version"
-                    className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-200 hover:border-ink-500"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete({ id: version.id, versionNumber: version.versionNumber })}
-                    title="Delete this version"
-                    className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-400 hover:border-red-700 hover:text-red-400"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                  </button>
+                  </div>
                 </div>
-                {version.approvalStatus === "rejected" && version.rejectionReason && (
-                  <p className="pl-1 text-xs text-red-400">Rejected: {version.rejectionReason}</p>
+                {version.approvalStatus === "changes_requested" && version.rejectionReason && (
+                  <p className="pl-1 text-xs text-red-400">
+                    {t("projectDetail.rejectedReason", { reason: version.rejectionReason })}
+                  </p>
+                )}
+                {project?.teamId && version.approvalStatus !== "approved" && version.approvalStatus !== "superseded" && projectId && (
+                  <ApprovalGateChecklist
+                    projectId={projectId}
+                    versionId={version.id}
+                    canConfigure={project.myRole === "owner" || project.myRole === "admin"}
+                    onChanged={() => void refresh()}
+                  />
                 )}
                 </div>
               ))}
@@ -798,9 +841,9 @@ export default function ProjectDetailPage() {
 
       {pendingDelete && (
         <ConfirmDialog
-          title={`Delete v${pendingDelete.versionNumber}?`}
-          message="This can't be undone. Its comments, cached diffs, and uploaded file will be deleted too."
-          confirmLabel="Delete"
+          title={t("projectDetail.deleteVersionTitle", { version: pendingDelete.versionNumber })}
+          message={t("projectDetail.deleteVersionMessage")}
+          confirmLabel={t("common.delete")}
           isDestructive
           isConfirming={isDeleting}
           onConfirm={() => void handleConfirmDelete()}
@@ -833,9 +876,9 @@ export default function ProjectDetailPage() {
 
       {isDeleteProjectOpen && project && (
         <ConfirmDialog
-          title={`Delete "${project.name}"?`}
-          message="This can't be undone. Every version, comment, and cached comparison in this project will be permanently deleted."
-          confirmLabel="Delete Project"
+          title={t("projectDetail.deleteProjectTitle", { name: project.name })}
+          message={t("projectDetail.deleteProjectMessage")}
+          confirmLabel={t("projectDetail.deleteProjectConfirm")}
           isDestructive
           isConfirming={isDeletingProject}
           onConfirm={() => void handleDeleteProject()}
@@ -845,8 +888,8 @@ export default function ProjectDetailPage() {
 
       {isUploading && (
         <LoadingModal
-          title={`Uploading ${uploadingFileName}`}
-          subtitle="Voxelizing mesh and checking printability…"
+          title={t("projectDetail.uploadingTitle", { fileName: uploadingFileName })}
+          subtitle={t("projectDetail.uploadingSubtitle")}
         />
       )}
     </div>

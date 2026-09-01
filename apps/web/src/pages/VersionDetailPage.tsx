@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { Bounds, Line, OrbitControls } from "@react-three/drei";
@@ -7,12 +8,15 @@ import {
   getVersion,
   getDiff,
   getProject,
+  getTeam,
   listComments,
   createComment,
   deleteComment,
+  updateComment,
   type VersionDetail,
   type CommentSummary,
   type ProjectDetail,
+  type CommentPriority,
 } from "../lib/projectsApi";
 import { useAuth } from "../lib/AuthProvider";
 import { useAccountStatus } from "../components/ProjectsLayout";
@@ -137,7 +141,9 @@ function computeUniqueEdges(geometry: THREE.BufferGeometry): Array<[THREE.Vector
 }
 
 export default function VersionDetailPage() {
+  const { t } = useTranslation();
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { isPro } = useAccountStatus();
   const [project, setProject] = useState<ProjectDetail | null>(null);
@@ -169,8 +175,17 @@ export default function VersionDetailPage() {
   const [isMeshLoading, setIsMeshLoading] = useState(true);
 
   const [comments, setComments] = useState<CommentSummary[]>([]);
+  // Empty on a personal (Pro) project — there's no one else to assign a
+  // comment to or @mention (see PendingCommentPopover.tsx/CommentPopover.tsx).
+  const [members, setMembers] = useState<Array<{ userId: string; email: string | null }>>([]);
   const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+  // The exact comment/reply a notification deep-link pointed at — see the
+  // listComments() effect below. Separate from selectedCommentId (which
+  // always resolves to the thread's top-level comment) since this needs to
+  // flag one specific message, possibly a reply, for CommentPopover's
+  // accent-border treatment.
+  const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [pendingDeleteComment, setPendingDeleteComment] = useState<CommentSummary | null>(null);
   const [isDeletingComment, setIsDeletingComment] = useState(false);
   const [isPlacingComment, setIsPlacingComment] = useState(false);
@@ -302,13 +317,55 @@ export default function VersionDetailPage() {
     });
 
     listComments(projectId, versionId).then((result) => {
-      if (!cancelled && result.success) setComments(result.data);
+      if (!cancelled && result.success) {
+        setComments(result.data);
+
+        // Deep link from a notification (mention/comment_assigned) — see
+        // NotificationInbox.tsx's targetPath(). Opens the same pin popover
+        // a manual click would, so "where was I mentioned" is answered by
+        // the popover itself rather than a separate dialog. A reply has no
+        // pin of its own, so land on its parent thread instead.
+        const commentParam = searchParams.get("comment");
+        if (commentParam) {
+          const target = result.data.find((c) => c.id === commentParam);
+          if (target) {
+            setSelectedCommentId(target.parentCommentId ?? target.id);
+            setLinkedCommentId(commentParam);
+          }
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete("comment");
+              return next;
+            },
+            { replace: true },
+          );
+        }
+      }
     });
 
     return () => {
       cancelled = true;
     };
   }, [projectId, versionId]);
+
+  // Assignee/mention picker source — only meaningful on a Team project
+  // (personal Pro projects have no one else to assign to or mention).
+  useEffect(() => {
+    if (!project?.teamId) {
+      setMembers([]);
+      return;
+    }
+    let cancelled = false;
+    getTeam(project.teamId).then((result) => {
+      if (!cancelled && result.success) {
+        setMembers(result.data.members.map((m) => ({ userId: m.userId, email: m.email })));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.teamId]);
 
   // Snaps to the nearest of the clicked triangle's 3 vertices OR the nearest
   // point along any of its 3 edges, whichever is closer to the actual click
@@ -632,13 +689,40 @@ export default function VersionDetailPage() {
     setNearbyEdges([]);
   }
 
-  async function handleSubmitComment(body: string) {
+  async function handleSubmitComment(body: string, assigneeUserId?: string, priority?: CommentPriority) {
     if (!projectId || !versionId || !pendingPosition) return;
-    const result = await createComment(projectId, versionId, body, pendingPosition, pendingNormal);
+    const result = await createComment(
+      projectId,
+      versionId,
+      body,
+      pendingPosition,
+      pendingNormal,
+      undefined,
+      assigneeUserId,
+      priority,
+    );
     if (result.success) {
       setComments((prev) => [...prev, result.data]);
       setPendingPosition(null);
       setPendingNormal(undefined);
+    } else {
+      setError(result.error);
+    }
+  }
+
+  // Author, current assignee, or a moderator — mirrors the API's own
+  // status-change authorization (see comments.ts's PATCH handler).
+  function canChangeCommentStatus(comment: CommentSummary): boolean {
+    const canModerateAny = project?.myRole === "owner" || project?.myRole === "admin";
+    return canModerateAny || comment.authorUserId === user?.id || comment.assigneeUserId === user?.id;
+  }
+
+  async function handleToggleCommentStatus(comment: CommentSummary) {
+    if (!projectId || !versionId) return;
+    const nextStatus = comment.status === "resolved" ? "reopened" : "resolved";
+    const result = await updateComment(projectId, versionId, comment.id, { status: nextStatus });
+    if (result.success) {
+      setComments((prev) => prev.map((c) => (c.id === comment.id ? result.data : c)));
     } else {
       setError(result.error);
     }
@@ -709,8 +793,8 @@ export default function VersionDetailPage() {
               onClick={() => toggleMeasuring("distance")}
               title={
                 isToolActive("distance")
-                  ? "Click to clear this distance measurement"
-                  : "Measure distance between two points"
+                  ? t("viewer.clearDistanceTooltip")
+                  : t("viewer.measureDistanceTooltip")
               }
               className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                 isToolActive("distance")
@@ -723,7 +807,7 @@ export default function VersionDetailPage() {
             <button
               type="button"
               onClick={() => toggleMeasuring("radius")}
-              title={isToolActive("radius") ? "Click to clear this radius measurement" : "Measure a hole/boss radius"}
+              title={isToolActive("radius") ? t("viewer.clearRadiusTooltip") : t("viewer.measureRadiusTooltip")}
               className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                 isToolActive("radius")
                   ? "bg-sky-500/20 text-sky-400"
@@ -738,7 +822,7 @@ export default function VersionDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsPlacingComment((prev) => !prev)}
-                  title={isPlacingComment ? "Cancel adding a comment" : "Click a spot on the model to add a comment"}
+                  title={isPlacingComment ? t("viewer.cancelCommentTooltip") : t("viewer.addCommentTooltip")}
                   className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                     isPlacingComment
                       ? "bg-indigo-500/20 text-indigo-400"
@@ -753,7 +837,7 @@ export default function VersionDetailPage() {
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
-              title="Zoom to fit the model in view"
+              title={t("viewer.zoomToFit")}
               className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⛶
@@ -761,7 +845,7 @@ export default function VersionDetailPage() {
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
-              title="Reset camera to the loaded view"
+              title={t("viewer.resetViewTooltip")}
               className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⟲
@@ -824,7 +908,10 @@ export default function VersionDetailPage() {
                       label={comment.body}
                       highlighted={hoveredCommentId === comment.id || selectedCommentId === comment.id}
                       onHoverChange={(hovering) => setHoveredCommentId(hovering ? comment.id : null)}
-                      onSelect={() => setSelectedCommentId(comment.id)}
+                      onSelect={() => {
+                        setSelectedCommentId(comment.id);
+                        setLinkedCommentId(null);
+                      }}
                       messageCount={1 + comments.filter((c) => c.parentCommentId === comment.id).length}
                     />
                   ))}
@@ -838,13 +925,18 @@ export default function VersionDetailPage() {
                       key={comment.id}
                       comment={comment}
                       replies={comments.filter((c) => c.parentCommentId === comment.id)}
+                      members={members}
                       canDelete={canDeleteComment}
+                      canChangeStatus={canChangeCommentStatus}
                       onDelete={setPendingDeleteComment}
+                      onToggleStatus={(c) => void handleToggleCommentStatus(c)}
                       onReply={(body) => handleSubmitReply(comment, body)}
                       onClose={() => {
                         setSelectedCommentId(null);
                         setHoveredCommentId(null);
+                        setLinkedCommentId(null);
                       }}
+                      linkedCommentId={linkedCommentId}
                     />
                   ))}
                 {pendingPosition && (
@@ -852,6 +944,7 @@ export default function VersionDetailPage() {
                     <CommentPin position={pendingPosition} pending onDragStart={() => setIsDraggingPin(true)} />
                     <PendingCommentPopover
                       position={pendingPosition}
+                      members={members}
                       onSubmit={handleSubmitComment}
                       onCancel={() => {
                         setPendingPosition(null);
@@ -918,14 +1011,14 @@ export default function VersionDetailPage() {
         {isMeshLoading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink-950/80">
             <LoadingCube />
-            <p className="text-xs text-ink-400">Loading model…</p>
+            <p className="text-xs text-ink-400">{t("viewer.loadingModel")}</p>
           </div>
         )}
       </div>
 
       <div className="w-80 shrink-0 overflow-y-auto pr-3">
         <Link to={`/projects/${projectId}`} className="text-xs text-ink-500 hover:text-ink-300">
-          ← {version ? "Back to project" : "Back"}
+          ← {version ? t("versionDetail.backToProject") : t("versionDetail.back")}
         </Link>
 
         {error && (
@@ -944,18 +1037,18 @@ export default function VersionDetailPage() {
             </div>
 
             <div className="mt-5">
-              <CollapsibleSection title="Summary">
+              <CollapsibleSection title={t("versionDetail.summary")}>
                 <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-xs leading-relaxed text-ink-300">
-                  {version.changeSummary ?? "No summary available."}
+                  {version.changeSummary ?? t("versionDetail.noSummary")}
                 </div>
               </CollapsibleSection>
             </div>
 
             <div className="mt-4">
-              <CollapsibleSection title="Printability Gate">
+              <CollapsibleSection title={t("versionDetail.printabilityGate")}>
                 <PropertyList>
                   <PropertyRow
-                    label="Status"
+                    label={t("versionDetail.status")}
                     value={
                       <PrintabilityRulesTooltip>
                         <PrintabilityBadge status={version.printabilityStatus} />
@@ -1010,9 +1103,13 @@ export default function VersionDetailPage() {
                     // selecting a reply opens its parent's thread instead.
                     const target = comments.find((c) => c.id === commentId);
                     setSelectedCommentId(target?.parentCommentId ?? commentId);
+                    setLinkedCommentId(null);
                   }}
                   canDeleteComment={canDeleteComment}
                   onRequestDelete={setPendingDeleteComment}
+                  canChangeStatus={canChangeCommentStatus}
+                  onToggleStatus={(c) => void handleToggleCommentStatus(c)}
+                  currentUserId={user?.id}
                 />
               </div>
             )}
@@ -1022,14 +1119,14 @@ export default function VersionDetailPage() {
 
       {pendingDeleteComment && (
         <ConfirmDialog
-          title="Delete comment?"
+          title={t("versionDetail.deleteCommentTitle")}
           message={(() => {
             const replyCount = comments.filter((c) => c.parentCommentId === pendingDeleteComment.id).length;
             return replyCount > 0
-              ? `This will also delete ${replyCount} ${replyCount === 1 ? "reply" : "replies"}. This can't be undone.`
-              : "This can't be undone.";
+              ? t("versionDetail.deleteCommentWithReplies", { count: replyCount })
+              : t("versionDetail.deleteCommentMessage");
           })()}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           isDestructive
           isConfirming={isDeletingComment}
           onConfirm={() => void handleConfirmDeleteComment()}

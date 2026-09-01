@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   listProjects,
   listMyTeams,
@@ -20,6 +21,9 @@ import TeamModal from "./TeamModal";
 import UpgradeToTeamModal from "./UpgradeToTeamModal";
 import ManagePlanModal from "./ManagePlanModal";
 import EditWorkspaceModal from "./EditWorkspaceModal";
+import ConfirmDialog from "./ConfirmDialog";
+import LanguageSelect from "./LanguageSelect";
+import NotificationBell from "./NotificationBell";
 
 // UI convenience only — hides the sidebar link for everyone else. The real
 // admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
@@ -66,6 +70,7 @@ export function useAccountStatus(): { isRestricted: boolean; isPro: boolean } {
 }
 
 export default function ProjectsLayout({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
@@ -85,6 +90,8 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showManagePlan, setShowManagePlan] = useState(false);
+  const [pendingSignOut, setPendingSignOut] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("My Workspace");
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   // Persisted so the sidebar doesn't reset to expanded on every reload —
@@ -206,6 +213,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   }, [location.search, location.pathname, navigate]);
 
   async function handleSignOut() {
+    setIsSigningOut(true);
     await supabase.auth.signOut();
     navigate("/login");
   }
@@ -245,7 +253,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // seats with no subscription of their own — everyone else (not yet
   // subscribed, or the actual payer) has a plan to manage.
   const canManagePlan = !isTeamMember || isBillingOwner;
-  const planLabel = isTeamMember ? "Team" : isPro ? "Pro" : isTrialing ? "Free Trial" : "Free";
   const planTextClass = isTeamMember
     ? "text-violet-400"
     : isPro || isTrialing
@@ -303,10 +310,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           className={`${isSidebarOpen ? "flex" : "hidden"} fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-ink-800 bg-ink-950 md:static md:z-auto md:flex md:w-64 md:shrink-0`}
         >
           <Link to="/" className="flex items-center gap-2 border-b border-ink-800 px-4 py-3">
-            <div aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-md bg-accent-500 text-chrome-950">
+            <div aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent-500 text-chrome-950">
               <span className="text-sm font-bold leading-none">^</span>
             </div>
-            <h1 className="font-display text-sm font-semibold text-ink-50">Meshdiff</h1>
+            <h1 className="truncate font-display text-sm font-semibold text-ink-50">Meshdiff</h1>
           </Link>
 
           <div className="border-b border-ink-800 px-4 py-3">
@@ -315,7 +322,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setIsProjectsExpanded((expanded) => !expanded)}
                 className="flex min-w-0 flex-1 items-center gap-1 text-left"
-                title={isProjectsExpanded ? "Collapse projects" : "Expand projects"}
+                title={isProjectsExpanded ? t("sidebar.collapseProjects") : t("sidebar.expandProjects")}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -336,7 +343,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setIsEditWorkspaceOpen(true)}
-                title="Rename workspace"
+                title={t("sidebar.renameWorkspace")}
                 className="shrink-0 rounded p-0.5 text-ink-600 hover:bg-ink-800 hover:text-ink-300"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
@@ -358,13 +365,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     to="/projects"
                     className="text-[10px] font-semibold uppercase tracking-widest text-ink-600 hover:text-ink-300"
                   >
-                    Projects
+                    {t("sidebar.projects")}
                   </Link>
                   {!isRestricted && (
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(true)}
-                      title="New project"
+                      title={t("sidebar.newProject")}
                       className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                     >
                       +
@@ -378,7 +385,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       type="text"
                       value={projectSearch}
                       onChange={(e) => setProjectSearch(e.target.value)}
-                      placeholder="Search projects…"
+                      placeholder={t("sidebar.searchPlaceholder")}
                       className="w-full rounded border border-ink-800 bg-ink-900 px-2 py-1 text-xs text-ink-300 placeholder:text-ink-600 focus:border-ink-600 focus:outline-none"
                     />
                   </div>
@@ -386,13 +393,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
                 <div className="mt-2 flex flex-col gap-0.5">
                   {sortedProjects === null && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">Loading…</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">{t("sidebar.loading")}</p>
                   )}
                   {sortedProjects?.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">No projects yet.</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">{t("sidebar.noProjectsYet")}</p>
                   )}
                   {sortedProjects !== null && sortedProjects.length > 0 && visibleProjects?.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">No projects match "{projectSearch}".</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">
+                      {t("sidebar.noProjectsMatch", { query: projectSearch })}
+                    </p>
                   )}
                   {visibleProjects?.map((project) => {
                     const isActive = project.id === projectId;
@@ -421,11 +430,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 opens the create-team form instead of a checkout prompt). */}
             <>
                 <div className="mt-4 flex items-center justify-between px-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">Teams</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">{t("sidebar.teams")}</span>
                   <button
                     type="button"
                     onClick={handleCreateTeamClick}
-                    title={subscription?.tier === "team" ? "New team" : "Upgrade to the Team plan to create a team"}
+                    title={subscription?.tier === "team" ? t("sidebar.newTeam") : t("sidebar.upgradeToCreateTeam")}
                     className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                   >
                     +
@@ -433,7 +442,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 </div>
                 <div className="mt-2 flex flex-col gap-0.5">
                   {teams.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-ink-600">No teams yet.</p>
+                    <p className="px-2 py-1.5 text-xs text-ink-600">{t("sidebar.noTeamsYet")}</p>
                   )}
                   {teams.map((team) => (
                     <button
@@ -509,54 +518,67 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             )}
           </nav>
 
-          <div className="border-t border-ink-800 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">Billing</p>
-            <div className="mt-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className={`text-xs font-semibold ${planTextClass}`}>{planLabel} plan</span>
-                {/* Riding a team owner's seats has no billing of your own to
-                    manage — everyone else (not-yet-subscribed, or the actual
-                    Pro/Team payer) gets the full plan-management dialog. */}
-                {canManagePlan && (
-                  <button
-                    type="button"
-                    onClick={() => setShowManagePlan(true)}
-                    className={`shrink-0 text-[11px] font-medium ${
-                      isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
-                    }`}
-                  >
-                    {isBillingOwner ? "Manage plan" : "Upgrade"}
-                  </button>
-                )}
-              </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
-                {isBillingOwner
-                  ? subscription?.cancelAtPeriodEnd
-                    ? `Ends ${subscription.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "at period end"} — becomes read-only until you resubscribe.`
-                    : `Renews ${subscription?.currentPeriodEnd ? formatRenewalDate(subscription.currentPeriodEnd) : "automatically"}.`
-                  : isTeamMember
-                    ? "Access via your team's plan."
+          {/* Mobile-only: the desktop top bar below (md:flex) covers this
+              account cluster on wider screens, but the mobile sidebar
+              overlay needs its own way to reach billing/language/sign-out. */}
+          <div className="border-t border-ink-800 px-4 py-3 md:hidden">
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-xs font-semibold ${planTextClass}`}>
+                {isTeamMember
+                  ? t("billing.teamPlan")
+                  : isPro
+                    ? t("billing.proPlan")
                     : isTrialing
-                      ? `Full access — ${subscription?.trialDaysRemaining} day${subscription?.trialDaysRemaining === 1 ? "" : "s"} left in your free trial.`
-                      : isRestricted
-                        ? "Your 14-day trial has ended — subscribe to keep using Meshdiff. You can still sign in and delete projects."
-                        : "Project workspaces, version history, and comment pins — $15/mo."}
-              </p>
-              {isBillingOwner && (
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleManageBilling()}
-                    className="text-[11px] font-medium text-ink-400 hover:text-ink-200"
-                  >
-                    Payment method &amp; invoices
-                  </button>
-                </div>
+                      ? t("billing.freeTrialPlan")
+                      : t("billing.freePlan")}{" "}
+                {t("billing.planSuffix")}
+              </span>
+              {canManagePlan && (
+                <button
+                  type="button"
+                  onClick={() => setShowManagePlan(true)}
+                  className={`shrink-0 text-[11px] font-medium ${
+                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
+                  }`}
+                >
+                  {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
+                </button>
               )}
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+              {isBillingOwner
+                ? subscription?.cancelAtPeriodEnd
+                  ? t("billing.endsReadOnly", {
+                      date: subscription.currentPeriodEnd
+                        ? formatRenewalDate(subscription.currentPeriodEnd)
+                        : t("billing.endsAtPeriodEnd"),
+                    })
+                  : subscription?.currentPeriodEnd
+                    ? t("billing.renewsOn", { date: formatRenewalDate(subscription.currentPeriodEnd) })
+                    : t("billing.renewsAutomatically")
+                : isTeamMember
+                  ? t("billing.accessViaTeam")
+                  : isTrialing
+                    ? t("billing.trialActive", { count: subscription?.trialDaysRemaining ?? 0 })
+                    : isRestricted
+                      ? t("billing.trialEnded")
+                      : t("billing.freeBlurb")}
+            </p>
+            {isBillingOwner && (
+              <button
+                type="button"
+                onClick={() => void handleManageBilling()}
+                className="mt-2 text-[11px] font-medium text-ink-400 hover:text-ink-200"
+              >
+                {t("billing.paymentAndInvoices")}
+              </button>
+            )}
+            <div className="mt-2">
+              <LanguageSelect />
             </div>
           </div>
 
-          <div className="relative border-t border-ink-800 p-3">
+          <div className="relative border-t border-ink-800 p-3 md:hidden">
             <button
               type="button"
               onClick={() => setIsMenuOpen((open) => !open)}
@@ -571,19 +593,126 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-ink-800 bg-ink-900 shadow-xl">
                 <button
                   type="button"
-                  onClick={() => void handleSignOut()}
+                  onClick={() => setPendingSignOut(true)}
                   className="w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
                 >
-                  Sign Out
+                  {t("sidebar.signOut")}
                 </button>
               </div>
             )}
           </div>
+
+          {/* Desktop-only footer — just a direct sign-out, no dropdown.
+              Identity/billing/language/notifications live in the top bar
+              now (see the <header> below), so this doesn't repeat them. */}
+          <div className="hidden border-t border-ink-800 px-4 py-3 md:block">
+            <button
+              type="button"
+              onClick={() => setPendingSignOut(true)}
+              className="text-xs font-medium text-ink-400 hover:text-ink-200"
+            >
+              {t("sidebar.signOut")}
+            </button>
+          </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Desktop top bar — everything account-scoped (billing, language,
+              notifications, sign-out) lives here now instead of the
+              sidebar footer, so it's visible without scrolling the nav all
+              the way down. Hidden on mobile: the sidebar's own header covers
+              the logo there, and this cluster reappears inside the mobile
+              sidebar overlay instead (see the <aside> footer above). */}
+          <header className="hidden items-center justify-end gap-4 border-b border-ink-800 px-6 py-2.5 md:flex">
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`font-semibold ${planTextClass}`}>
+                {isTeamMember
+                  ? t("billing.teamPlan")
+                  : isPro
+                    ? t("billing.proPlan")
+                    : isTrialing
+                      ? t("billing.freeTrialPlan")
+                      : t("billing.freePlan")}{" "}
+                {t("billing.planSuffix")}
+              </span>
+              {canManagePlan && (
+                <button
+                  type="button"
+                  onClick={() => setShowManagePlan(true)}
+                  className={`font-medium ${
+                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
+                  }`}
+                >
+                  {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
+                </button>
+              )}
+            </div>
+
+            <div className="h-4 w-px bg-ink-800" />
+
+            <LanguageSelect />
+
+            <NotificationBell />
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen((open) => !open)}
+                className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-ink-900"
+              >
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">
+                  {emailInitial}
+                </div>
+              </button>
+              {isMenuOpen && (
+                <div className="absolute right-0 top-full z-10 mt-1 w-56 overflow-hidden rounded-lg border border-ink-800 bg-ink-900 shadow-xl">
+                  <div className="border-b border-ink-800 px-3 py-2">
+                    <p className="truncate text-xs text-ink-400">{user?.email ?? ""}</p>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-ink-500">
+                      {isBillingOwner
+                        ? subscription?.cancelAtPeriodEnd
+                          ? t("billing.endsReadOnly", {
+                              date: subscription.currentPeriodEnd
+                                ? formatRenewalDate(subscription.currentPeriodEnd)
+                                : t("billing.endsAtPeriodEnd"),
+                            })
+                          : subscription?.currentPeriodEnd
+                            ? t("billing.renewsOn", { date: formatRenewalDate(subscription.currentPeriodEnd) })
+                            : t("billing.renewsAutomatically")
+                        : isTeamMember
+                          ? t("billing.accessViaTeam")
+                          : isTrialing
+                            ? t("billing.trialActive", { count: subscription?.trialDaysRemaining ?? 0 })
+                            : isRestricted
+                              ? t("billing.trialEnded")
+                              : t("billing.freeBlurb")}
+                    </p>
+                  </div>
+                  {isBillingOwner && (
+                    <button
+                      type="button"
+                      onClick={() => void handleManageBilling()}
+                      className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
+                    >
+                      {t("billing.paymentAndInvoices")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPendingSignOut(true)}
+                    className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
+                  >
+                    {t("sidebar.signOut")}
+                  </button>
+                </div>
+              )}
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto">
+            {children}
+          </main>
+        </div>
 
         {notice && (
           <div
@@ -649,6 +778,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               setWorkspaceName(name);
               setIsEditWorkspaceOpen(false);
             }}
+          />
+        )}
+
+        {pendingSignOut && (
+          <ConfirmDialog
+            title={t("sidebar.signOutConfirmTitle")}
+            message={t("sidebar.signOutConfirmMessage")}
+            confirmLabel={t("sidebar.signOut")}
+            cancelLabel={t("common.cancel")}
+            isConfirming={isSigningOut}
+            onConfirm={() => void handleSignOut()}
+            onCancel={() => setPendingSignOut(false)}
           />
         )}
       </div>

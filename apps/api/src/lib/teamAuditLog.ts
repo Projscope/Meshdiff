@@ -7,7 +7,8 @@ export type TeamAuditAction =
   | "member_removed"
   | "member_role_changed"
   | "version_approved"
-  | "version_rejected";
+  | "version_rejected"
+  | "version_submitted_for_review";
 
 /**
  * Best-effort — logs the failure but never throws. The action this

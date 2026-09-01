@@ -262,7 +262,7 @@ export default async function teamsRoute(app: FastifyInstance): Promise<void> {
             "project_id",
             projects.map((p) => p.id),
           )
-          .eq("approval_status", "pending")
+          .eq("approval_status", "in_review") // renamed from 'pending' — see migration 0027
           .order("created_at", { ascending: true }); // oldest-waiting-first — an action queue, not a feed
         if (versionsError) {
           app.log.error(versionsError, "Failed to load pending versions");

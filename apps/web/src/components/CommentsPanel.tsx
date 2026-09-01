@@ -1,4 +1,9 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CommentSummary } from "../lib/projectsApi";
+import CommentStatusBadge from "./CommentStatusBadge";
+
+type Filter = "all" | "open" | "resolved" | "assignedToMe";
 
 interface CommentsPanelProps {
   comments: CommentSummary[];
@@ -15,6 +20,9 @@ interface CommentsPanelProps {
   onSelectComment?: (commentId: string) => void;
   canDeleteComment?: (comment: CommentSummary) => boolean;
   onRequestDelete?: (comment: CommentSummary) => void;
+  canChangeStatus?: (comment: CommentSummary) => boolean;
+  onToggleStatus?: (comment: CommentSummary) => void;
+  currentUserId?: string;
 }
 
 function formatDate(iso: string): string {
@@ -37,12 +45,25 @@ export default function CommentsPanel({
   onSelectComment,
   canDeleteComment,
   onRequestDelete,
+  canChangeStatus,
+  onToggleStatus,
+  currentUserId,
 }: CommentsPanelProps) {
+  const { t } = useTranslation();
+  const [filter, setFilter] = useState<Filter>("all");
+
+  const filtered = comments.filter((comment) => {
+    if (filter === "open") return comment.status === "open" || comment.status === "reopened";
+    if (filter === "resolved") return comment.status === "resolved";
+    if (filter === "assignedToMe") return comment.assigneeUserId === currentUserId;
+    return true;
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
-          Comments <span className="text-ink-600">({comments.length})</span>
+          {t("comments.title")} <span className="text-ink-600">({comments.length})</span>
         </h3>
         <button
           type="button"
@@ -53,28 +74,51 @@ export default function CommentsPanel({
               : "border-ink-700 text-ink-400 hover:border-ink-500"
           }`}
         >
-          {isPlacingComment ? "Click the model…" : "+ Add Comment"}
+          {isPlacingComment ? t("comments.clickModel") : t("comments.addComment")}
         </button>
       </div>
 
+      {comments.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {(["all", "open", "resolved", "assignedToMe"] as Filter[]).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setFilter(option)}
+              className={`rounded px-1.5 py-0.5 text-[10px] ${
+                filter === option ? "bg-indigo-500/20 text-indigo-300" : "text-ink-500 hover:text-ink-300"
+              }`}
+            >
+              {option === "all"
+                ? t("comments.filterAll")
+                : option === "open"
+                  ? t("comments.filterOpen")
+                  : option === "resolved"
+                    ? t("comments.filterResolved")
+                    : t("comments.filterAssignedToMe")}
+            </button>
+          ))}
+        </div>
+      )}
+
       {pendingPosition && (
         <div className="mt-2 flex items-center justify-between gap-2 rounded border border-indigo-800 bg-indigo-950/30 px-2 py-1.5">
-          <p className="text-[11px] text-ink-400">Type your comment in the box next to the pin.</p>
+          <p className="text-[11px] text-ink-400">{t("comments.typeInBox")}</p>
           <button
             type="button"
             onClick={onCancelPending}
             className="shrink-0 rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       )}
 
       <div className="mt-2 flex flex-col gap-1.5">
-        {comments.length === 0 && !pendingPosition && (
-          <p className="text-xs text-ink-600">No comments yet.</p>
+        {filtered.length === 0 && !pendingPosition && (
+          <p className="text-xs text-ink-600">{t("comments.noCommentsYet")}</p>
         )}
-        {comments.map((comment) => (
+        {filtered.map((comment) => (
           <div
             key={comment.id}
             onMouseEnter={() => onHoverComment?.(comment.id)}
@@ -90,26 +134,46 @@ export default function CommentsPanel({
               <div className="flex min-w-0 items-center gap-1 text-[10px] text-ink-500">
                 <span>📍</span>
                 <span className="min-w-0 truncate">
-                  <span className="font-medium text-ink-400">{comment.authorEmail ?? "Someone"}</span>
+                  <span className="font-medium text-ink-400">{comment.authorEmail ?? t("comments.someone")}</span>
                   {" · "}
                   {formatDate(comment.createdAt)}
                 </span>
+                <CommentStatusBadge status={comment.status} />
               </div>
-              {canDeleteComment?.(comment) && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRequestDelete?.(comment);
-                  }}
-                  title="Delete comment"
-                  className="rounded px-1 text-[11px] text-ink-600 hover:bg-red-500/10 hover:text-red-400"
-                >
-                  🗑
-                </button>
-              )}
+              <div className="flex shrink-0 items-center gap-1">
+                {canChangeStatus?.(comment) && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleStatus?.(comment);
+                    }}
+                    className="rounded px-1 text-[10px] text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
+                  >
+                    {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
+                  </button>
+                )}
+                {canDeleteComment?.(comment) && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRequestDelete?.(comment);
+                    }}
+                    title={t("comments.deleteCommentTooltip")}
+                    className="rounded px-1 text-[11px] text-ink-600 hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    🗑
+                  </button>
+                )}
+              </div>
             </div>
             <p className="mt-0.5 text-xs text-ink-200">{comment.body}</p>
+            {comment.assigneeEmail && (
+              <p className="mt-0.5 text-[10px] text-ink-500">
+                → <span className="text-ink-400">{comment.assigneeEmail}</span>
+              </p>
+            )}
           </div>
         ))}
       </div>

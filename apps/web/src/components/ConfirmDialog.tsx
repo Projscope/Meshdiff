@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface ConfirmDialogProps {
   title: string;
   message: string;
@@ -12,13 +14,14 @@ interface ConfirmDialogProps {
 export default function ConfirmDialog({
   title,
   message,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   isDestructive = false,
   isConfirming = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     // z-[9999] rather than a lower Tailwind step — this needs to reliably
     // sit above drei's <Html> 3D overlays (e.g. CommentPopover), whose
@@ -40,14 +43,14 @@ export default function ConfirmDialog({
               isDestructive ? "bg-red-600 hover:bg-red-500" : "bg-indigo-600 hover:bg-indigo-500"
             }`}
           >
-            {isConfirming ? "Working…" : confirmLabel}
+            {isConfirming ? t("common.working") : (confirmLabel ?? t("common.confirm"))}
           </button>
           <button
             type="button"
             onClick={onCancel}
             className="flex-1 rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
           >
-            {cancelLabel}
+            {cancelLabel ?? t("common.cancel")}
           </button>
         </div>
       </div>

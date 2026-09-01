@@ -22,6 +22,19 @@ export interface ProjectsPage {
   total: number;
 }
 
+/** The 5-state review machine (see API migration 0027) — replaces the old
+ * flat pending/approved/rejected. 'draft' is reachable only via an
+ * explicit "save as draft" action (uploads still default straight to
+ * 'in_review'); 'superseded' is set automatically when a newer version in
+ * the same project is approved. */
+export type ApprovalStatus = "draft" | "in_review" | "changes_requested" | "approved" | "superseded";
+
+/** null on non-team (Pro) projects — gates don't apply there. */
+export interface GateStatus {
+  satisfiedCount: number;
+  totalCount: number;
+}
+
 export interface VersionSummary {
   id: string;
   versionNumber: number;
@@ -31,10 +44,30 @@ export interface VersionSummary {
   triangleCount: number | null;
   changeSummary: string | null;
   printabilityStatus: "pass" | "warn" | "fail" | null;
-  approvalStatus: "pending" | "approved" | "rejected";
+  approvalStatus: ApprovalStatus;
   rejectionReason: string | null;
   createdAt: string;
   uploaderEmail: string | null;
+  gateStatus: GateStatus | null;
+  /** Comments still in 'open' or 'reopened' status on this version — see
+   * migration 0030. Not restricted to team projects; personal Pro projects
+   * have comment threads too. */
+  unresolvedCommentCount: number;
+}
+
+export interface ApprovalGate {
+  id: string;
+  label: string;
+  sortOrder: number;
+}
+
+export interface ReviewHistoryEntry {
+  id: string;
+  actorEmail: string | null;
+  fromStatus: string;
+  toStatus: string;
+  reason: string | null;
+  createdAt: string;
 }
 
 export interface SlicerProfileAttachment {
@@ -87,9 +120,12 @@ export interface StableVersion {
   versionId: string;
   versionNumber: number;
   fileName: string;
-  approvalStatus: "pending" | "approved" | "rejected";
+  approvalStatus: ApprovalStatus;
   downloadUrl: string;
 }
+
+export type CommentStatus = "open" | "resolved" | "reopened";
+export type CommentPriority = "low" | "normal" | "high";
 
 export interface CommentSummary {
   id: string;
@@ -99,6 +135,11 @@ export interface CommentSummary {
   body: string;
   position: [number, number, number];
   normal: [number, number, number] | null;
+  status: CommentStatus;
+  assigneeUserId: string | null;
+  assigneeEmail: string | null;
+  priority: CommentPriority | null;
+  statusChangedAt: string | null;
   createdAt: string;
 }
 
@@ -338,6 +379,9 @@ export function approveVersion(projectId: string, versionId: string): Promise<Re
   return request(`/projects/${projectId}/versions/${versionId}/approve`, { method: "POST" });
 }
 
+/** Kept as "reject" (route + name) for backward compatibility with the
+ * existing two-button UI — the server treats this identically to the
+ * newer /request-changes route (see versions.ts's handleRequestChanges). */
 export function rejectVersion(
   projectId: string,
   versionId: string,
@@ -349,8 +393,92 @@ export function rejectVersion(
   });
 }
 
+export function submitVersionForReview(projectId: string, versionId: string): Promise<Result<VersionSummary>> {
+  return request(`/projects/${projectId}/versions/${versionId}/submit-for-review`, { method: "POST" });
+}
+
+export function getVersionReviewHistory(
+  projectId: string,
+  versionId: string,
+): Promise<Result<ReviewHistoryEntry[]>> {
+  return request(`/projects/${projectId}/versions/${versionId}/review-history`);
+}
+
 export function getStableVersion(projectId: string): Promise<Result<StableVersion>> {
   return request(`/projects/${projectId}/stable-version`);
+}
+
+export interface VersionGateFulfillment extends ApprovalGate {
+  satisfied: boolean;
+}
+
+export function listApprovalGates(projectId: string): Promise<Result<ApprovalGate[]>> {
+  return request(`/projects/${projectId}/approval-gates`);
+}
+
+export function listVersionApprovalGates(
+  projectId: string,
+  versionId: string,
+): Promise<Result<VersionGateFulfillment[]>> {
+  return request(`/projects/${projectId}/versions/${versionId}/approval-gates`);
+}
+
+export function createApprovalGate(projectId: string, label: string): Promise<Result<ApprovalGate>> {
+  return request(`/projects/${projectId}/approval-gates`, {
+    method: "POST",
+    body: JSON.stringify({ label }),
+  });
+}
+
+export function deleteApprovalGate(projectId: string, gateId: string): Promise<Result<true>> {
+  return request(`/projects/${projectId}/approval-gates/${gateId}`, { method: "DELETE" });
+}
+
+export function setGateFulfillment(
+  projectId: string,
+  versionId: string,
+  gateId: string,
+  satisfied: boolean,
+): Promise<Result<true>> {
+  return request(`/projects/${projectId}/versions/${versionId}/approval-gates/${gateId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ satisfied }),
+  });
+}
+
+// In-app only for this milestone — no email delivery (see plan). Polled by
+// NotificationBell rather than pushed.
+export interface NotificationSummary {
+  id: string;
+  type:
+    | "mention"
+    | "comment_assigned"
+    | "version_state_changed"
+    | "review_requested"
+    | "gate_completed"
+    | "comment_status_changed";
+  projectId: string | null;
+  versionId: string | null;
+  commentId: string | null;
+  summary: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export function listNotifications(unreadOnly = false): Promise<Result<NotificationSummary[]>> {
+  return request(`/notifications${unreadOnly ? "?unreadOnly=true" : ""}`);
+}
+
+export function getUnreadNotificationCount(): Promise<Result<{ count: number }>> {
+  return request("/notifications/unread-count");
+}
+
+export function markNotificationRead(id: string): Promise<Result<true>> {
+  return request(`/notifications/${id}/read`, { method: "POST" });
+}
+
+export function markAllNotificationsRead(): Promise<Result<true>> {
+  return request("/notifications/mark-all-read", { method: "POST" });
 }
 
 export function createProject(name: string, description: string): Promise<Result<ProjectSummary>> {
@@ -455,15 +583,29 @@ export function createComment(
   position: [number, number, number],
   normal?: [number, number, number],
   parentCommentId?: string,
+  assigneeUserId?: string,
+  priority?: CommentPriority,
 ): Promise<Result<CommentSummary>> {
   return request(`/projects/${projectId}/versions/${versionId}/comments`, {
     method: "POST",
-    body: JSON.stringify({ body, position, normal, parentCommentId }),
+    body: JSON.stringify({ body, position, normal, parentCommentId, assigneeUserId, priority }),
   });
 }
 
 export function deleteComment(projectId: string, versionId: string, commentId: string): Promise<Result<true>> {
   return request(`/projects/${projectId}/versions/${versionId}/comments/${commentId}`, { method: "DELETE" });
+}
+
+export function updateComment(
+  projectId: string,
+  versionId: string,
+  commentId: string,
+  updates: { status?: CommentStatus; assigneeUserId?: string | null; priority?: CommentPriority | null },
+): Promise<Result<CommentSummary>> {
+  return request(`/projects/${projectId}/versions/${versionId}/comments/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
 }
 
 /** Fetches the zip with the auth header attached (a plain <a href> can't send one) and triggers a browser download. */

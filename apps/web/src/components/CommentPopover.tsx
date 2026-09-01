@@ -1,14 +1,32 @@
 import { useState } from "react";
 import { Html } from "@react-three/drei";
+import { useTranslation } from "react-i18next";
 import type { CommentSummary } from "../lib/projectsApi";
+import CommentStatusBadge from "./CommentStatusBadge";
+import MentionAutocomplete from "./MentionAutocomplete";
+
+interface ProjectMember {
+  userId: string;
+  email: string | null;
+}
 
 interface CommentPopoverProps {
   comment: CommentSummary;
   replies: CommentSummary[];
+  members: ProjectMember[];
   onClose: () => void;
   canDelete: (comment: CommentSummary) => boolean;
+  /** Author, current assignee, or a moderator — mirrors the API's own
+   * status-change authorization (see comments.ts's PATCH handler). */
+  canChangeStatus: (comment: CommentSummary) => boolean;
   onDelete: (comment: CommentSummary) => void;
+  onToggleStatus: (comment: CommentSummary) => void;
   onReply: (body: string) => Promise<void>;
+  /** The specific comment or reply a notification deep-link pointed at (see
+   * VersionDetailPage's `?comment=` handling) — flagged with an accent
+   * border/background so "where was I mentioned" is answered by more than
+   * just the popover being open, since a thread can hold several messages. */
+  linkedCommentId?: string | null;
 }
 
 function formatDate(iso: string): string {
@@ -23,29 +41,51 @@ function formatDate(iso: string): string {
 function CommentEntry({
   comment,
   canDelete,
+  canChangeStatus,
   onDelete,
+  onToggleStatus,
+  highlighted,
 }: {
   comment: CommentSummary;
   canDelete: boolean;
+  canChangeStatus: boolean;
   onDelete: () => void;
+  onToggleStatus: () => void;
+  highlighted?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
-    <div>
-      <span className="min-w-0 truncate text-[10px] text-ink-500">
-        <span className="font-medium text-ink-400">{comment.authorEmail ?? "Someone"}</span>
-        {" · "}
-        {formatDate(comment.createdAt)}
-      </span>
+    <div
+      className={
+        highlighted ? "-mx-1.5 rounded border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-1.5" : undefined
+      }
+    >
+      <div className="flex items-center gap-1.5">
+        <span className="min-w-0 truncate text-[10px] text-ink-500">
+          <span className="font-medium text-ink-400">{comment.authorEmail ?? t("comments.someone")}</span>
+          {" · "}
+          {formatDate(comment.createdAt)}
+        </span>
+        <CommentStatusBadge status={comment.status} />
+      </div>
       <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
-      {canDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          className="mt-1 text-[11px] text-red-400 hover:text-red-300"
-        >
-          Delete
-        </button>
+      {comment.assigneeEmail && (
+        <p className="mt-0.5 text-[10px] text-ink-500">
+          → <span className="text-ink-400">{comment.assigneeEmail}</span>
+        </p>
       )}
+      <div className="mt-1 flex items-center gap-3 text-[11px]">
+        {canChangeStatus && (
+          <button type="button" onClick={onToggleStatus} className="text-indigo-400 hover:text-indigo-300">
+            {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
+          </button>
+        )}
+        {canDelete && (
+          <button type="button" onClick={onDelete} className="text-red-400 hover:text-red-300">
+            {t("comments.delete")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -53,10 +93,25 @@ function CommentEntry({
 /** Anchored at the comment's own 3D position — no `center` prop here (unlike
  * CommentPin) since the translate below already places it to the left of
  * the pin with a 12px gap, vertically centered on it. */
-export default function CommentPopover({ comment, replies, onClose, canDelete, onDelete, onReply }: CommentPopoverProps) {
+export default function CommentPopover({
+  comment,
+  replies,
+  members,
+  onClose,
+  canDelete,
+  canChangeStatus,
+  onDelete,
+  onToggleStatus,
+  onReply,
+  linkedCommentId,
+}: CommentPopoverProps) {
+  const { t } = useTranslation();
+  const isTopCommentLinked = linkedCommentId === comment.id;
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+
+  const mentionMatch = /@([\w.]*)$/.exec(replyText);
 
   async function handleSubmitReply(event: React.FormEvent) {
     event.preventDefault();
@@ -68,6 +123,11 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
     setIsReplying(false);
   }
 
+  function handleSelectMention(email: string) {
+    if (!mentionMatch) return;
+    setReplyText(replyText.slice(0, replyText.length - mentionMatch[0].length) + `@${email} `);
+  }
+
   // No distanceFactor on the Html below — this should stay a fixed,
   // readable size on screen regardless of camera zoom, not shrink along
   // with the model.
@@ -76,7 +136,9 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
       <div
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
-        className="relative flex w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border border-ink-700 bg-ink-900 p-2.5 shadow-xl"
+        className={`relative flex w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border bg-ink-900 p-2.5 shadow-xl ${
+          isTopCommentLinked ? "border-accent-500 ring-1 ring-accent-500/50" : "border-ink-700"
+        }`}
       >
         {/* Close stays alone in the top-right corner, well clear of the
             per-comment Delete links below — those live next to Reply
@@ -84,19 +146,31 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
         <button
           type="button"
           onClick={onClose}
-          title="Close"
+          title={t("viewer.closeTooltip")}
           className="absolute right-1.5 top-1.5 rounded px-1 text-xs leading-none text-ink-500 hover:text-ink-200"
         >
           ✕
         </button>
 
-        <div className="pr-5">
-          <span className="min-w-0 truncate text-[10px] text-ink-500">
-            <span className="font-medium text-ink-400">{comment.authorEmail ?? "Someone"}</span>
-            {" · "}
-            {formatDate(comment.createdAt)}
-          </span>
+        <div
+          className={`pr-5 ${
+            isTopCommentLinked ? "-mx-1.5 rounded border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-4" : ""
+          }`}
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="min-w-0 truncate text-[10px] text-ink-500">
+              <span className="font-medium text-ink-400">{comment.authorEmail ?? t("comments.someone")}</span>
+              {" · "}
+              {formatDate(comment.createdAt)}
+            </span>
+            <CommentStatusBadge status={comment.status} />
+          </div>
           <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
+          {comment.assigneeEmail && (
+            <p className="mt-0.5 text-[10px] text-ink-500">
+              → <span className="text-ink-400">{comment.assigneeEmail}</span>
+            </p>
+          )}
         </div>
 
         {isReplying ? (
@@ -107,34 +181,42 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
               rows={2}
               value={replyText}
               onChange={(event) => setReplyText(event.target.value)}
-              placeholder="Write a reply…"
+              placeholder={t("comments.writeReplyPlaceholder")}
               className="w-full rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-600"
             />
+            {mentionMatch && members.length > 0 && (
+              <MentionAutocomplete members={members} query={mentionMatch[1]} onSelect={handleSelectMention} />
+            )}
             <div className="mt-1.5 flex gap-1.5">
               <button
                 type="submit"
                 disabled={isSubmittingReply}
                 className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
               >
-                {isSubmittingReply ? "Posting…" : "Post"}
+                {isSubmittingReply ? t("comments.posting") : t("comments.post")}
               </button>
               <button
                 type="button"
                 onClick={() => setIsReplying(false)}
                 className="rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
           </form>
         ) : (
           <div className="flex items-center gap-3 text-[11px]">
             <button type="button" onClick={() => setIsReplying(true)} className="text-indigo-400 hover:text-indigo-300">
-              Reply
+              {t("comments.reply")}
             </button>
+            {canChangeStatus(comment) && (
+              <button type="button" onClick={() => onToggleStatus(comment)} className="text-indigo-400 hover:text-indigo-300">
+                {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
+              </button>
+            )}
             {canDelete(comment) && (
               <button type="button" onClick={() => onDelete(comment)} className="text-red-400 hover:text-red-300">
-                Delete
+                {t("comments.delete")}
               </button>
             )}
           </div>
@@ -159,7 +241,10 @@ export default function CommentPopover({ comment, replies, onClose, canDelete, o
                 key={reply.id}
                 comment={reply}
                 canDelete={canDelete(reply)}
+                canChangeStatus={canChangeStatus(reply)}
                 onDelete={() => onDelete(reply)}
+                onToggleStatus={() => onToggleStatus(reply)}
+                highlighted={linkedCommentId === reply.id}
               />
             ))}
           </div>

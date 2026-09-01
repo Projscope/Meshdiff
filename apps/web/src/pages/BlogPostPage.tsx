@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useDocumentMeta } from "../lib/useDocumentMeta";
+import { useBlogPostMeta } from "../lib/useBlogPostMeta";
 import { getBlogPost, type BlogPost } from "../lib/blogApi";
 import BlogMarkdown from "../components/BlogMarkdown";
 
@@ -9,7 +9,7 @@ function formatDate(iso: string): string {
 }
 
 function PostMeta({ post }: { post: BlogPost }) {
-  useDocumentMeta(`${post.title} | Meshdiff Blog`, post.excerpt ?? post.title);
+  useBlogPostMeta(post);
   return null;
 }
 

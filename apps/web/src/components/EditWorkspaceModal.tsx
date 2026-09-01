@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { updateWorkspace } from "../lib/projectsApi";
 
 export default function EditWorkspaceModal({
@@ -10,6 +11,7 @@ export default function EditWorkspaceModal({
   onClose: () => void;
   onSaved: (name: string) => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,13 +35,13 @@ export default function EditWorkspaceModal({
         className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-ink-50">Rename Workspace</h3>
+        <h3 className="text-sm font-semibold text-ink-50">{t("editWorkspaceModal.title")}</h3>
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2">
           <input
             type="text"
             required
             autoFocus
-            placeholder="Workspace name"
+            placeholder={t("editWorkspaceModal.namePlaceholder")}
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
@@ -50,14 +52,14 @@ export default function EditWorkspaceModal({
               disabled={isSubmitting}
               className="flex-1 rounded bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
             >
-              {isSubmitting ? "Saving…" : "Save"}
+              {isSubmitting ? t("editWorkspaceModal.saving") : t("editWorkspaceModal.save")}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+              className="flex-1 rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
           {error && <span className="text-xs text-red-400">{error}</span>}

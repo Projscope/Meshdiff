@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
 } from "react";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Canvas } from "@react-three/fiber";
@@ -166,11 +167,17 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
   },
   ref,
 ) {
+  const { t } = useTranslation();
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const diffColors = useDiffColors();
   const measure = useMeasureTool();
+  const sensitivityPresets = [
+    { label: t("diffView.low"), toleranceMm: SENSITIVITY_PRESETS[0].toleranceMm },
+    { label: t("diffView.medium"), toleranceMm: SENSITIVITY_PRESETS[1].toleranceMm },
+    { label: t("diffView.high"), toleranceMm: SENSITIVITY_PRESETS[2].toleranceMm },
+  ];
 
   // Neither engine (diffVoxels.ts, surfaceDeviation.ts) aligns meshes on its
   // own — both assume a shared coordinate frame and say so in their own
@@ -369,7 +376,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         {isComputing && !isPending && (
           <span className="flex items-center gap-1.5 text-[11px] text-ink-500">
             <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-ink-700 border-t-ink-400" />
-            {diffQuality === "coarse" ? "Refining…" : "Computing…"}
+            {diffQuality === "coarse" ? t("diffView.refining") : t("diffView.computing")}
           </span>
         )}
         {!isPending && !hasError && (
@@ -379,22 +386,22 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               onClick={() => onModeChange("voxel")}
               className={`px-2 py-0.5 ${mode === "voxel" ? "bg-ink-700 text-ink-50" : "text-ink-400"}`}
             >
-              Voxels
+              {t("diffView.voxels")}
             </button>
             <button
               type="button"
               onClick={() => onModeChange("surface")}
               className={`px-2 py-0.5 ${mode === "surface" ? "bg-ink-700 text-ink-50" : "text-ink-400"}`}
             >
-              Surface
+              {t("diffView.surface")}
             </button>
             <button
               type="button"
               onClick={() => onModeChange("overlay")}
-              title="Both versions shown at once, semi-transparent with dashed edges — good for comparing silhouettes directly"
+              title={t("diffView.overlayTooltip")}
               className={`px-2 py-0.5 ${mode === "overlay" ? "bg-ink-700 text-ink-50" : "text-ink-400"}`}
             >
-              Overlay
+              {t("diffView.overlay")}
             </button>
           </div>
         )}
@@ -408,8 +415,8 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               onClick={() => measure.toggleMeasuring("distance")}
               title={
                 measure.isToolActive("distance")
-                  ? "Click to clear this distance measurement"
-                  : "Measure distance between two points"
+                  ? t("viewer.clearDistanceTooltip")
+                  : t("viewer.measureDistanceTooltip")
               }
               className={`px-2 py-0.5 ${measure.isToolActive("distance") ? "bg-amber-500 text-chrome-950" : "text-ink-400 hover:text-ink-50"}`}
             >
@@ -420,8 +427,8 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               onClick={() => measure.toggleMeasuring("radius")}
               title={
                 measure.isToolActive("radius")
-                  ? "Click to clear this radius measurement"
-                  : "Measure a hole/boss radius — hovering a hole that changed between versions shows its before/after diameter"
+                  ? t("viewer.clearRadiusTooltip")
+                  : t("viewer.measureRadiusOverlayTooltip")
               }
               className={`px-2 py-0.5 ${measure.isToolActive("radius") ? "bg-sky-500 text-chrome-950" : "text-ink-400 hover:text-ink-50"}`}
             >
@@ -433,26 +440,26 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           <button
             type="button"
             onClick={() => zoomToFitRef.current?.()}
-            title="Zoom to fit the model in view"
+            title={t("viewer.zoomToFit")}
             className="rounded border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
           >
-            Zoom to Model
+            {t("diffView.zoomToModel")}
           </button>
         )}
         {!isPending && !hasError && (
           <button
             type="button"
             onClick={() => resetViewRef.current?.()}
-            title="Reset camera to the loaded view"
+            title={t("viewer.resetViewTooltip")}
             className="rounded border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
           >
-            ⟲ Reset View
+            ⟲ {t("diffView.resetView")}
           </button>
         )}
         {!isPending && !hasError && <GridToggle />}
         {!isPending && !hasError && (
           <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
-            Tolerance
+            {t("diffView.tolerance")}
             <input
               type="range"
               min={0}
@@ -470,14 +477,14 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               onChange={(event) => onToleranceChange(Math.max(0, Number(event.target.value)))}
               className="w-12 rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
             />
-            mm
+            {t("diffView.mm")}
             <div className="flex overflow-hidden rounded border border-ink-700">
-              {SENSITIVITY_PRESETS.map((preset) => (
+              {sensitivityPresets.map((preset) => (
                 <button
                   key={preset.label}
                   type="button"
                   onClick={() => onToleranceChange(preset.toleranceMm)}
-                  title={`${preset.label} sensitivity — sets tolerance to ${preset.toleranceMm}mm`}
+                  title={t("diffView.sensitivityTooltip", { label: preset.label, value: preset.toleranceMm })}
                   className={`px-1.5 py-0.5 ${
                     toleranceMm === preset.toleranceMm
                       ? "bg-ink-700 text-ink-50"
@@ -492,16 +499,16 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         )}
         {!isPending && !hasError && (
           <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
-            Align
+            {t("diffView.align")}
             <select
               value={alignment}
               onChange={(event) => onAlignmentChange(event.target.value as DiffAlignment)}
-              title="Manually reposition Version B before diffing — useful when the two files don't already share a CAD origin"
+              title={t("diffView.alignTooltip")}
               className="rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
             >
-              <option value="none">None</option>
-              <option value="floor">Floor</option>
-              <option value="center">Center</option>
+              <option value="none">{t("diffView.alignNone")}</option>
+              <option value="floor">{t("diffView.alignFloor")}</option>
+              <option value="center">{t("diffView.alignCenter")}</option>
             </select>
             {alignmentOffsetMm && (
               <span className="text-ink-500">
@@ -523,7 +530,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             <span className={diffColors.removedTextClass}>-{diff.stats.removedCount}</span>
             <span className="text-ink-500">
               {diff.stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
-              {diff.stats.approxVolumeDeltaPercent.toFixed(1)}% volume
+              {diff.stats.approxVolumeDeltaPercent.toFixed(1)}% {t("diffView.volumeSuffix")}
             </span>
           </div>
         )}
@@ -531,7 +538,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
 
       {isPending && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-center text-sm text-ink-500">
-          Load Version A and Version B to compute a diff
+          {t("diffView.waitingForBoth")}
         </div>
       )}
       {hasError && (

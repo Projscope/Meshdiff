@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import type { DragEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Canvas } from "@react-three/fiber";
 import { Bounds } from "@react-three/drei";
 import * as THREE from "three";
@@ -48,6 +49,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   { label, onGeometryLoaded, demoUrl, syncedCameraState, onCameraChange, isSyncEnabled = false },
   ref,
 ) {
+  const { t } = useTranslation();
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [displayGeometry, setDisplayGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [hasVertexColors, setHasVertexColors] = useState(false);
@@ -182,7 +184,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         <button
           type="button"
           onClick={() => setShowControls(!showControls)}
-          title="Rotate/zoom speed"
+          title={t("viewer.rotateZoomSpeedTooltip")}
           className="rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
         >
           ⚙
