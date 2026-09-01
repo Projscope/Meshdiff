@@ -347,7 +347,7 @@ export default async function approvalGatesRoute(app: FastifyInstance): Promise<
             .eq("approval_gate_definitions.is_active", true);
           const allSatisfied = (fulfillments ?? []).every((f: { satisfied: boolean }) => f.satisfied);
           if (allSatisfied) {
-            const { data: project } = await supabase.from("projects").select("owner_user_id").eq("id", projectId).maybeSingle();
+            const { data: project } = await supabase.from("projects").select("owner_user_id, name").eq("id", projectId).maybeSingle();
             const { data: members } = await supabase
               .from("team_members")
               .select("user_id")
@@ -356,12 +356,16 @@ export default async function approvalGatesRoute(app: FastifyInstance): Promise<
             const reviewerIds = (members ?? []).map((m: { user_id: string }) => m.user_id);
             if (project?.owner_user_id) reviewerIds.push(project.owner_user_id);
             const { data: version } = await supabase.from("versions").select("version_number").eq("id", versionId).maybeSingle();
+            const versionNumber = (version as { version_number: number } | null)?.version_number ?? "?";
+            const projectName = (project as { name: string } | null)?.name;
             await notifyGateCompleted(supabase, app.log, {
               recipientUserIds: reviewerIds,
               actorUserId: request.userId!,
               projectId,
               versionId,
-              summary: `All approval gates satisfied on v${(version as { version_number: number } | null)?.version_number ?? "?"} — ready to approve`,
+              summary: projectName
+                ? `All approval gates satisfied on ${projectName} (v${versionNumber}) — ready to approve`
+                : `All approval gates satisfied on v${versionNumber} — ready to approve`,
             });
           }
         }

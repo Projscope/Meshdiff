@@ -4,7 +4,7 @@ import { requireAuth } from "../lib/requireAuth.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { getProjectAccess } from "../lib/ownership.js";
 import { requireProjectWriteAccess } from "../lib/requireProjectTierAccess.js";
-import { notifyMention, notifyCommentAssigned } from "../lib/notify.js";
+import { notifyMention, notifyCommentAssigned, notifyCommentStatusChanged } from "../lib/notify.js";
 
 export type CommentStatus = "open" | "resolved" | "reopened";
 export type CommentPriority = "low" | "normal" | "high";
@@ -89,6 +89,24 @@ function canModerateAny(access: { role: string | null }): boolean {
 
 const MENTION_PATTERN = /@([\w.+-]+@[\w.-]+\.\w+)/g;
 
+/** "ProjectName (v3)" for the notification summary — best-effort, so a
+ * lookup failure degrades to a generic summary rather than blocking the
+ * comment/mention itself (same "never throw" convention as notify.ts). */
+async function describeVersionLocation(
+  supabase: SupabaseClient,
+  projectId: string,
+  versionId: string,
+): Promise<string | null> {
+  const [{ data: project }, { data: version }] = await Promise.all([
+    supabase.from("projects").select("name").eq("id", projectId).maybeSingle(),
+    supabase.from("versions").select("version_number").eq("id", versionId).maybeSingle(),
+  ]);
+  const projectName = (project as { name: string } | null)?.name;
+  const versionNumber = (version as { version_number: number } | null)?.version_number;
+  if (!projectName || !versionNumber) return null;
+  return `${projectName} (v${versionNumber})`;
+}
+
 /** Parses @email@domain mentions out of a comment body (matching
  * teams.ts's existing invite-by-email convention — there's no
  * username/handle system at all), resolves each to a user id, and notifies
@@ -102,6 +120,8 @@ async function notifyMentions(
 ): Promise<void> {
   const emails = [...new Set([...params.body.matchAll(MENTION_PATTERN)].map((m) => m[1].toLowerCase()))];
   if (emails.length === 0) return;
+
+  const location = await describeVersionLocation(supabase, params.projectId, params.versionId);
 
   for (const email of emails) {
     const { data: userId, error } = await supabase.rpc("get_user_id_by_email", { p_email: email });
@@ -117,7 +137,7 @@ async function notifyMentions(
       projectId: params.projectId,
       versionId: params.versionId,
       commentId: params.commentId,
-      summary: `You were mentioned in a comment`,
+      summary: location ? `You were mentioned in a comment on ${location}` : "You were mentioned in a comment",
     });
   }
 }
@@ -291,13 +311,14 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
         const newComment = row as CommentRow;
 
         if (assigneeUserId && assigneeUserId !== request.userId) {
+          const location = await describeVersionLocation(supabase, projectId, versionId);
           await notifyCommentAssigned(supabase, app.log, {
             recipientUserId: assigneeUserId,
             actorUserId: request.userId!,
             projectId,
             versionId,
             commentId: newComment.id,
-            summary: "You were assigned a comment",
+            summary: location ? `You were assigned a comment on ${location}` : "You were assigned a comment",
           });
         }
         await notifyMentions(supabase, app.log, {
@@ -418,14 +439,33 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
         const updatedRow = row as CommentRow;
 
         if (assigneeUserId !== undefined && assigneeUserId && assigneeUserId !== existingRow.assignee_user_id && assigneeUserId !== request.userId) {
+          const location = await describeVersionLocation(supabase, projectId, versionId);
           await notifyCommentAssigned(supabase, app.log, {
             recipientUserId: assigneeUserId,
             actorUserId: request.userId!,
             projectId,
             versionId,
             commentId,
-            summary: "You were assigned a comment",
+            summary: location ? `You were assigned a comment on ${location}` : "You were assigned a comment",
           });
+        }
+
+        if (status !== undefined && status !== existingRow.status) {
+          const recipients = [updatedRow.author_user_id, updatedRow.assignee_user_id].filter(
+            (id): id is string => !!id && id !== request.userId,
+          );
+          if (recipients.length > 0) {
+            const location = await describeVersionLocation(supabase, projectId, versionId);
+            const verb = status === "resolved" ? "resolved" : status === "reopened" ? "reopened" : "reset to open";
+            await notifyCommentStatusChanged(supabase, app.log, {
+              recipientUserIds: recipients,
+              actorUserId: request.userId!,
+              projectId,
+              versionId,
+              commentId,
+              summary: location ? `A comment was ${verb} on ${location}` : `A comment was ${verb}`,
+            });
+          }
         }
 
         const emailByUserId = await resolveEmails(supabase, app.log, [

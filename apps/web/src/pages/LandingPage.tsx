@@ -25,6 +25,7 @@ import ApprovalBadge, { APPROVAL_DOT_COLOR } from "../components/ApprovalBadge";
 import { useCountUp } from "../hooks/useCountUp";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import { SHOW_MONETIZATION } from "../lib/featureFlags";
+import revisionCtaImg from "../assets/teams.webp";
 
 interface HeroStat {
   target: number;
@@ -849,9 +850,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Final CTA */}
-        <section className="border-t border-ink-900 px-6 py-20">
-          <div className="mx-auto max-w-2xl text-center">
+        {/* Final CTA — the same real diff render used on the audiences
+            section, as a dimmed backdrop rather than a generic gradient. */}
+        <section
+          className="relative overflow-hidden border-t border-ink-900 bg-cover bg-center px-6 py-24"
+          style={{ backgroundImage: `url(${revisionCtaImg})` }}
+        >
+          <div aria-hidden="true" className="absolute inset-0 bg-ink-950/85" />
+          <div className="relative mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight text-ink-50 md:text-4xl">
               Your next revision is coming.
             </h2>

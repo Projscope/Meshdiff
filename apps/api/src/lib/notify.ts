@@ -16,7 +16,13 @@ async function insertNotification(
   entry: {
     recipientUserId: string;
     actorUserId: string | null;
-    type: "mention" | "comment_assigned" | "version_state_changed" | "review_requested" | "gate_completed";
+    type:
+      | "mention"
+      | "comment_assigned"
+      | "version_state_changed"
+      | "review_requested"
+      | "gate_completed"
+      | "comment_status_changed";
     projectId: string;
     versionId?: string | null;
     commentId?: string | null;
@@ -111,6 +117,35 @@ export async function notifyCommentAssigned(
     commentId: params.commentId,
     summary: params.summary,
   });
+}
+
+/** Sent to whoever is invested in a comment thread (its author and current
+ * assignee, if any) when its status changes — resolved or reopened. Fans
+ * out to a set of recipients like notifyGateCompleted, since a comment can
+ * have both an author and a separate assignee. */
+export async function notifyCommentStatusChanged(
+  supabase: SupabaseClient,
+  log: FastifyBaseLogger,
+  params: {
+    recipientUserIds: string[];
+    actorUserId: string;
+    projectId: string;
+    versionId: string;
+    commentId: string;
+    summary: string;
+  },
+): Promise<void> {
+  for (const recipientUserId of new Set(params.recipientUserIds)) {
+    await insertNotification(supabase, log, {
+      recipientUserId,
+      actorUserId: params.actorUserId,
+      type: "comment_status_changed",
+      projectId: params.projectId,
+      versionId: params.versionId,
+      commentId: params.commentId,
+      summary: params.summary,
+    });
+  }
 }
 
 /** Sent to reviewers (admin/approver) when the last unmet gate on a version

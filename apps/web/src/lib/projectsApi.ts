@@ -49,6 +49,10 @@ export interface VersionSummary {
   createdAt: string;
   uploaderEmail: string | null;
   gateStatus: GateStatus | null;
+  /** Comments still in 'open' or 'reopened' status on this version — see
+   * migration 0030. Not restricted to team projects; personal Pro projects
+   * have comment threads too. */
+  unresolvedCommentCount: number;
 }
 
 export interface ApprovalGate {
@@ -446,7 +450,13 @@ export function setGateFulfillment(
 // NotificationBell rather than pushed.
 export interface NotificationSummary {
   id: string;
-  type: "mention" | "comment_assigned" | "version_state_changed" | "review_requested" | "gate_completed";
+  type:
+    | "mention"
+    | "comment_assigned"
+    | "version_state_changed"
+    | "review_requested"
+    | "gate_completed"
+    | "comment_status_changed";
   projectId: string | null;
   versionId: string | null;
   commentId: string | null;

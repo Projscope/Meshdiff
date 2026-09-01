@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   startProCheckout,
   startTeamCheckout,
@@ -14,24 +15,6 @@ function formatDate(iso: string): string {
 }
 
 type PlanId = "free" | "pro" | "team";
-
-interface PlanRowConfig {
-  id: PlanId;
-  name: string;
-  price: string;
-  blurb: string;
-}
-
-const PLANS: PlanRowConfig[] = [
-  {
-    id: "free",
-    name: "Free",
-    price: "$0",
-    blurb: "The Sample Project and the Live Diff tool only — existing projects stay in read-only mode.",
-  },
-  { id: "pro", name: "Pro", price: "$15/mo", blurb: "Project workspaces, version history, comment pins, PDF reports." },
-  { id: "team", name: "Team", price: "$35/seat/mo", blurb: "Everything in Pro, plus shared projects and version approval." },
-];
 
 interface ManagePlanModalProps {
   subscription: SubscriptionStatus;
@@ -57,12 +40,25 @@ interface ManagePlanModalProps {
  *   which the confirmation copy below says explicitly.
  */
 export default function ManagePlanModal({ subscription, onClose, onSubscriptionChange, onNotice }: ManagePlanModalProps) {
+  const { t } = useTranslation();
   const [pendingAction, setPendingAction] = useState<"downgrade-to-free" | "pro-to-team" | "team-to-pro" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const planName: Record<PlanId, string> = {
+    free: t("billing.freePlan"),
+    pro: t("billing.proPlan"),
+    team: t("billing.teamPlan"),
+  };
+
+  const PLANS: Array<{ id: PlanId; price: string; blurb: string }> = [
+    { id: "free", price: "$0", blurb: t("managePlan.freeBlurb") },
+    { id: "pro", price: "$15/mo", blurb: t("managePlan.proBlurb") },
+    { id: "team", price: "$35/seat/mo", blurb: t("managePlan.teamBlurb") },
+  ];
+
   const currentPlan: PlanId = subscription.tier;
-  const readableCurrent = currentPlan === "team" ? "Team" : currentPlan === "pro" ? "Pro" : subscription.isTrialing ? "Free Trial" : "Free";
+  const readableCurrent = currentPlan === "team" ? planName.team : currentPlan === "pro" ? planName.pro : subscription.isTrialing ? t("billing.freeTrialPlan") : planName.free;
 
   async function handleUpgradeCheckout(tier: "pro" | "team") {
     setIsSubmitting(true);
@@ -84,7 +80,7 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
     setPendingAction(null);
     if (result.success) {
       onSubscriptionChange({ tier, accountStatus: "pro", cancelAtPeriodEnd: false });
-      onNotice({ type: "success", message: `You're now on the ${tier === "team" ? "Team" : "Pro"} plan.` });
+      onNotice({ type: "success", message: t("managePlan.planActivatedNotice", { plan: planName[tier] }) });
       onClose();
     } else {
       setError(result.error);
@@ -101,7 +97,7 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
       onSubscriptionChange({ cancelAtPeriodEnd: true, currentPeriodEnd: result.data.currentPeriodEnd });
       onNotice({
         type: "info",
-        message: `Your ${readableCurrent} plan will end on ${formatDate(result.data.currentPeriodEnd)}, then the account becomes read-only until you resubscribe.`,
+        message: t("managePlan.downgradeNotice", { plan: readableCurrent, date: formatDate(result.data.currentPeriodEnd) }),
       });
       onClose();
     } else {
@@ -116,7 +112,7 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
     setIsSubmitting(false);
     if (result.success) {
       onSubscriptionChange({ cancelAtPeriodEnd: false, currentPeriodEnd: result.data.currentPeriodEnd });
-      onNotice({ type: "success", message: `Subscription resumed — your ${readableCurrent} plan will keep renewing.` });
+      onNotice({ type: "success", message: t("managePlan.resumedNotice", { plan: readableCurrent }) });
       onClose();
     } else {
       setError(result.error);
@@ -126,14 +122,17 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
   function actionFor(plan: PlanId): { label: string; onClick: () => void } | null {
     if (plan === currentPlan) return null;
     if (plan === "free") {
-      return { label: "Downgrade to Free", onClick: () => setPendingAction("downgrade-to-free") };
+      return { label: t("managePlan.downgradeToFree"), onClick: () => setPendingAction("downgrade-to-free") };
     }
     if (currentPlan === "free") {
-      return { label: `Upgrade to ${plan === "team" ? "Team" : "Pro"}`, onClick: () => void handleUpgradeCheckout(plan) };
+      return {
+        label: plan === "team" ? t("managePlan.upgradeToTeam") : t("managePlan.upgradeToPro"),
+        onClick: () => void handleUpgradeCheckout(plan),
+      };
     }
     // currentPlan is the other paid tier — switch the existing subscription.
     return {
-      label: plan === "team" ? "Upgrade to Team" : "Downgrade to Pro",
+      label: plan === "team" ? t("managePlan.upgradeToTeam") : t("managePlan.downgradeToPro"),
       onClick: () => setPendingAction(plan === "team" ? "pro-to-team" : "team-to-pro"),
     };
   }
@@ -144,13 +143,14 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
         className="w-full max-w-md rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-ink-50">Manage plan</h3>
+        <h3 className="text-sm font-semibold text-ink-50">{t("managePlan.title")}</h3>
         <p className="mt-1 text-xs text-ink-500">
-          Current plan: <span className="font-medium text-ink-300">{readableCurrent}</span>
-          {subscription.isTrialing && ` — ${subscription.trialDaysRemaining} day${subscription.trialDaysRemaining === 1 ? "" : "s"} left`}
+          {t("managePlan.currentPlanLabel")} <span className="font-medium text-ink-300">{readableCurrent}</span>
+          {subscription.isTrialing &&
+            ` — ${t("managePlan.trialDaysLeft", { count: subscription.trialDaysRemaining })}`}
           {subscription.cancelAtPeriodEnd &&
             subscription.currentPeriodEnd &&
-            ` — ends ${formatDate(subscription.currentPeriodEnd)}, then read-only`}
+            ` — ${t("managePlan.endsThenReadOnly", { date: formatDate(subscription.currentPeriodEnd) })}`}
         </p>
 
         {subscription.cancelAtPeriodEnd && (
@@ -160,7 +160,7 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
             disabled={isSubmitting}
             className="mt-3 w-full rounded border border-accent-700 px-3 py-1.5 text-xs font-medium text-accent-400 hover:border-accent-500 disabled:opacity-50"
           >
-            Resume — keep renewing on the {readableCurrent} plan
+            {t("managePlan.resumeButton", { plan: readableCurrent })}
           </button>
         )}
 
@@ -177,13 +177,13 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-ink-100">
-                    {plan.name} <span className="text-ink-500">· {plan.price}</span>
+                    {planName[plan.id]} <span className="text-ink-500">· {plan.price}</span>
                   </p>
                   <p className="mt-0.5 text-xs text-ink-500">{plan.blurb}</p>
                 </div>
                 {isCurrent ? (
                   <span className="shrink-0 rounded bg-accent-500/15 px-2 py-1 text-[11px] font-semibold uppercase text-accent-400">
-                    Current
+                    {t("managePlan.current")}
                   </span>
                 ) : (
                   action && (
@@ -215,20 +215,23 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
           onClick={onClose}
           className="mt-4 w-full rounded border border-ink-700 px-4 py-2 text-center text-sm text-ink-300 hover:border-ink-500"
         >
-          Close
+          {t("managePlan.close")}
         </button>
       </div>
 
       {pendingAction === "downgrade-to-free" && (
         <ConfirmDialog
-          title={`Downgrade to Free?`}
+          title={t("managePlan.confirmDowngradeTitle")}
           message={
             subscription.currentPeriodEnd
-              ? `You'll keep ${readableCurrent} access until ${formatDate(subscription.currentPeriodEnd)}. After that, your projects become read-only — you can still sign in and view or delete them, but not create, comment, or upload new versions — until you resubscribe.`
-              : `You'll keep ${readableCurrent} access until the end of the current billing period. After that, your projects become read-only — you can still sign in and view or delete them, but not create, comment, or upload new versions — until you resubscribe.`
+              ? t("managePlan.confirmDowngradeMessageWithDate", {
+                  plan: readableCurrent,
+                  date: formatDate(subscription.currentPeriodEnd),
+                })
+              : t("managePlan.confirmDowngradeMessageNoDate", { plan: readableCurrent })
           }
-          confirmLabel="Downgrade to Free"
-          cancelLabel={`Keep ${readableCurrent}`}
+          confirmLabel={t("managePlan.downgradeToFree")}
+          cancelLabel={t("managePlan.keepPlan", { plan: readableCurrent })}
           isDestructive
           isConfirming={isSubmitting}
           onConfirm={() => void handleDowngradeToFree()}
@@ -238,10 +241,10 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
 
       {pendingAction === "pro-to-team" && (
         <ConfirmDialog
-          title="Upgrade to Team?"
-          message="Your subscription switches to Team ($35/seat/mo, 5 seats to start, prorated for the rest of this billing period). Adjust seat count any time via Manage billing."
-          confirmLabel="Upgrade to Team"
-          cancelLabel="Cancel"
+          title={t("managePlan.confirmUpgradeTeamTitle")}
+          message={t("managePlan.confirmUpgradeTeamMessage")}
+          confirmLabel={t("managePlan.upgradeToTeam")}
+          cancelLabel={t("common.cancel")}
           isConfirming={isSubmitting}
           onConfirm={() => void handleChangePlan("team")}
           onCancel={() => setPendingAction(null)}
@@ -250,10 +253,10 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
 
       {pendingAction === "team-to-pro" && (
         <ConfirmDialog
-          title="Downgrade to Pro?"
-          message="Your subscription switches to Pro ($15/mo, single seat, prorated for the rest of this billing period). Any team members riding your seats will lose access immediately — they'll need their own Pro subscription to keep using Meshdiff."
-          confirmLabel="Downgrade to Pro"
-          cancelLabel="Keep Team"
+          title={t("managePlan.confirmDowngradeProTitle")}
+          message={t("managePlan.confirmDowngradeProMessage")}
+          confirmLabel={t("managePlan.downgradeToPro")}
+          cancelLabel={t("managePlan.keepPlan", { plan: planName.team })}
           isDestructive
           isConfirming={isSubmitting}
           onConfirm={() => void handleChangePlan("pro")}

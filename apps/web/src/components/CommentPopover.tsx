@@ -22,6 +22,11 @@ interface CommentPopoverProps {
   onDelete: (comment: CommentSummary) => void;
   onToggleStatus: (comment: CommentSummary) => void;
   onReply: (body: string) => Promise<void>;
+  /** The specific comment or reply a notification deep-link pointed at (see
+   * VersionDetailPage's `?comment=` handling) — flagged with an accent
+   * border/background so "where was I mentioned" is answered by more than
+   * just the popover being open, since a thread can hold several messages. */
+  linkedCommentId?: string | null;
 }
 
 function formatDate(iso: string): string {
@@ -39,16 +44,22 @@ function CommentEntry({
   canChangeStatus,
   onDelete,
   onToggleStatus,
+  highlighted,
 }: {
   comment: CommentSummary;
   canDelete: boolean;
   canChangeStatus: boolean;
   onDelete: () => void;
   onToggleStatus: () => void;
+  highlighted?: boolean;
 }) {
   const { t } = useTranslation();
   return (
-    <div>
+    <div
+      className={
+        highlighted ? "-mx-1.5 rounded border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-1.5" : undefined
+      }
+    >
       <div className="flex items-center gap-1.5">
         <span className="min-w-0 truncate text-[10px] text-ink-500">
           <span className="font-medium text-ink-400">{comment.authorEmail ?? t("comments.someone")}</span>
@@ -92,8 +103,10 @@ export default function CommentPopover({
   onDelete,
   onToggleStatus,
   onReply,
+  linkedCommentId,
 }: CommentPopoverProps) {
   const { t } = useTranslation();
+  const isTopCommentLinked = linkedCommentId === comment.id;
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
@@ -123,7 +136,9 @@ export default function CommentPopover({
       <div
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
-        className="relative flex w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border border-ink-700 bg-ink-900 p-2.5 shadow-xl"
+        className={`relative flex w-80 max-w-[90vw] -translate-x-[calc(100%+12px)] -translate-y-1/2 flex-col gap-2 rounded-lg border bg-ink-900 p-2.5 shadow-xl ${
+          isTopCommentLinked ? "border-accent-500 ring-1 ring-accent-500/50" : "border-ink-700"
+        }`}
       >
         {/* Close stays alone in the top-right corner, well clear of the
             per-comment Delete links below — those live next to Reply
@@ -137,7 +152,11 @@ export default function CommentPopover({
           ✕
         </button>
 
-        <div className="pr-5">
+        <div
+          className={`pr-5 ${
+            isTopCommentLinked ? "-mx-1.5 rounded border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-4" : ""
+          }`}
+        >
           <div className="flex items-center gap-1.5">
             <span className="min-w-0 truncate text-[10px] text-ink-500">
               <span className="font-medium text-ink-400">{comment.authorEmail ?? t("comments.someone")}</span>
@@ -225,6 +244,7 @@ export default function CommentPopover({
                 canChangeStatus={canChangeStatus(reply)}
                 onDelete={() => onDelete(reply)}
                 onToggleStatus={() => onToggleStatus(reply)}
+                highlighted={linkedCommentId === reply.id}
               />
             ))}
           </div>

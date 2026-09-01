@@ -90,7 +90,7 @@ export default function NotificationBell() {
         )}
       </button>
       {isOpen && (
-        <div className="absolute bottom-full left-0 z-10 mb-1">
+        <div className="absolute right-0 top-full z-10 mt-1">
           <NotificationInbox
             notifications={notifications}
             isLoading={isLoading}

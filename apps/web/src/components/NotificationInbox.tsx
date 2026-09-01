@@ -22,7 +22,12 @@ function timeAgo(iso: string): string {
 
 function targetPath(notification: NotificationSummary): string | null {
   if (!notification.projectId) return null;
-  if (notification.versionId) return `/projects/${notification.projectId}/versions/${notification.versionId}`;
+  if (notification.versionId) {
+    const base = `/projects/${notification.projectId}/versions/${notification.versionId}`;
+    // Deep-links straight to the comment (opened via its 3D pin popover) for
+    // notification types that point at one — mention/comment_assigned.
+    return notification.commentId ? `${base}?comment=${notification.commentId}` : base;
+  }
   return `/projects/${notification.projectId}`;
 }
 

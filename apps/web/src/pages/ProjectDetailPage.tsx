@@ -743,6 +743,14 @@ export default function ProjectDetailPage() {
                       })}
                     </span>
                   )}
+                  {version.unresolvedCommentCount > 0 && (
+                    <span
+                      title={t("projectDetail.unresolvedTooltip", { count: version.unresolvedCommentCount })}
+                      className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400"
+                    >
+                      {t("projectDetail.unresolvedCount", { count: version.unresolvedCommentCount })}
+                    </span>
+                  )}
                   <span className="min-w-0 flex-1 truncate text-ink-300">{version.fileName}</span>
                   <span className="shrink-0 text-xs text-ink-500">
                     {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}

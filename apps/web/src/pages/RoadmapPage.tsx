@@ -8,7 +8,7 @@ export const META_DESCRIPTION =
 
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.4.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.5.0");
 
   const roadmapItems = {
     planned: [
@@ -31,6 +31,29 @@ export default function RoadmapPage() {
   };
 
   const changelog = [
+    {
+      version: "v1.5.0",
+      date: "2026-08-27",
+      title: "Team review workflow and a repositioned homepage",
+      items: {
+        new: [
+          "5-state version review workflow (Draft → In Review → Changes Requested → Approved → Superseded) with a full, auditable history of every transition",
+          "Configurable per-project approval gates — Approve is blocked until every checked-off requirement is satisfied",
+          "In-app notifications for review decisions, new submissions, and gate completion",
+          "Comment lifecycle: Open/Resolved/Reopened status, assignees, priority, and @mentions that notify the mentioned teammate",
+          "Persistent top bar in the Projects workspace with plan status, language, notifications, and account menu, replacing the old sidebar footer",
+          "Signing out now asks for confirmation before ending your session",
+        ],
+        improved: [
+          "Homepage repositioned around the team review/approval workflow instead of raw file comparison — new hero, workflow walkthrough, revision-history timeline, and an \"external review, no CAD software\" pitch moved up near the top",
+          "Manage Plan dialog is now fully translated",
+          "Projects list no longer leaves a large empty gap next to the sidebar on wide screens",
+        ],
+        fixed: [
+          "Approval-status badges with longer labels (e.g. \"Changes Requested\") no longer wrap and break alignment in badge lists",
+        ],
+      },
+    },
     {
       version: "v1.4.0",
       date: "2026-08-25",

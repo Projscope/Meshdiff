@@ -104,7 +104,7 @@ export default function ProjectsListPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="px-6 py-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink-50">{t("projectsList.title")}</h1>
@@ -156,7 +156,7 @@ export default function ProjectsListPage() {
       )}
 
       {projects && projects.length > 0 && (
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {projects.map((project) => (
             <div key={project.id} className="group relative overflow-hidden rounded-lg border border-ink-800 bg-ink-900 hover:border-ink-600">
               <Link to={`/projects/${project.id}`}>

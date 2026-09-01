@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
@@ -143,6 +143,7 @@ function computeUniqueEdges(geometry: THREE.BufferGeometry): Array<[THREE.Vector
 export default function VersionDetailPage() {
   const { t } = useTranslation();
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { isPro } = useAccountStatus();
   const [project, setProject] = useState<ProjectDetail | null>(null);
@@ -179,6 +180,12 @@ export default function VersionDetailPage() {
   const [members, setMembers] = useState<Array<{ userId: string; email: string | null }>>([]);
   const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+  // The exact comment/reply a notification deep-link pointed at — see the
+  // listComments() effect below. Separate from selectedCommentId (which
+  // always resolves to the thread's top-level comment) since this needs to
+  // flag one specific message, possibly a reply, for CommentPopover's
+  // accent-border treatment.
+  const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [pendingDeleteComment, setPendingDeleteComment] = useState<CommentSummary | null>(null);
   const [isDeletingComment, setIsDeletingComment] = useState(false);
   const [isPlacingComment, setIsPlacingComment] = useState(false);
@@ -310,7 +317,31 @@ export default function VersionDetailPage() {
     });
 
     listComments(projectId, versionId).then((result) => {
-      if (!cancelled && result.success) setComments(result.data);
+      if (!cancelled && result.success) {
+        setComments(result.data);
+
+        // Deep link from a notification (mention/comment_assigned) — see
+        // NotificationInbox.tsx's targetPath(). Opens the same pin popover
+        // a manual click would, so "where was I mentioned" is answered by
+        // the popover itself rather than a separate dialog. A reply has no
+        // pin of its own, so land on its parent thread instead.
+        const commentParam = searchParams.get("comment");
+        if (commentParam) {
+          const target = result.data.find((c) => c.id === commentParam);
+          if (target) {
+            setSelectedCommentId(target.parentCommentId ?? target.id);
+            setLinkedCommentId(commentParam);
+          }
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete("comment");
+              return next;
+            },
+            { replace: true },
+          );
+        }
+      }
     });
 
     return () => {
@@ -877,7 +908,10 @@ export default function VersionDetailPage() {
                       label={comment.body}
                       highlighted={hoveredCommentId === comment.id || selectedCommentId === comment.id}
                       onHoverChange={(hovering) => setHoveredCommentId(hovering ? comment.id : null)}
-                      onSelect={() => setSelectedCommentId(comment.id)}
+                      onSelect={() => {
+                        setSelectedCommentId(comment.id);
+                        setLinkedCommentId(null);
+                      }}
                       messageCount={1 + comments.filter((c) => c.parentCommentId === comment.id).length}
                     />
                   ))}
@@ -900,7 +934,9 @@ export default function VersionDetailPage() {
                       onClose={() => {
                         setSelectedCommentId(null);
                         setHoveredCommentId(null);
+                        setLinkedCommentId(null);
                       }}
+                      linkedCommentId={linkedCommentId}
                     />
                   ))}
                 {pendingPosition && (
@@ -1067,6 +1103,7 @@ export default function VersionDetailPage() {
                     // selecting a reply opens its parent's thread instead.
                     const target = comments.find((c) => c.id === commentId);
                     setSelectedCommentId(target?.parentCommentId ?? commentId);
+                    setLinkedCommentId(null);
                   }}
                   canDeleteComment={canDeleteComment}
                   onRequestDelete={setPendingDeleteComment}

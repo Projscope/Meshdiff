@@ -79,6 +79,7 @@ export function toVersionSummary(
   row: VersionRow,
   uploaderEmail: string | null = null,
   gateStatus: GateStatus | null = null,
+  unresolvedCommentCount = 0,
 ) {
   return {
     id: row.id,
@@ -94,7 +95,32 @@ export function toVersionSummary(
     createdAt: row.created_at,
     uploaderEmail,
     gateStatus,
+    unresolvedCommentCount,
   };
+}
+
+/** Counts comments still needing attention (open or reopened — see
+ * migration 0030) per version, in one batched query rather than N+1. Not
+ * team-gated like gate status — comment threads exist on personal (Pro)
+ * projects too. */
+async function getUnresolvedCommentCounts(
+  supabase: SupabaseClient,
+  versionIds: string[],
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (versionIds.length === 0) return counts;
+
+  const { data, error } = await supabase
+    .from("comments")
+    .select("version_id")
+    .in("version_id", versionIds)
+    .in("status", ["open", "reopened"]);
+  if (error) return counts;
+
+  for (const row of (data ?? []) as Array<{ version_id: string }>) {
+    counts.set(row.version_id, (counts.get(row.version_id) ?? 0) + 1);
+  }
+  return counts;
 }
 
 /** Team projects only — fetches active gate definitions for a project and
@@ -436,7 +462,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           actorUserId: params.actorUserId,
           projectId: params.projectId,
           versionId: params.versionId,
-          summary: `${params.auditVerb} (v${params.versionNumber})`,
+          summary: `${params.auditVerb} — ${project?.name ?? "Unknown project"}`,
         });
       }
     }
@@ -865,6 +891,10 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         const gateStatuses = access.teamId
           ? await Promise.all(versionRows.map((row) => getVersionGateStatus(supabase, row.id, access.teamId)))
           : versionRows.map(() => null);
+        const unresolvedCommentCounts = await getUnresolvedCommentCounts(
+          supabase,
+          versionRows.map((row) => row.id),
+        );
 
         return {
           success: true,
@@ -873,6 +903,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
               row,
               row.uploaded_by_user_id ? (emailByUserId.get(row.uploaded_by_user_id) ?? null) : null,
               gateStatuses[index],
+              unresolvedCommentCounts.get(row.id) ?? 0,
             ),
           ),
         };
@@ -960,11 +991,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         }
 
         const gateStatus = await getVersionGateStatus(supabase, versionRow.id, access.teamId);
+        const unresolvedCommentCounts = await getUnresolvedCommentCounts(supabase, [versionRow.id]);
 
         return {
           success: true,
           data: {
-            ...toVersionSummary(versionRow, null, gateStatus),
+            ...toVersionSummary(versionRow, null, gateStatus, unresolvedCommentCounts.get(versionRow.id) ?? 0),
             downloadUrl: download.signedUrl,
             previousVersionId,
             slicerProfile,
