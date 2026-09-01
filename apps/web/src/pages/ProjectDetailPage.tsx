@@ -76,7 +76,7 @@ function timeAgo(iso: string): string {
 
 function StatCard({ label, value, accent }: { label: string; value: React.ReactNode; accent?: "amber" }) {
   return (
-    <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+    <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
       <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-400" : "text-ink-50"}`}>
         {value}
@@ -377,6 +377,10 @@ export default function ProjectDetailPage() {
   // printability and volume change instead, which is actually actionable.
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
   const latestVolumeDeltaPercent = comparisons.length > 0 ? comparisons[comparisons.length - 1].volumeDeltaPercent : null;
+  // Across every version, not just the latest — comments exist on Pro
+  // projects too, so this isn't gated behind isTeam like Open Reviews/
+  // Approval Rate above.
+  const totalUnresolvedComments = versions.reduce((sum, v) => sum + v.unresolvedCommentCount, 0);
   const PRINTABILITY_LABEL: Record<"pass" | "warn" | "fail", string> = {
     pass: t("projectDetail.printabilityPass"),
     warn: t("projectDetail.printabilityWarn"),
@@ -390,7 +394,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div
-      className="mx-auto max-w-5xl px-6 py-8"
+      className="px-6 py-8"
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragOver(true);
@@ -410,8 +414,8 @@ export default function ProjectDetailPage() {
         }}
       />
 
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <p className="text-xs text-ink-500">
             <Link to="/projects" className="hover:text-ink-300">
               {t("projectDetail.breadcrumbProjects")}
@@ -436,7 +440,7 @@ export default function ProjectDetailPage() {
           </div>
           {project?.description && <p className="mt-1 text-sm text-ink-400">{project.description}</p>}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
           {project?.myRole === "owner" && myTeams.length > 0 && (
             <select
               value={project.teamId ?? ""}
@@ -504,14 +508,18 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className="mt-6 flex gap-6 rounded-lg border border-ink-800 bg-ink-900 p-6">
+      <div
+        className={`mt-6 grid gap-6 rounded-lg border border-ink-800 bg-ink-900 p-6 ${
+          project?.thumbnailUrl ? "lg:grid-cols-[280px_1fr]" : "grid-cols-1"
+        }`}
+      >
         {project?.thumbnailUrl && (
           <div className="shrink-0">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.latestModel")}</p>
             <img
               src={project.thumbnailUrl}
               alt={project.name}
-              className="mt-3 h-64 w-64 rounded bg-ink-950 object-contain"
+              className="mt-3 aspect-square w-full rounded bg-ink-950 object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
@@ -519,12 +527,12 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        <div className="flex-1 space-y-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {isTeam ? (
           <>
             <StatCard label={t("projectDetail.comparisons")} value={Math.max(0, versions.length - 1)} />
             <StatCard label={t("projectDetail.openReviews")} value={openReviews} accent={openReviews > 0 ? "amber" : undefined} />
-            <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+            <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.approvalRate")}</p>
               <p className="mt-1.5 text-2xl font-bold text-accent-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
               {approvalRate !== null && (
@@ -536,8 +544,8 @@ export default function ProjectDetailPage() {
           </>
         ) : (
           <>
-            <PrintabilityRulesTooltip className="block">
-              <div className="rounded-lg border border-ink-800 bg-ink-900 p-4">
+            <PrintabilityRulesTooltip className="block h-full">
+              <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.lastModelPrintability")}</p>
                 <p
                   className={`mt-1.5 text-2xl font-bold ${
@@ -558,7 +566,21 @@ export default function ProjectDetailPage() {
             />
           </>
         )}
+        <StatCard
+          label={t("projectDetail.unresolvedComments")}
+          value={totalUnresolvedComments}
+          accent={totalUnresolvedComments > 0 ? "amber" : undefined}
+        />
         <StatCard label={t("projectDetail.versions")} value={versions.length} />
+        {latestVersion?.gateStatus && latestVersion.gateStatus.totalCount > 0 && (
+          <StatCard
+            label={t("projectDetail.latestVersionGates")}
+            value={t("approvalGates.gateCount", {
+              satisfied: latestVersion.gateStatus.satisfiedCount,
+              total: latestVersion.gateStatus.totalCount,
+            })}
+          />
+        )}
         </div>
       </div>
 
@@ -606,10 +628,10 @@ export default function ProjectDetailPage() {
                     <div className={`w-px flex-1 ${isLastRow ? "bg-transparent" : "bg-ink-800"}`} />
                   </div>
 
-                  <div className="flex min-w-0 flex-1 items-center gap-4 py-0.5">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 py-0.5">
+                    <div className="min-w-0 w-full flex-1 sm:w-auto">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-sm font-semibold text-ink-50">
+                        <span className="whitespace-nowrap font-mono text-sm font-semibold text-ink-50">
                           {isSynthetic
                             ? `v${comparison.toVersion.versionNumber}`
                             : `v${comparison.fromVersion!.versionNumber} → v${comparison.toVersion.versionNumber}`}
@@ -632,7 +654,7 @@ export default function ProjectDetailPage() {
                       </span>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="flex w-full shrink-0 items-center gap-3 sm:w-auto">
                       <div className="text-right">
                         {bar ? (
                           <>
@@ -723,76 +745,80 @@ export default function ProjectDetailPage() {
                   key={version.id}
                   className="flex flex-col gap-1.5 rounded-lg border border-ink-800 bg-ink-900 px-4 py-2.5 text-sm"
                 >
-                <div className="flex items-center gap-3">
-                  <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold text-ink-300">
-                    v{version.versionNumber}
-                  </span>
-                  {version.id === stableVersionId && (
-                    <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400">
-                      {t("projectDetail.stable")}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold text-ink-300">
+                      v{version.versionNumber}
                     </span>
-                  )}
-                  {project?.teamId && version.approvalStatus !== "approved" && (
-                    <ApprovalBadge status={version.approvalStatus} />
-                  )}
-                  {version.gateStatus && version.gateStatus.totalCount > 0 && (
-                    <span className="shrink-0 rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
-                      {t("approvalGates.gateCount", {
-                        satisfied: version.gateStatus.satisfiedCount,
-                        total: version.gateStatus.totalCount,
-                      })}
+                    {version.id === stableVersionId && (
+                      <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400">
+                        {t("projectDetail.stable")}
+                      </span>
+                    )}
+                    {project?.teamId && version.approvalStatus !== "approved" && (
+                      <ApprovalBadge status={version.approvalStatus} />
+                    )}
+                    {version.gateStatus && version.gateStatus.totalCount > 0 && (
+                      <span className="shrink-0 rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
+                        {t("approvalGates.gateCount", {
+                          satisfied: version.gateStatus.satisfiedCount,
+                          total: version.gateStatus.totalCount,
+                        })}
+                      </span>
+                    )}
+                    {version.unresolvedCommentCount > 0 && (
+                      <span
+                        title={t("projectDetail.unresolvedTooltip", { count: version.unresolvedCommentCount })}
+                        className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400"
+                      >
+                        {t("projectDetail.unresolvedCount", { count: version.unresolvedCommentCount })}
+                      </span>
+                    )}
+                    <span className="min-w-0 truncate text-ink-300">{version.fileName}</span>
+                    <span className="shrink-0 text-xs text-ink-500">
+                      {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}
                     </span>
-                  )}
-                  {version.unresolvedCommentCount > 0 && (
-                    <span
-                      title={t("projectDetail.unresolvedTooltip", { count: version.unresolvedCommentCount })}
-                      className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400"
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                    <VersionActionButtons
+                      status={version.approvalStatus}
+                      canTransition={canTransitionVersionState}
+                      onApprove={() => void handleApprove(version.id)}
+                      onRequestChanges={() => setPendingReject({ id: version.id, versionNumber: version.versionNumber })}
+                      gateStatus={version.gateStatus}
+                    />
+                    <Link
+                      to={`/projects/${projectId}/versions/${version.id}`}
+                      className="shrink-0 rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
                     >
-                      {t("projectDetail.unresolvedCount", { count: version.unresolvedCommentCount })}
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-ink-300">{version.fileName}</span>
-                  <span className="shrink-0 text-xs text-ink-500">
-                    {version.triangleCount ?? "?"} tris · {version.fileFormat.toUpperCase()}
-                  </span>
-                  <VersionActionButtons
-                    status={version.approvalStatus}
-                    canTransition={canTransitionVersionState}
-                    onApprove={() => void handleApprove(version.id)}
-                    onRequestChanges={() => setPendingReject({ id: version.id, versionNumber: version.versionNumber })}
-                    gateStatus={version.gateStatus}
-                  />
-                  <Link
-                    to={`/projects/${projectId}/versions/${version.id}`}
-                    className="shrink-0 rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
-                  >
-                    {t("projectDetail.view")}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void handleDownloadVersion(version.id)}
-                    title={t("projectDetail.downloadVersionTooltip")}
-                    className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-200 hover:border-ink-500"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete({ id: version.id, versionNumber: version.versionNumber })}
-                    title={t("projectDetail.deleteVersionTooltip")}
-                    className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-400 hover:border-red-700 hover:text-red-400"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                  </button>
+                      {t("projectDetail.view")}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleDownloadVersion(version.id)}
+                      title={t("projectDetail.downloadVersionTooltip")}
+                      className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-200 hover:border-ink-500"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete({ id: version.id, versionNumber: version.versionNumber })}
+                      title={t("projectDetail.deleteVersionTooltip")}
+                      className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-400 hover:border-red-700 hover:text-red-400"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 {version.approvalStatus === "changes_requested" && version.rejectionReason && (
                   <p className="pl-1 text-xs text-red-400">

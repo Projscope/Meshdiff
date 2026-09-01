@@ -132,6 +132,8 @@ const nl: TranslationResource = {
     approvalRate: "Goedkeuringspercentage",
     lastModelPrintability: "Printbaarheid van nieuwste model",
     latestVolumeDelta: "Nieuwste volumewijziging Δ",
+    unresolvedComments: "Onopgeloste reacties",
+    latestVersionGates: "Controlepunten nieuwste versie",
     versions: "Versies",
     printabilityPass: "Geslaagd",
     printabilityWarn: "Waarschuwing",

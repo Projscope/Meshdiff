@@ -132,6 +132,8 @@ const de: TranslationResource = {
     approvalRate: "Freigabequote",
     lastModelPrintability: "Druckbarkeit des neuesten Modells",
     latestVolumeDelta: "Neueste Volumenänderung Δ",
+    unresolvedComments: "Ungelöste Kommentare",
+    latestVersionGates: "Prüfpunkte der neuesten Version",
     versions: "Versionen",
     printabilityPass: "Bestanden",
     printabilityWarn: "Warnung",

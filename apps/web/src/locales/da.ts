@@ -132,6 +132,8 @@ const da: TranslationResource = {
     approvalRate: "Godkendelsesrate",
     lastModelPrintability: "Nyeste models printbarhed",
     latestVolumeDelta: "Nyeste volumenændring Δ",
+    unresolvedComments: "Uløste kommentarer",
+    latestVersionGates: "Kontrolpunkter for nyeste version",
     versions: "Versioner",
     printabilityPass: "Bestået",
     printabilityWarn: "Advarsel",

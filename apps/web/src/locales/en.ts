@@ -133,6 +133,8 @@ const en = {
     approvalRate: "Approval Rate",
     lastModelPrintability: "Last Model Printability",
     latestVolumeDelta: "Latest Volume Δ",
+    unresolvedComments: "Unresolved Comments",
+    latestVersionGates: "Latest Version Gates",
     versions: "Versions",
     printabilityPass: "Pass",
     printabilityWarn: "Warning",
