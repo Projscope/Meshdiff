@@ -347,8 +347,12 @@ const en = {
     historyBody: "Every upload keeps a real trail — nothing gets overwritten, so you can always see what changed and when.",
     compareTitle: "Compare any two versions",
     compareBody: "Pick any pair of versions from the history to diff them against each other, not just consecutive ones.",
-    versionsTitle: "All versions, in one place",
-    versionsBody: "Review, download, or delete any version from this list. Approvals and comments live here too, on Team projects.",
+    diffTitle: "See a real diff",
+    diffBody: "Click v1 → v2 above to see exactly what changed between them — added geometry in green, removed in red.",
+    compareViewerTitle: "The diff, computed automatically",
+    compareViewerBody: "Added geometry and removed geometry, voxel by voxel — no manual overlay, no guesswork.",
+    compareDeltaTitle: "Every dimension of the change",
+    compareDeltaBody: "Volume, bounding box, and surface area — the numbers behind the picture, right here.",
   },
 };
 

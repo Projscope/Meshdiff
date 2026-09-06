@@ -14,7 +14,7 @@ const STEPS: Step[] = [
   { target: "stats", titleKey: "sampleTour.statsTitle", bodyKey: "sampleTour.statsBody" },
   { target: "history", titleKey: "sampleTour.historyTitle", bodyKey: "sampleTour.historyBody" },
   { target: "compare", titleKey: "sampleTour.compareTitle", bodyKey: "sampleTour.compareBody" },
-  { target: "versions", titleKey: "sampleTour.versionsTitle", bodyKey: "sampleTour.versionsBody" },
+  { target: "latestDiff", titleKey: "sampleTour.diffTitle", bodyKey: "sampleTour.diffBody" },
 ];
 
 interface Rect {

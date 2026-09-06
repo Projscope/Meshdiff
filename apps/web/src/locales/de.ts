@@ -346,8 +346,12 @@ const de: TranslationResource = {
     historyBody: "Jeder Upload hinterlässt eine echte Spur — nichts wird überschrieben, sodass du immer sehen kannst, was sich wann geändert hat.",
     compareTitle: "Beliebige zwei Versionen vergleichen",
     compareBody: "Wähle ein beliebiges Versionspaar aus dem Verlauf, um es zu vergleichen — nicht nur aufeinanderfolgende.",
-    versionsTitle: "Alle Versionen an einem Ort",
-    versionsBody: "Überprüfe, lade herunter oder lösche jede Version aus dieser Liste. Genehmigungen und Kommentare befinden sich hier ebenfalls, bei Team-Projekten.",
+    diffTitle: "Ein echter Vergleich",
+    diffBody: "Klicke oben auf v1 → v2, um genau zu sehen, was sich geändert hat — neue Geometrie in Grün, entfernte in Rot.",
+    compareViewerTitle: "Der Unterschied, automatisch berechnet",
+    compareViewerBody: "Hinzugefügte und entfernte Geometrie, Voxel für Voxel — kein manuelles Überlagern, kein Rätselraten.",
+    compareDeltaTitle: "Jede Dimension der Änderung",
+    compareDeltaBody: "Volumen, Begrenzungsrahmen und Oberfläche — die Zahlen hinter dem Bild, direkt hier.",
   },
 };
 

@@ -346,8 +346,12 @@ const es: TranslationResource = {
     historyBody: "Cada subida deja un rastro real — nada se sobrescribe, así que siempre puedes ver qué cambió y cuándo.",
     compareTitle: "Compara dos versiones cualesquiera",
     compareBody: "Elige cualquier par de versiones del historial para compararlas, no solo las consecutivas.",
-    versionsTitle: "Todas las versiones en un solo lugar",
-    versionsBody: "Revisa, descarga o elimina cualquier versión de esta lista. Las aprobaciones y comentarios también viven aquí, en proyectos de Equipo.",
+    diffTitle: "Mira una comparación real",
+    diffBody: "Haz clic en v1 → v2 arriba para ver exactamente qué cambió — geometría añadida en verde, eliminada en rojo.",
+    compareViewerTitle: "La diferencia, calculada automáticamente",
+    compareViewerBody: "Geometría añadida y eliminada, vóxel por vóxel — sin superposición manual, sin conjeturas.",
+    compareDeltaTitle: "Cada dimensión del cambio",
+    compareDeltaBody: "Volumen, caja delimitadora y área de superficie — los números detrás de la imagen, justo aquí.",
   },
 };
 

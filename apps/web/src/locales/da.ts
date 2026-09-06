@@ -346,8 +346,12 @@ const da: TranslationResource = {
     historyBody: "Hver upload efterlader et rigtigt spor — intet overskrives, så du altid kan se, hvad der ændrede sig og hvornår.",
     compareTitle: "Sammenlign to vilkårlige versioner",
     compareBody: "Vælg et vilkårligt par af versioner fra historikken for at sammenligne dem, ikke kun på hinanden følgende.",
-    versionsTitle: "Alle versioner samlet ét sted",
-    versionsBody: "Gennemgå, download eller slet enhver version fra denne liste. Godkendelser og kommentarer findes også her på Team-projekter.",
+    diffTitle: "Se en rigtig sammenligning",
+    diffBody: "Klik på v1 → v2 ovenfor for at se præcis, hvad der er ændret — tilføjet geometri i grønt, fjernet i rødt.",
+    compareViewerTitle: "Forskellen, beregnet automatisk",
+    compareViewerBody: "Tilføjet og fjernet geometri, voxel for voxel — ingen manuel overlejring, ingen gætteri.",
+    compareDeltaTitle: "Hver dimension af ændringen",
+    compareDeltaBody: "Volumen, afgrænsningsboks og overfladeareal — tallene bag billedet, lige her.",
   },
 };
 

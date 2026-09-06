@@ -33,7 +33,7 @@ import { useRefreshProjectsSidebar, useAccountStatus } from "../components/Proje
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
 import SampleProjectTour from "../components/SampleProjectTour";
-import { setTourDismissed } from "../lib/sampleProjectTour";
+import { setTourDismissed, setTourAwaitingCompare, getSampleTourStage } from "../lib/sampleProjectTour";
 
 // Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
 // — all three formats are safe again now that diffing runs client-side
@@ -624,6 +624,16 @@ export default function ProjectDetailPage() {
               return (
                 <Link
                   key={comparison.toVersion.id}
+                  data-tour={!isSynthetic && isFirstRow ? "latestDiff" : undefined}
+                  onClick={() => {
+                    // Following the walkthrough's last-step link (see
+                    // SampleProjectTour) hands off to SampleCompareTour on
+                    // the diff screen instead of ending here. Only while the
+                    // walkthrough is still active on its first pass — a
+                    // returning user just browsing their own history
+                    // shouldn't resurrect a finished/skipped tour.
+                    if (project?.isSample && getSampleTourStage() === "unseen") setTourAwaitingCompare();
+                  }}
                   to={
                     isSynthetic
                       ? `/projects/${projectId}/versions/${comparison.toVersion.id}`
@@ -746,7 +756,7 @@ export default function ProjectDetailPage() {
       )}
 
       {versions.length > 0 && (
-        <div data-tour="versions" className="mt-8">
+        <div className="mt-8">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-500">
               {t("projectDetail.allVersions", { count: versions.length })}

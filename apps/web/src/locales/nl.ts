@@ -346,8 +346,12 @@ const nl: TranslationResource = {
     historyBody: "Elke upload laat een echt spoor achter — niets wordt overschreven, zodat je altijd kunt zien wat er wanneer is veranderd.",
     compareTitle: "Vergelijk elke twee versies",
     compareBody: "Kies een willekeurig paar versies uit de geschiedenis om te vergelijken, niet alleen opeenvolgende.",
-    versionsTitle: "Alle versies op één plek",
-    versionsBody: "Bekijk, download of verwijder elke versie uit deze lijst. Goedkeuringen en reacties staan hier ook, bij Team-projecten.",
+    diffTitle: "Bekijk een echt verschil",
+    diffBody: "Klik hierboven op v1 → v2 om precies te zien wat er is veranderd — toegevoegde geometrie in groen, verwijderde in rood.",
+    compareViewerTitle: "Het verschil, automatisch berekend",
+    compareViewerBody: "Toegevoegde en verwijderde geometrie, voxel voor voxel — geen handmatige overlay, geen giswerk.",
+    compareDeltaTitle: "Elke dimensie van de verandering",
+    compareDeltaBody: "Volume, begrenzingsvak en oppervlakte — de cijfers achter het beeld, hier direct.",
   },
 };
 
