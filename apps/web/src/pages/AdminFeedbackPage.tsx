@@ -277,6 +277,16 @@ export default function AdminFeedbackPage() {
                 <span className="text-ink-300">{selectedEntry.page ?? "—"}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
+                <span className="text-ink-500">Submitted by</span>
+                <span className="text-ink-300">{selectedEntry.userEmail ?? "Anonymous"}</span>
+              </div>
+              {selectedEntry.userAgent && (
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-ink-500">Browser</span>
+                  <span className="break-words text-right text-ink-400">{selectedEntry.userAgent}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-ink-500">Received</span>
                 <span className="text-ink-300">{new Date(selectedEntry.createdAt).toLocaleString()}</span>
               </div>

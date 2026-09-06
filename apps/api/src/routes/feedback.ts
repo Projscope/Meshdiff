@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth } from "../lib/requireAuth.js";
+import { requireAuth, getOptionalUser } from "../lib/requireAuth.js";
 import { requireAdmin, getAdminUserIds } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { notifyFeedbackSubmitted } from "../lib/notify.js";
@@ -8,6 +8,7 @@ const PAGE_SIZE = 25;
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_EMAIL_LENGTH = 320;
 const MAX_PAGE_LENGTH = 200;
+const MAX_USER_AGENT_LENGTH = 500;
 
 type FeedbackType = "note" | "feature" | "bug";
 
@@ -21,6 +22,11 @@ interface FeedbackRow {
   page: string | null;
   status: "new" | "reviewed";
   created_at: string;
+  // Auto-captured, admin-only context — distinct from the optional `email`
+  // field above, which is contact info the submitter typed in themselves.
+  user_id: string | null;
+  user_email: string | null;
+  user_agent: string | null;
 }
 
 interface SubmitFeedbackBody {
@@ -47,6 +53,9 @@ function toFeedbackSummary(row: FeedbackRow) {
     page: row.page,
     status: row.status,
     createdAt: row.created_at,
+    userId: row.user_id,
+    userEmail: row.user_email,
+    userAgent: row.user_agent,
   };
 }
 
@@ -78,6 +87,12 @@ export default async function feedbackRoute(app: FastifyInstance): Promise<void>
     }
 
     const supabase = request.supabase!;
+    // Best-effort — the button is global now, so a logged-in user's request
+    // already carries a bearer token even though this route stays open to
+    // anonymous /live visitors. Purely for admin context; never blocks or
+    // surfaces back to the submitter.
+    const submitter = await getOptionalUser(request);
+    const userAgent = request.headers["user-agent"];
 
     try {
       const { data: inserted, error } = await supabase
@@ -87,6 +102,9 @@ export default async function feedbackRoute(app: FastifyInstance): Promise<void>
           message: trimmedMessage,
           email: email?.trim() || null,
           page: typeof page === "string" ? page.slice(0, MAX_PAGE_LENGTH) : null,
+          user_id: submitter?.id ?? null,
+          user_email: submitter?.email ?? null,
+          user_agent: typeof userAgent === "string" ? userAgent.slice(0, MAX_USER_AGENT_LENGTH) : null,
         })
         .select("id")
         .single();

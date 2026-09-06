@@ -10,6 +10,12 @@ export interface FeedbackEntry {
   page: string | null;
   status: "new" | "reviewed";
   createdAt: string;
+  /** Auto-captured, admin-only — distinct from `email` above, which is
+   * contact info the submitter typed in themselves. Null for anonymous
+   * submissions (e.g. from the unauthenticated /live tool). */
+  userId: string | null;
+  userEmail: string | null;
+  userAgent: string | null;
 }
 
 export interface AdminFeedbackPage {
