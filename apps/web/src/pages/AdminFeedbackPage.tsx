@@ -1,11 +1,15 @@
 import { Fragment, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   listAdminFeedback,
+  getAdminFeedbackEntry,
   updateFeedbackStatus,
+  deleteFeedback,
   type AdminFeedbackPage,
   type FeedbackEntry,
   type FeedbackType,
 } from "../lib/feedbackApi";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const PAGE_SIZE = 25;
 
@@ -44,6 +48,9 @@ export default function AdminFeedbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<FeedbackEntry | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function refresh() {
     listAdminFeedback(page).then((result) => {
@@ -67,11 +74,46 @@ export default function AdminFeedbackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
+  // Deep link from a feedback_submitted notification (see
+  // NotificationInbox.tsx's targetPath()) — fetches that one entry directly
+  // rather than assuming it's on the currently-loaded page, then strips the
+  // param so refreshing doesn't reopen it.
+  useEffect(() => {
+    const feedbackId = searchParams.get("feedbackId");
+    if (!feedbackId) return;
+    getAdminFeedbackEntry(feedbackId).then((result) => {
+      if (result.success) setSelectedEntry(result.data);
+    });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("feedbackId");
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleToggleStatus(id: string, nextStatus: "new" | "reviewed") {
     setTogglingId(id);
     const result = await updateFeedbackStatus(id, nextStatus);
     if (result.success) refresh();
     setTogglingId(null);
+  }
+
+  async function handleConfirmDelete() {
+    if (!pendingDeleteId) return;
+    setIsDeleting(true);
+    const result = await deleteFeedback(pendingDeleteId);
+    setIsDeleting(false);
+    setPendingDeleteId(null);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    if (selectedEntry?.id === pendingDeleteId) setSelectedEntry(null);
+    refresh();
   }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
@@ -260,8 +302,30 @@ export default function AdminFeedbackPage() {
                 </button>
               </div>
             </div>
+
+            <div className="mt-5 flex justify-end border-t border-ink-800 pt-4">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteId(selectedEntry.id)}
+                className="rounded border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-600 hover:bg-red-500/10"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {pendingDeleteId && (
+        <ConfirmDialog
+          title="Delete this feedback?"
+          message="This can't be undone."
+          confirmLabel="Delete"
+          isDestructive
+          isConfirming={isDeleting}
+          onConfirm={() => void handleConfirmDelete()}
+          onCancel={() => setPendingDeleteId(null)}
+        />
       )}
     </div>
   );

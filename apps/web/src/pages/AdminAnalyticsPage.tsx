@@ -55,7 +55,9 @@ export default function AdminAnalyticsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink-50">Analytics</h1>
-          <p className="mt-1 text-sm text-ink-400">Visitors, pages, countries, languages, referrers, and devices</p>
+          <p className="mt-1 text-sm text-ink-400">
+            Visitors, pages, countries, languages, referrers, devices, and browsers
+          </p>
         </div>
         <div className="flex overflow-hidden rounded border border-ink-700 text-xs">
           <button
@@ -135,6 +137,7 @@ export default function AdminAnalyticsPage() {
             <AnalyticsRankedList title="Top Languages" entries={data.topLanguages} formatValue={languageName} />
             <AnalyticsRankedList title="Top Referrers" entries={data.topReferrers} />
             <AnalyticsRankedList title="Devices" entries={data.topDevices} formatValue={capitalize} />
+            <AnalyticsRankedList title="Browsers" entries={data.topBrowsers} />
           </div>
         </>
       )}

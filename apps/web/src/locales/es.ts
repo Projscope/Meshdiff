@@ -330,6 +330,25 @@ const es: TranslationResource = {
     volumeSuffix: "volumen",
     waitingForBoth: "Carga la Versión A y la Versión B para calcular una diferencia",
   },
+  sampleTour: {
+    replayLink: "Muéstrame cómo funciona",
+    stepOf: "{{current}} de {{total}}",
+    next: "Siguiente",
+    back: "Atrás",
+    done: "Listo",
+    skip: "Omitir recorrido",
+    uploadTitle: "Sube nuevas versiones aquí",
+    uploadBody:
+      "Aquí es donde subirías una nueva versión de tu modelo. Subir archivos es una función Pro, así que está deshabilitada en esta muestra.",
+    statsTitle: "Tu comparación de un vistazo",
+    statsBody: "El cambio de volumen, la imprimibilidad y las estadísticas de comparación de este proyecto se actualizan automáticamente con cada versión.",
+    historyTitle: "Un historial de versiones completo",
+    historyBody: "Cada subida deja un rastro real — nada se sobrescribe, así que siempre puedes ver qué cambió y cuándo.",
+    compareTitle: "Compara dos versiones cualesquiera",
+    compareBody: "Elige cualquier par de versiones del historial para compararlas, no solo las consecutivas.",
+    versionsTitle: "Todas las versiones en un solo lugar",
+    versionsBody: "Revisa, descarga o elimina cualquier versión de esta lista. Las aprobaciones y comentarios también viven aquí, en proyectos de Equipo.",
+  },
 };
 
 export default es;

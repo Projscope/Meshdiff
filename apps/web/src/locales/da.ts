@@ -330,6 +330,25 @@ const da: TranslationResource = {
     volumeSuffix: "volumen",
     waitingForBoth: "Indlæs Version A og Version B for at beregne en forskel",
   },
+  sampleTour: {
+    replayLink: "Vis mig rundt",
+    stepOf: "{{current}} af {{total}}",
+    next: "Næste",
+    back: "Tilbage",
+    done: "Færdig",
+    skip: "Spring rundvisning over",
+    uploadTitle: "Upload nye versioner her",
+    uploadBody:
+      "Her ville du uploade en ny version af din model. Upload er en Pro-funktion, så den er deaktiveret på dette eksempel.",
+    statsTitle: "Din sammenligning på et øjeblik",
+    statsBody: "Volumenændring, printbarhed og sammenligningsstatistik for dette projekt opdateres automatisk med hver version.",
+    historyTitle: "En komplet versionshistorik",
+    historyBody: "Hver upload efterlader et rigtigt spor — intet overskrives, så du altid kan se, hvad der ændrede sig og hvornår.",
+    compareTitle: "Sammenlign to vilkårlige versioner",
+    compareBody: "Vælg et vilkårligt par af versioner fra historikken for at sammenligne dem, ikke kun på hinanden følgende.",
+    versionsTitle: "Alle versioner samlet ét sted",
+    versionsBody: "Gennemgå, download eller slet enhver version fra denne liste. Godkendelser og kommentarer findes også her på Team-projekter.",
+  },
 };
 
 export default da;

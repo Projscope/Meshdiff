@@ -21,6 +21,12 @@ function timeAgo(iso: string): string {
 }
 
 function targetPath(notification: NotificationSummary): string | null {
+  // Deep-links straight to the entry's detail modal on the admin feedback
+  // page (see AdminFeedbackPage.tsx's `?feedbackId=` handling) — this type
+  // has no project at all, so it's checked before the project-based cases.
+  if (notification.type === "feedback_submitted" && notification.feedbackId) {
+    return `/admin/feedback?feedbackId=${notification.feedbackId}`;
+  }
   if (!notification.projectId) return null;
   if (notification.versionId) {
     const base = `/projects/${notification.projectId}/versions/${notification.versionId}`;

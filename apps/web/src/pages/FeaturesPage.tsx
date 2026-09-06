@@ -3,6 +3,7 @@ import { Check } from "@phosphor-icons/react";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 import liveDiffPreview from "../assets/live-diff-preview.png";
+import teamFeaturesExplainer from "../assets/team-features-explainer.svg";
 
 export const META_TITLE = "Features — Voxel Diff, Heatmap, Printability | Meshdiff";
 export const META_DESCRIPTION =
@@ -62,21 +63,21 @@ const OTHER_FEATURES: FeatureSection[] = [
     bullets: ["1, 3, or 7-day expiry", "No signup for the recipient", "Free on the Community plan"],
   },
   {
-    tag: "Review - Soon to come",
+    tag: "Review",
     title: "Leave feedback right where it matters.",
     description:
-      "Click anywhere on a model to pin a comment to that exact 3D point, not a vague line number or a screenshot.",
-    bullets: ["Comments stay attached to the surface", "Full history in the Projects workspace"],
+      "Click anywhere on a model to pin a comment to that exact 3D point, not a vague line number or a screenshot. Reply, resolve, reopen, and @mention a teammate to pull them in.",
+    bullets: ["Comments stay attached to the surface", "@mentions notify the right person instantly"],
   },
   {
     tag: "History",
     title: "Every upload keeps a real trail.",
     description:
-      "A traceable version history with team review — pending, approved, or rejected — before a file becomes the stable version everyone builds on.",
+      "A traceable version history with real team review — Draft, In Review, Changes Requested, Approved, or Superseded — before a file becomes the stable version everyone builds on.",
     bullets: [
       "Team approval workflow (admin / approver roles)",
-      "Rejection reasons kept on record",
-      "Stable-version resolution for downloads",
+      "Configurable approval gates block Approve until checked off",
+      "Rejection reasons and full review history kept on record",
     ],
   },
   {
@@ -180,6 +181,31 @@ export default function FeaturesPage() {
                 </ul>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Built for teams: one visual covering all four Team-tier
+            pillars (review workflow, approval gates, comments/mentions,
+            roles & seats) — see team-features-explainer.svg. A plain
+            <img> since the SVG's own inline <style> carries the CSS
+            keyframe loop; nothing here needs to drive it. */}
+        <section className="border-t border-ink-900 px-6 py-16">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-ink-400">Team plan</p>
+            <h2 className="mt-4 text-2xl font-bold leading-tight text-ink-50 md:text-3xl">
+              Built for teams reviewing physical designs.
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-ink-400">
+              Roles and seats, a real approval workflow, configurable gates, and comments that pull the right
+              person in — all in one place.
+            </p>
+          </div>
+          <div className="mx-auto mt-8 max-w-4xl overflow-hidden rounded-xl border border-ink-800 shadow-2xl">
+            <img
+              src={teamFeaturesExplainer}
+              alt="Animated walkthrough of Meshdiff's Team features: team roles and seats, the version review workflow, approval gates, and comments with @mentions"
+              className="block w-full"
+            />
           </div>
         </section>
 

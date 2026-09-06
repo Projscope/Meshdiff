@@ -330,6 +330,25 @@ const nl: TranslationResource = {
     volumeSuffix: "volume",
     waitingForBoth: "Laad Versie A en Versie B om een verschil te berekenen",
   },
+  sampleTour: {
+    replayLink: "Laat me rondkijken",
+    stepOf: "{{current}} van {{total}}",
+    next: "Volgende",
+    back: "Terug",
+    done: "Klaar",
+    skip: "Rondleiding overslaan",
+    uploadTitle: "Upload hier nieuwe versies",
+    uploadBody:
+      "Hier upload je een nieuwe versie van je model. Uploaden is een Pro-functie, dus is uitgeschakeld in dit voorbeeld.",
+    statsTitle: "Je vergelijking in één oogopslag",
+    statsBody: "Volumeverandering, printbaarheid en vergelijkingsstatistieken voor dit project worden automatisch bijgewerkt bij elke versie.",
+    historyTitle: "Een volledige versiegeschiedenis",
+    historyBody: "Elke upload laat een echt spoor achter — niets wordt overschreven, zodat je altijd kunt zien wat er wanneer is veranderd.",
+    compareTitle: "Vergelijk elke twee versies",
+    compareBody: "Kies een willekeurig paar versies uit de geschiedenis om te vergelijken, niet alleen opeenvolgende.",
+    versionsTitle: "Alle versies op één plek",
+    versionsBody: "Bekijk, download of verwijder elke versie uit deze lijst. Goedkeuringen en reacties staan hier ook, bij Team-projecten.",
+  },
 };
 
 export default nl;

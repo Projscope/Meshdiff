@@ -32,6 +32,8 @@ import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import { useRefreshProjectsSidebar, useAccountStatus } from "../components/ProjectsLayout";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
+import SampleProjectTour from "../components/SampleProjectTour";
+import { setTourDismissed } from "../lib/sampleProjectTour";
 
 // Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
 // — all three formats are safe again now that diffing runs client-side
@@ -437,6 +439,15 @@ export default function ProjectDetailPage() {
                 </svg>
               </button>
             )}
+            {project?.isSample && (
+              <button
+                type="button"
+                onClick={() => setTourDismissed(false)}
+                className="shrink-0 text-xs font-medium text-accent-400 hover:text-accent-300"
+              >
+                {t("sampleTour.replayLink")}
+              </button>
+            )}
           </div>
           {project?.description && <p className="mt-1 text-sm text-ink-400">{project.description}</p>}
         </div>
@@ -468,6 +479,7 @@ export default function ProjectDetailPage() {
           )}
           <button
             type="button"
+            data-tour="upload"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || !isPro}
             title={!isPro ? t("projectDetail.uploadUpgradeTooltip") : ""}
@@ -509,6 +521,7 @@ export default function ProjectDetailPage() {
       )}
 
       <div
+        data-tour="stats"
         className={`mt-6 grid gap-6 rounded-lg border border-ink-800 bg-ink-900 p-6 ${
           project?.thumbnailUrl ? "lg:grid-cols-[280px_1fr]" : "grid-cols-1"
         }`}
@@ -589,7 +602,7 @@ export default function ProjectDetailPage() {
           {t("projectDetail.noModelsYet")}
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-ink-800">
+        <div data-tour="history" className="mt-6 overflow-hidden rounded-lg border border-ink-800">
           <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
             <span>{t("projectDetail.history")}</span>
             <span>{t("projectDetail.updated")}</span>
@@ -686,7 +699,10 @@ export default function ProjectDetailPage() {
       )}
 
       {versions.length > 1 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs">
+        <div
+          data-tour="compare"
+          className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs"
+        >
           <span className="font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.compareAnyTwo")}</span>
           <select
             value={compareAId}
@@ -730,7 +746,7 @@ export default function ProjectDetailPage() {
       )}
 
       {versions.length > 0 && (
-        <div className="mt-8">
+        <div data-tour="versions" className="mt-8">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-500">
               {t("projectDetail.allVersions", { count: versions.length })}
@@ -892,6 +908,8 @@ export default function ProjectDetailPage() {
           subtitle={t("projectDetail.uploadingSubtitle")}
         />
       )}
+
+      {project?.isSample && versions.length > 0 && <SampleProjectTour />}
     </div>
   );
 }

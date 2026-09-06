@@ -13,3 +13,10 @@ build/
 
 # Local Netlify folder
 .netlify
+
+# Playwright's own transient run output (see apps/web/tests/visual) —
+# regenerated on every run, not a deliverable; the actual asset it
+# verifies is the committed team-features-explainer.svg.
+test-results/
+playwright-report/
+apps/web/tests/visual/__screenshots__/

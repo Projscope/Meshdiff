@@ -331,6 +331,25 @@ const en = {
     volumeSuffix: "volume",
     waitingForBoth: "Load Version A and Version B to compute a diff",
   },
+  sampleTour: {
+    replayLink: "Show me around",
+    stepOf: "{{current}} of {{total}}",
+    next: "Next",
+    back: "Back",
+    done: "Done",
+    skip: "Skip tour",
+    uploadTitle: "Upload new versions here",
+    uploadBody:
+      "This is where you'd upload a new version of your model. Uploading is a Pro feature, so it's disabled on this sample.",
+    statsTitle: "Your diff at a glance",
+    statsBody: "Volume change, printability, and comparison stats for this project update automatically with every version.",
+    historyTitle: "A full version history",
+    historyBody: "Every upload keeps a real trail — nothing gets overwritten, so you can always see what changed and when.",
+    compareTitle: "Compare any two versions",
+    compareBody: "Pick any pair of versions from the history to diff them against each other, not just consecutive ones.",
+    versionsTitle: "All versions, in one place",
+    versionsBody: "Review, download, or delete any version from this list. Approvals and comments live here too, on Team projects.",
+  },
 };
 
 export default en;

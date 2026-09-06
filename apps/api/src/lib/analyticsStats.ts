@@ -37,6 +37,7 @@ export interface AnalyticsSummary {
   topLanguages: AnalyticsBreakdownEntry[];
   topReferrers: AnalyticsBreakdownEntry[];
   topDevices: AnalyticsBreakdownEntry[];
+  topBrowsers: AnalyticsBreakdownEntry[];
 }
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -165,23 +166,32 @@ export async function getAnalyticsSummary(
   granularity: AnalyticsGranularity = "day",
 ): Promise<Result<AnalyticsSummary>> {
   const today = todayUTC();
-  const [totalRow, uniqueResult, pagesResult, countriesResult, languagesResult, referrersResult, devicesResult] =
-    await Promise.all([
-      supabase
-        .from("analytics_daily_rollup")
-        .select("day, pageview_count, visitor_count")
-        .eq("dimension_type", "total")
-        .eq("dimension_value", "total")
-        .gte("day", from)
-        .lte("day", to)
-        .order("day", { ascending: true }),
-      supabase.rpc("count_distinct_visitors", { p_from: from, p_to: to }),
-      topBreakdown(supabase, "page", from, to, today),
-      topBreakdown(supabase, "country", from, to, today),
-      topBreakdown(supabase, "language", from, to, today),
-      topBreakdown(supabase, "referrer", from, to, today),
-      topBreakdown(supabase, "device", from, to, today),
-    ]);
+  const [
+    totalRow,
+    uniqueResult,
+    pagesResult,
+    countriesResult,
+    languagesResult,
+    referrersResult,
+    devicesResult,
+    browsersResult,
+  ] = await Promise.all([
+    supabase
+      .from("analytics_daily_rollup")
+      .select("day, pageview_count, visitor_count")
+      .eq("dimension_type", "total")
+      .eq("dimension_value", "total")
+      .gte("day", from)
+      .lte("day", to)
+      .order("day", { ascending: true }),
+    supabase.rpc("count_distinct_visitors", { p_from: from, p_to: to }),
+    topBreakdown(supabase, "page", from, to, today),
+    topBreakdown(supabase, "country", from, to, today),
+    topBreakdown(supabase, "language", from, to, today),
+    topBreakdown(supabase, "referrer", from, to, today),
+    topBreakdown(supabase, "device", from, to, today),
+    topBreakdown(supabase, "browser", from, to, today),
+  ]);
 
   if (totalRow.error) return { success: false, error: totalRow.error.message };
   if (uniqueResult.error) return { success: false, error: uniqueResult.error.message };
@@ -190,6 +200,7 @@ export async function getAnalyticsSummary(
   if (!languagesResult.success) return languagesResult;
   if (!referrersResult.success) return referrersResult;
   if (!devicesResult.success) return devicesResult;
+  if (!browsersResult.success) return browsersResult;
 
   // Kept at daily granularity for the totals/today stat cards below
   // regardless of what the chart is bucketed to — "today" shouldn't change
@@ -215,6 +226,7 @@ export async function getAnalyticsSummary(
       topLanguages: languagesResult.data,
       topReferrers: referrersResult.data,
       topDevices: devicesResult.data,
+      topBrowsers: browsersResult.data,
     },
   };
 }

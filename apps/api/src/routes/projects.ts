@@ -199,7 +199,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
         const { data: row, error } = await supabase
           .from("projects")
-          .select("id, name, description, created_at, updated_at, team_id")
+          .select("id, name, description, created_at, updated_at, team_id, is_sample")
           .eq("id", request.params.projectId)
           .maybeSingle();
 
@@ -228,6 +228,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
             teamId: row.team_id,
             thumbnailUrl: signed?.signedUrl ?? null,
             myRole: access.role,
+            isSample: row.is_sample,
           },
         };
       } catch (err) {

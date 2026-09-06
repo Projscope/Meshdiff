@@ -9,6 +9,7 @@ interface NotificationRow {
   project_id: string | null;
   version_id: string | null;
   comment_id: string | null;
+  feedback_id: string | null;
   summary: string;
   read_at: string | null;
   created_at: string;
@@ -21,6 +22,7 @@ function toNotificationSummary(row: NotificationRow) {
     projectId: row.project_id,
     versionId: row.version_id,
     commentId: row.comment_id,
+    feedbackId: row.feedback_id,
     summary: row.summary,
     readAt: row.read_at,
     createdAt: row.created_at,

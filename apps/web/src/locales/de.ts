@@ -330,6 +330,25 @@ const de: TranslationResource = {
     volumeSuffix: "Volumen",
     waitingForBoth: "Version A und Version B laden, um einen Unterschied zu berechnen",
   },
+  sampleTour: {
+    replayLink: "Zeig mir alles",
+    stepOf: "{{current}} von {{total}}",
+    next: "Weiter",
+    back: "Zurück",
+    done: "Fertig",
+    skip: "Tour überspringen",
+    uploadTitle: "Hier neue Versionen hochladen",
+    uploadBody:
+      "Hier würdest du eine neue Version deines Modells hochladen. Das Hochladen ist eine Pro-Funktion und daher in diesem Beispiel deaktiviert.",
+    statsTitle: "Dein Vergleich auf einen Blick",
+    statsBody: "Volumenänderung, Druckbarkeit und Vergleichsstatistiken für dieses Projekt aktualisieren sich automatisch mit jeder Version.",
+    historyTitle: "Ein vollständiger Versionsverlauf",
+    historyBody: "Jeder Upload hinterlässt eine echte Spur — nichts wird überschrieben, sodass du immer sehen kannst, was sich wann geändert hat.",
+    compareTitle: "Beliebige zwei Versionen vergleichen",
+    compareBody: "Wähle ein beliebiges Versionspaar aus dem Verlauf, um es zu vergleichen — nicht nur aufeinanderfolgende.",
+    versionsTitle: "Alle Versionen an einem Ort",
+    versionsBody: "Überprüfe, lade herunter oder lösche jede Version aus dieser Liste. Genehmigungen und Kommentare befinden sich hier ebenfalls, bei Team-Projekten.",
+  },
 };
 
 export default de;
