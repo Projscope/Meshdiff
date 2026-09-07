@@ -630,32 +630,6 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               the logo there, and this cluster reappears inside the mobile
               sidebar overlay instead (see the <aside> footer above). */}
           <header className="hidden items-center justify-end gap-4 border-b border-ink-800 px-6 py-2.5 md:flex">
-            <div className="flex items-center gap-2 text-xs">
-              <span className={`font-semibold ${planTextClass}`}>
-                {isTeamMember
-                  ? t("billing.teamPlan")
-                  : isPro
-                    ? t("billing.proPlan")
-                    : isTrialing
-                      ? t("billing.freeTrialPlan")
-                      : t("billing.freePlan")}{" "}
-                {t("billing.planSuffix")}
-              </span>
-              {canManagePlan && (
-                <button
-                  type="button"
-                  onClick={() => setShowManagePlan(true)}
-                  className={`font-medium ${
-                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
-                  }`}
-                >
-                  {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
-                </button>
-              )}
-            </div>
-
-            <div className="h-4 w-px bg-ink-800" />
-
             <LanguageSelect />
 
             <NotificationBell />
@@ -693,6 +667,32 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                               ? t("billing.trialEnded")
                               : t("billing.freeBlurb")}
                     </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-ink-800 px-3 py-2">
+                    <span className={`text-xs font-semibold ${planTextClass}`}>
+                      {isTeamMember
+                        ? t("billing.teamPlan")
+                        : isPro
+                          ? t("billing.proPlan")
+                          : isTrialing
+                            ? t("billing.freeTrialPlan")
+                            : t("billing.freePlan")}{" "}
+                      {t("billing.planSuffix")}
+                    </span>
+                    {canManagePlan && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowManagePlan(true);
+                          setIsMenuOpen(false);
+                        }}
+                        className={`shrink-0 text-xs font-medium ${
+                          isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
+                        }`}
+                      >
+                        {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
+                      </button>
+                    )}
                   </div>
                   {isBillingOwner && (
                     <button
