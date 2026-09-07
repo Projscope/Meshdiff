@@ -332,6 +332,8 @@ const en = {
     waitingForBoth: "Load Version A and Version B to compute a diff",
   },
   sampleTour: {
+    introTitle: "Welcome to Meshdiff",
+    introBody: "Let's walk through your Sample Project — click it to dive in.",
     replayLink: "Show me around",
     stepOf: "{{current}} of {{total}}",
     next: "Next",

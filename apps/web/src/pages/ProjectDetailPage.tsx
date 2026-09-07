@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   getProject,
-  getVersion,
   listVersions,
   downloadVersionFile,
   deleteVersion,
@@ -32,6 +31,7 @@ import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import { useRefreshProjectsSidebar, useAccountStatus } from "../components/ProjectsLayout";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
+import { generateThumbnailFromVersion } from "../lib/projectThumbnail";
 import SampleProjectTour from "../components/SampleProjectTour";
 import { setTourDismissed, setTourAwaitingCompare, getSampleTourStage } from "../lib/sampleProjectTour";
 
@@ -253,19 +253,12 @@ export default function ProjectDetailPage() {
   }
 
   // Same as above, but for when there's no local File in memory (e.g. after
-  // deleting the version the thumbnail was rendered from) — downloads the
+  // deleting the version the thumbnail was rendered from, or a project
+  // that's never had its detail page opened before) — downloads the
   // now-latest version's file to re-render from it instead.
   async function refreshProjectThumbnailFromVersion(targetProjectId: string, versionId: string) {
-    const detailResult = await getVersion(targetProjectId, versionId);
-    if (!detailResult.success) return;
-    const response = await fetch(detailResult.data.downloadUrl);
-    if (!response.ok) return;
-    const blob = await response.blob();
-    const meshResult = await loadMeshGeometry(new File([blob], detailResult.data.fileName));
-    if (!meshResult.success) return;
-    const thumbBlob = await renderMeshThumbnail(meshResult.data);
-    if (!thumbBlob) return;
-    await uploadProjectThumbnail(targetProjectId, thumbBlob);
+    const url = await generateThumbnailFromVersion(targetProjectId, versionId);
+    if (url) setProject((prev) => (prev ? { ...prev, thumbnailUrl: url } : prev));
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {

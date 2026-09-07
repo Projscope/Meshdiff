@@ -11,7 +11,14 @@ export interface ProjectSummary {
   createdAt: string;
   updatedAt: string;
   teamId: string | null;
+  /** Drives the walkthrough's list-page intro (SampleProjectIntro.tsx) —
+   * same flag as ProjectDetail.isSample, just on the list shape too. */
+  isSample: boolean;
   latestFileName: string | null;
+  /** Used to lazily render a list-card thumbnail when one hasn't been
+   * generated yet (see ProjectsListPage.tsx) — null once there are no
+   * versions to render from. */
+  latestVersionId: string | null;
   versionCount: number;
   latestPrintabilityStatus: "pass" | "warn" | "fail" | null;
   thumbnailUrl: string | null;

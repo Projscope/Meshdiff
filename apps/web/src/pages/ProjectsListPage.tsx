@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listProjects, deleteProject, type ProjectSummary } from "../lib/projectsApi";
+import { generateThumbnailFromVersion } from "../lib/projectThumbnail";
 import NewProjectModal from "../components/NewProjectModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import SampleProjectIntro from "../components/SampleProjectIntro";
 import { useAccountStatus } from "../components/ProjectsLayout";
 
 const PAGE_SIZE = 10;
@@ -94,6 +96,26 @@ export default function ProjectsListPage() {
     });
   }, [page, sort]);
 
+  // Auto-generate a card thumbnail for any project that has versions but no
+  // thumbnail yet (e.g. a server-seeded Sample Project the user hasn't
+  // opened once) — same gap ProjectDetailPage already fixes for itself,
+  // just also covering the list a brand-new user actually lands on first.
+  const generatingRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!projects) return;
+    for (const project of projects) {
+      if (project.thumbnailUrl || !project.latestVersionId) continue;
+      if (generatingRef.current.has(project.id)) continue;
+      generatingRef.current.add(project.id);
+      generateThumbnailFromVersion(project.id, project.latestVersionId).then((url) => {
+        if (!url) return;
+        setProjects((prev) =>
+          prev ? prev.map((p) => (p.id === project.id ? { ...p, thumbnailUrl: url } : p)) : prev,
+        );
+      });
+    }
+  }, [projects]);
+
   function handleSortChange(newSort: "name" | "date-newest" | "date-oldest") {
     if (newSort !== sort) {
       setSort(newSort);
@@ -158,7 +180,11 @@ export default function ProjectsListPage() {
       {projects && projects.length > 0 && (
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {projects.map((project) => (
-            <div key={project.id} className="group relative overflow-hidden rounded-lg border border-ink-800 bg-ink-900 hover:border-ink-600">
+            <div
+              key={project.id}
+              data-tour={project.isSample ? "sampleProjectCard" : undefined}
+              className="group relative overflow-hidden rounded-lg border border-ink-800 bg-ink-900 hover:border-ink-600"
+            >
               <Link to={`/projects/${project.id}`}>
                 <ProjectThumbnail project={project} />
                 <div className="p-4">
@@ -245,6 +271,8 @@ export default function ProjectsListPage() {
           onCancel={() => setPendingDelete(null)}
         />
       )}
+
+      {projects?.some((p) => p.isSample) && <SampleProjectIntro />}
     </div>
   );
 }

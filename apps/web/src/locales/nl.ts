@@ -331,6 +331,8 @@ const nl: TranslationResource = {
     waitingForBoth: "Laad Versie A en Versie B om een verschil te berekenen",
   },
   sampleTour: {
+    introTitle: "Welkom bij Meshdiff",
+    introBody: "Laten we je Voorbeeldproject doorlopen — klik erop om te beginnen.",
     replayLink: "Laat me rondkijken",
     stepOf: "{{current}} van {{total}}",
     next: "Volgende",

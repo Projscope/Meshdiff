@@ -331,6 +331,8 @@ const es: TranslationResource = {
     waitingForBoth: "Carga la Versión A y la Versión B para calcular una diferencia",
   },
   sampleTour: {
+    introTitle: "Bienvenido a Meshdiff",
+    introBody: "Recorramos tu Proyecto de Muestra — haz clic en él para empezar.",
     replayLink: "Muéstrame cómo funciona",
     stepOf: "{{current}} de {{total}}",
     next: "Siguiente",
