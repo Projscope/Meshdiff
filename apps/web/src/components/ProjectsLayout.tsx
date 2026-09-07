@@ -25,14 +25,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import LanguageSelect from "./LanguageSelect";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
-
-// UI convenience only — hides the sidebar link for everyone else. The real
-// admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
-// non-admin typing /admin directly still gets a 403 from the API.
-const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS ?? "")
-  .split(",")
-  .map((e: string) => e.trim().toLowerCase())
-  .filter(Boolean);
+import { isAdminEmail } from "../lib/isAdmin";
 
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
   pass: "bg-accent-500",
@@ -76,7 +69,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
-  const isAdmin = !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const isAdmin = isAdminEmail(user?.email);
   // The sidebar is a full-screen overlay below the md breakpoint (see
   // <aside> below) — closed by default so it doesn't cover the page on
   // first load.

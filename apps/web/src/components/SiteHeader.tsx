@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/AuthProvider";
 import { supabase } from "../lib/supabaseClient";
+import { isAdminEmail } from "../lib/isAdmin";
 import { SHOW_MONETIZATION, LAUNCH_OFFER_DEADLINE } from "../lib/featureFlags";
 import { useCountdown } from "../hooks/useCountdown";
 import ThemeToggle from "./ThemeToggle";
@@ -74,6 +75,11 @@ function UserMenu() {
           <Link to="/projects" className="block px-3 py-2 text-xs text-ink-300 hover:bg-ink-800">
             Projects
           </Link>
+          {isAdminEmail(user.email) && (
+            <Link to="/admin" className="block px-3 py-2 text-xs text-ink-300 hover:bg-ink-800">
+              Admin
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => void handleSignOut()}
