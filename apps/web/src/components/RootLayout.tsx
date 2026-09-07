@@ -32,10 +32,13 @@ export default function RootLayout() {
 
   // The signed-in dashboard (ProjectsLayout) has its own sidebar with a
   // logo/link, so the marketing site's header and footer would just be
-  // redundant chrome there. /admin is also wrapped in ProjectsLayout (see
-  // router.tsx) — miss it here and the marketing SiteHeader stacks on top
-  // of the dashboard sidebar's own logo/nav.
-  const isDashboard = location.pathname.startsWith("/projects") || location.pathname.startsWith("/admin");
+  // redundant chrome there. /admin and /teams are also wrapped in
+  // ProjectsLayout (see router.tsx) — miss either here and the marketing
+  // SiteHeader stacks on top of the dashboard sidebar's own logo/nav.
+  const isDashboard =
+    location.pathname.startsWith("/projects") ||
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/teams");
 
   return (
     <div className="flex min-h-screen flex-col bg-ink-950">
