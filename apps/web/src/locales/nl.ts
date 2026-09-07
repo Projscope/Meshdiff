@@ -168,6 +168,7 @@ const nl: TranslationResource = {
   },
   approvalGates: {
     title: "Goedkeuringscontroles",
+    learnMore: "Meer informatie",
     none: "Geen controles geconfigureerd.",
     addPlaceholder: "Controle toevoegen…",
     add: "Toevoegen",

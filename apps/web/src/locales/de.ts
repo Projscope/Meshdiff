@@ -168,6 +168,7 @@ const de: TranslationResource = {
   },
   approvalGates: {
     title: "Freigabe-Checkliste",
+    learnMore: "Mehr erfahren",
     none: "Keine Prüfpunkte konfiguriert.",
     addPlaceholder: "Prüfpunkt hinzufügen…",
     add: "Hinzufügen",

@@ -169,6 +169,7 @@ const en = {
   },
   approvalGates: {
     title: "Approval Gates",
+    learnMore: "Learn more",
     none: "No gates configured.",
     addPlaceholder: "Add a gate…",
     add: "Add",

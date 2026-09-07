@@ -168,6 +168,7 @@ const da: TranslationResource = {
   },
   approvalGates: {
     title: "Godkendelseskontroller",
+    learnMore: "Læs mere",
     none: "Ingen kontroller konfigureret.",
     addPlaceholder: "Tilføj en kontrol…",
     add: "Tilføj",

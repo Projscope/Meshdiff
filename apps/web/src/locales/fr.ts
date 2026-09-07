@@ -168,6 +168,7 @@ const fr: TranslationResource = {
   },
   approvalGates: {
     title: "Critères d'approbation",
+    learnMore: "En savoir plus",
     none: "Aucun critère configuré.",
     addPlaceholder: "Ajouter un critère…",
     add: "Ajouter",

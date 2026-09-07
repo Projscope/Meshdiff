@@ -168,6 +168,7 @@ const es: TranslationResource = {
   },
   approvalGates: {
     title: "Requisitos de aprobación",
+    learnMore: "Más información",
     none: "No hay requisitos configurados.",
     addPlaceholder: "Añadir un requisito…",
     add: "Añadir",
