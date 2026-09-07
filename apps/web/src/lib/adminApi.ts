@@ -25,6 +25,11 @@ export interface AdminUserRow {
    * exists (same precedence the real access check applies). null when this
    * account's tier comes from an actual Stripe subscription (or nothing). */
   adminGrantedTier: "pro" | "team" | null;
+  /** Admin-set trial end date (ISO), if any — see trialExtensions.ts.
+   * `isTrialing`/`trialDaysRemaining` above already reflect it; this is
+   * just here so the UI can show an "extended" hint. null when the trial
+   * (if any) is on the default created_at + 14 days schedule. */
+  trialExtendedTo: string | null;
 }
 
 export interface AdminStats {
@@ -75,6 +80,18 @@ export function setUserGrantedTier(
   tier: "free" | "pro" | "team",
 ): Promise<Result<{ userId: string; tier: string }>> {
   return request(`/admin/users/${userId}/subscription`, { method: "PATCH", body: JSON.stringify({ tier }) });
+}
+
+/** Extends this user's trial by `days` from whichever is later, now or
+ * their current effective trial end — never shortens it, and stacks with
+ * any prior extension. Pass `null` to clear the extension outright and
+ * revert to the default created_at + 14 days schedule. See
+ * trialExtensions.ts. */
+export function extendUserTrial(
+  userId: string,
+  days: number | null,
+): Promise<Result<{ userId: string; trialEndsAt: string | null }>> {
+  return request(`/admin/users/${userId}/trial`, { method: "PATCH", body: JSON.stringify({ days }) });
 }
 
 export function getAdminDashboard(granularity: SignupGranularity = "week"): Promise<Result<AdminDashboard>> {

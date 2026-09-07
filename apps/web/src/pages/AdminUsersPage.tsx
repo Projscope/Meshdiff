@@ -1,5 +1,11 @@
 import { Fragment, useEffect, useState } from "react";
-import { listAdminUsers, setUserDemoStatus, setUserGrantedTier, type AdminUsersPage } from "../lib/adminApi";
+import {
+  listAdminUsers,
+  setUserDemoStatus,
+  setUserGrantedTier,
+  extendUserTrial,
+  type AdminUsersPage,
+} from "../lib/adminApi";
 import AdminStatsGrid from "../components/AdminStatsGrid";
 
 const PAGE_SIZE = 25;
@@ -57,6 +63,18 @@ export default function AdminUsersPage() {
   async function handleChangeGrant(userId: string, tier: "free" | "pro" | "team") {
     setTogglingUserId(userId);
     const result = await setUserGrantedTier(userId, tier);
+    if (result.success) {
+      const refreshed = await listAdminUsers(page);
+      if (refreshed.success) setData(refreshed.data);
+    }
+    setTogglingUserId(null);
+  }
+
+  // Same refetch-rather-than-patch reasoning as handleToggleDemo above —
+  // this can also shift the stat widgets' Trialing count.
+  async function handleExtendTrial(userId: string, days: number | null) {
+    setTogglingUserId(userId);
+    const result = await extendUserTrial(userId, days);
     if (result.success) {
       const refreshed = await listAdminUsers(page);
       if (refreshed.success) setData(refreshed.data);
@@ -168,11 +186,53 @@ export default function AdminUsersPage() {
                       )}
                     </span>
                     <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
-                      {user.isTrialing
-                        ? `${user.trialDaysRemaining} day${user.trialDaysRemaining === 1 ? "" : "s"} left`
-                        : user.tier === "free"
-                          ? "trial ended"
-                          : (user.status ?? "—")}
+                      <div className="flex items-center gap-1.5">
+                        <span>
+                          {user.isTrialing
+                            ? `${user.trialDaysRemaining} day${user.trialDaysRemaining === 1 ? "" : "s"} left`
+                            : user.tier === "free"
+                              ? "trial ended"
+                              : (user.status ?? "—")}
+                        </span>
+                        {user.trialExtendedTo && (
+                          <span title="Trial end date set by an admin" className="text-[10px] text-ink-600">
+                            (extended)
+                          </span>
+                        )}
+                      </div>
+                      {!user.isAdmin && user.tier === "free" && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleExtendTrial(user.id, 7)}
+                            disabled={togglingUserId === user.id}
+                            title="Extend trial by 7 days from today (or from its current end date, whichever is later)"
+                            className="text-[10px] text-indigo-400 hover:text-indigo-300 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            +7d
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExtendTrial(user.id, 30)}
+                            disabled={togglingUserId === user.id}
+                            title="Extend trial by 30 days from today (or from its current end date, whichever is later)"
+                            className="text-[10px] text-indigo-400 hover:text-indigo-300 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            +30d
+                          </button>
+                          {user.trialExtendedTo && (
+                            <button
+                              type="button"
+                              onClick={() => handleExtendTrial(user.id, null)}
+                              disabled={togglingUserId === user.id}
+                              title="Clear the extension and revert to the default 14-day trial"
+                              className="text-[10px] text-ink-600 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              clear
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </span>
                     <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
                       {formatDate(user.signupDate)}

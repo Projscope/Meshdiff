@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isAdminEmail } from "./requireAdmin.js";
+import { getTrialExtension } from "./trialExtensions.js";
 
 export interface SubscriptionRow {
   tier: "pro" | "team";
@@ -61,7 +62,7 @@ export async function getUserTier(supabase: SupabaseClient, userId: string): Pro
 
 export type AccountStatus = "pro" | "restricted";
 
-const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 14;
 
 export interface TrialStatus {
   isTrialing: boolean;
@@ -70,11 +71,18 @@ export interface TrialStatus {
 
 /** Pure day-math, factored out so getAccountAccess() and the admin users
  * list (which already has each row's auth.users.created_at from
- * listUsers(), no extra lookup needed) can't drift on the trial window. */
-export function computeTrialStatus(createdAt: string | null | undefined): TrialStatus {
-  const daysSinceSignup = createdAt ? (Date.now() - new Date(createdAt).getTime()) / 86_400_000 : Infinity;
-  if (daysSinceSignup < TRIAL_DAYS) {
-    return { isTrialing: true, trialDaysRemaining: Math.ceil(TRIAL_DAYS - daysSinceSignup) };
+ * listUsers(), no extra lookup needed) can't drift on the trial window.
+ *
+ * `overrideEndsAt` — an admin-set trial_extensions row (see
+ * trialExtensions.ts) — replaces the default created_at + 14 days end date
+ * verbatim when present, in either direction (it can extend or shorten).
+ * Omitted/null falls back to the original default-only behavior. */
+export function computeTrialStatus(createdAt: string | null | undefined, overrideEndsAt?: string | null): TrialStatus {
+  const defaultEndsAtMs = createdAt ? new Date(createdAt).getTime() + TRIAL_DAYS * 86_400_000 : -Infinity;
+  const endsAtMs = overrideEndsAt ? new Date(overrideEndsAt).getTime() : defaultEndsAtMs;
+  const msRemaining = endsAtMs - Date.now();
+  if (msRemaining > 0) {
+    return { isTrialing: true, trialDaysRemaining: Math.ceil(msRemaining / 86_400_000) };
   }
   return { isTrialing: false, trialDaysRemaining: null };
 }
@@ -118,7 +126,8 @@ export async function getAccountAccess(supabase: SupabaseClient, userId: string)
     return { status: "pro", tier: "team", viaTeamMembership: false, isTrialing: false, trialDaysRemaining: null };
   }
 
-  const trial = computeTrialStatus(userResult?.user?.created_at);
+  const trialOverride = await getTrialExtension(supabase, userId);
+  const trial = computeTrialStatus(userResult?.user?.created_at, trialOverride);
   if (trial.isTrialing) {
     return { status: "pro", tier: "free", viaTeamMembership: false, ...trial };
   }

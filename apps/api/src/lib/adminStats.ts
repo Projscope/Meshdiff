@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "./subscription.js";
 import { isAdminEmail } from "./requireAdmin.js";
 import { getDemoUserIds } from "./demoAccounts.js";
+import { getTrialExtensionsByUser } from "./trialExtensions.js";
 
 export interface AdminStats {
   totalUsers: number;
@@ -79,6 +80,15 @@ export async function getAdminStats(
   const tierByUserId = new Map(activeSubsResult.data.map((s) => [s.user_id as string, s.tier as string]));
   const grantByUserId = new Map(grantsResult.data.map((g) => [g.user_id as string, g.tier as string]));
 
+  const trialExtensionsResult = await getTrialExtensionsByUser(
+    supabase,
+    usersResult.data.users.map((u) => u.id),
+  );
+  if (!trialExtensionsResult.success) {
+    return { success: false, error: "Failed to load trial extensions" };
+  }
+  const trialExtensionByUserId = trialExtensionsResult.data;
+
   let freeUsers = 0;
   let trialingUsers = 0;
   let proSubscribers = 0;
@@ -89,7 +99,7 @@ export async function getAdminStats(
     if (isAdminEmail(u.email)) teamSubscribers++;
     else if (activeTier === "pro") proSubscribers++;
     else if (activeTier === "team") teamSubscribers++;
-    else if (computeTrialStatus(u.created_at).isTrialing) trialingUsers++;
+    else if (computeTrialStatus(u.created_at, trialExtensionByUserId.get(u.id) ?? null).isTrialing) trialingUsers++;
     else freeUsers++;
   }
   // "pro" here means "paying" for the stat card — includes Team
