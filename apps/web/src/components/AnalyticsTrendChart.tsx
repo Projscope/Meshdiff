@@ -35,9 +35,13 @@ export default function AnalyticsTrendChart({
   const bottom = HEIGHT - PADDING_BOTTOM;
   const barAreaHeight = bottom - top;
   const barWidth = WIDTH / Math.max(1, trend.length);
-  // Skip every Nth label once there are too many days to fit legibly.
+  // Skip every Nth date label once there are too many days to fit legibly.
   const labelStride = Math.max(1, Math.ceil(trend.length / 12));
   const showLines = trend.length >= 2;
+  // A pageview number over every single bar only stays legible up to a
+  // point — daily granularity over 6 months (~182 bars) would overlap into
+  // noise, so that case falls back to the same stride as the date labels.
+  const showAllValues = trend.length <= 60;
 
   const xFor = (i: number) => i * barWidth + barWidth / 2;
   const yFor = (value: number) => bottom - (value / max) * barAreaHeight;
@@ -76,15 +80,15 @@ export default function AnalyticsTrendChart({
               rx={2}
               className="fill-accent-500/70"
             />
+            {(showAllValues || i % labelStride === 0) && (
+              <text x={xFor(i)} y={y - 4} textAnchor="middle" className="fill-ink-300 text-[9px] font-semibold">
+                {point.pageviews.toLocaleString()}
+              </text>
+            )}
             {i % labelStride === 0 && (
-              <>
-                <text x={xFor(i)} y={y - 4} textAnchor="middle" className="fill-ink-300 text-[9px] font-semibold">
-                  {point.pageviews.toLocaleString()}
-                </text>
-                <text x={xFor(i)} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
-                  {formatDateLabel(point.date, granularity)}
-                </text>
-              </>
+              <text x={xFor(i)} y={HEIGHT - 4} textAnchor="middle" className="fill-ink-600 text-[9px]">
+                {formatDateLabel(point.date, granularity)}
+              </text>
             )}
           </g>
         );
