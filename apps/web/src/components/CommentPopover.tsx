@@ -29,6 +29,13 @@ interface CommentPopoverProps {
   linkedCommentId?: string | null;
 }
 
+// The popover is narrow and often shows two or three of these on one line
+// (author, assignee) — the local part alone ("jviaches") is enough to
+// recognize who's who without eating half the width on "@gmail.com".
+function emailLocalPart(email: string): string {
+  return email.split("@")[0]!;
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     month: "short",
@@ -62,7 +69,9 @@ function CommentEntry({
     >
       <div className="flex items-center gap-1.5">
         <span className="min-w-0 truncate text-[10px] text-ink-500">
-          <span className="font-medium text-ink-400">{comment.authorEmail ?? t("comments.someone")}</span>
+          <span className="font-medium text-ink-400">
+            {comment.authorEmail ? emailLocalPart(comment.authorEmail) : t("comments.someone")}
+          </span>
           {" · "}
           {formatDate(comment.createdAt)}
         </span>
@@ -71,15 +80,17 @@ function CommentEntry({
       <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
       {comment.assigneeEmail && (
         <p className="mt-0.5 text-[10px] text-ink-500">
-          → <span className="text-ink-400">{comment.assigneeEmail}</span>
+          → <span className="text-ink-400">{emailLocalPart(comment.assigneeEmail)}</span>
         </p>
       )}
-      <div className="mt-1 flex items-center gap-3 text-[11px]">
-        {canChangeStatus && (
-          <button type="button" onClick={onToggleStatus} className="text-indigo-400 hover:text-indigo-300">
-            {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
-          </button>
-        )}
+      <div className="mt-1 flex items-center justify-between text-[11px]">
+        <div className="flex items-center gap-3">
+          {canChangeStatus && (
+            <button type="button" onClick={onToggleStatus} className="text-indigo-400 hover:text-indigo-300">
+              {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
+            </button>
+          )}
+        </div>
         {canDelete && (
           <button type="button" onClick={onDelete} className="text-red-400 hover:text-red-300">
             {t("comments.delete")}
@@ -159,7 +170,9 @@ export default function CommentPopover({
         >
           <div className="flex items-center gap-1.5">
             <span className="min-w-0 truncate text-[10px] text-ink-500">
-              <span className="font-medium text-ink-400">{comment.authorEmail ?? t("comments.someone")}</span>
+              <span className="font-medium text-ink-400">
+                {comment.authorEmail ? emailLocalPart(comment.authorEmail) : t("comments.someone")}
+              </span>
               {" · "}
               {formatDate(comment.createdAt)}
             </span>
@@ -168,7 +181,7 @@ export default function CommentPopover({
           <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
           {comment.assigneeEmail && (
             <p className="mt-0.5 text-[10px] text-ink-500">
-              → <span className="text-ink-400">{comment.assigneeEmail}</span>
+              → <span className="text-ink-400">{emailLocalPart(comment.assigneeEmail)}</span>
             </p>
           )}
         </div>
@@ -205,15 +218,17 @@ export default function CommentPopover({
             </div>
           </form>
         ) : (
-          <div className="flex items-center gap-3 text-[11px]">
-            <button type="button" onClick={() => setIsReplying(true)} className="text-indigo-400 hover:text-indigo-300">
-              {t("comments.reply")}
-            </button>
-            {canChangeStatus(comment) && (
-              <button type="button" onClick={() => onToggleStatus(comment)} className="text-indigo-400 hover:text-indigo-300">
-                {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
+          <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setIsReplying(true)} className="text-indigo-400 hover:text-indigo-300">
+                {t("comments.reply")}
               </button>
-            )}
+              {canChangeStatus(comment) && (
+                <button type="button" onClick={() => onToggleStatus(comment)} className="text-indigo-400 hover:text-indigo-300">
+                  {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
+                </button>
+              )}
+            </div>
             {canDelete(comment) && (
               <button type="button" onClick={() => onDelete(comment)} className="text-red-400 hover:text-red-300">
                 {t("comments.delete")}
