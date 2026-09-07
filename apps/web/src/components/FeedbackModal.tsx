@@ -74,7 +74,7 @@ export default function FeedbackModal({ onClose }: FeedbackModalProps) {
                   onClick={() => setType(option.id)}
                   className={`flex-1 rounded border px-2 py-1.5 text-xs font-medium transition-colors ${
                     type === option.id
-                      ? "border-accent-500 bg-accent-500/10 text-accent-400"
+                      ? "border-accent-500 bg-accent-500/10 text-accent-fg-400"
                       : "border-ink-700 text-ink-400 hover:border-ink-500 hover:text-ink-200"
                   }`}
                 >

@@ -369,7 +369,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-ink-800 bg-ink-950">
-      <div className="absolute inset-x-3 top-2 z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <div data-tour="viewerControls" className="absolute inset-x-3 top-2 z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
           {label}
         </span>

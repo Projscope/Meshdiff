@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   getProject,
-  getVersion,
   listVersions,
   downloadVersionFile,
   deleteVersion,
@@ -32,6 +31,9 @@ import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import { useRefreshProjectsSidebar, useAccountStatus } from "../components/ProjectsLayout";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import { renderMeshThumbnail } from "../engine/renderThumbnail";
+import { generateThumbnailFromVersion } from "../lib/projectThumbnail";
+import SampleProjectTour from "../components/SampleProjectTour";
+import { setTourDismissed, setTourAwaitingCompare, getSampleTourStage } from "../lib/sampleProjectTour";
 
 // Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
 // — all three formats are safe again now that diffing runs client-side
@@ -78,7 +80,7 @@ function StatCard({ label, value, accent }: { label: string; value: React.ReactN
   return (
     <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
-      <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-400" : "text-ink-50"}`}>
+      <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-fg-400" : "text-ink-50"}`}>
         {value}
       </p>
     </div>
@@ -251,19 +253,12 @@ export default function ProjectDetailPage() {
   }
 
   // Same as above, but for when there's no local File in memory (e.g. after
-  // deleting the version the thumbnail was rendered from) — downloads the
+  // deleting the version the thumbnail was rendered from, or a project
+  // that's never had its detail page opened before) — downloads the
   // now-latest version's file to re-render from it instead.
   async function refreshProjectThumbnailFromVersion(targetProjectId: string, versionId: string) {
-    const detailResult = await getVersion(targetProjectId, versionId);
-    if (!detailResult.success) return;
-    const response = await fetch(detailResult.data.downloadUrl);
-    if (!response.ok) return;
-    const blob = await response.blob();
-    const meshResult = await loadMeshGeometry(new File([blob], detailResult.data.fileName));
-    if (!meshResult.success) return;
-    const thumbBlob = await renderMeshThumbnail(meshResult.data);
-    if (!thumbBlob) return;
-    await uploadProjectThumbnail(targetProjectId, thumbBlob);
+    const url = await generateThumbnailFromVersion(targetProjectId, versionId);
+    if (url) setProject((prev) => (prev ? { ...prev, thumbnailUrl: url } : prev));
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -387,8 +382,8 @@ export default function ProjectDetailPage() {
     fail: t("projectDetail.printabilityFail"),
   };
   const PRINTABILITY_COLOR: Record<"pass" | "warn" | "fail", string> = {
-    pass: "text-accent-400",
-    warn: "text-amber-400",
+    pass: "text-accent-fg-400",
+    warn: "text-amber-fg-400",
     fail: "text-red-400",
   };
 
@@ -437,6 +432,15 @@ export default function ProjectDetailPage() {
                 </svg>
               </button>
             )}
+            {project?.isSample && (
+              <button
+                type="button"
+                onClick={() => setTourDismissed(false)}
+                className="shrink-0 text-xs font-medium text-accent-fg-400 hover:text-accent-fg-300"
+              >
+                {t("sampleTour.replayLink")}
+              </button>
+            )}
           </div>
           {project?.description && <p className="mt-1 text-sm text-ink-400">{project.description}</p>}
         </div>
@@ -468,6 +472,7 @@ export default function ProjectDetailPage() {
           )}
           <button
             type="button"
+            data-tour="upload"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || !isPro}
             title={!isPro ? t("projectDetail.uploadUpgradeTooltip") : ""}
@@ -489,7 +494,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {isDragOver && (
-        <div className="mt-4 rounded-lg border-2 border-dashed border-accent-500 bg-accent-500/5 py-4 text-center text-sm text-accent-300">
+        <div className="mt-4 rounded-lg border-2 border-dashed border-accent-500 bg-accent-500/5 py-4 text-center text-sm text-accent-fg-300">
           {t("projectDetail.dropToUpload")}
         </div>
       )}
@@ -509,6 +514,7 @@ export default function ProjectDetailPage() {
       )}
 
       <div
+        data-tour="stats"
         className={`mt-6 grid gap-6 rounded-lg border border-ink-800 bg-ink-900 p-6 ${
           project?.thumbnailUrl ? "lg:grid-cols-[280px_1fr]" : "grid-cols-1"
         }`}
@@ -534,7 +540,7 @@ export default function ProjectDetailPage() {
             <StatCard label={t("projectDetail.openReviews")} value={openReviews} accent={openReviews > 0 ? "amber" : undefined} />
             <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.approvalRate")}</p>
-              <p className="mt-1.5 text-2xl font-bold text-accent-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
+              <p className="mt-1.5 text-2xl font-bold text-accent-fg-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
               {approvalRate !== null && (
                 <div className="mt-2 h-1 overflow-hidden rounded-full bg-ink-800">
                   <div className="h-full rounded-full bg-accent-500" style={{ width: `${approvalRate}%` }} />
@@ -589,7 +595,7 @@ export default function ProjectDetailPage() {
           {t("projectDetail.noModelsYet")}
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-ink-800">
+        <div data-tour="history" className="mt-6 overflow-hidden rounded-lg border border-ink-800">
           <div className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-ink-500">
             <span>{t("projectDetail.history")}</span>
             <span>{t("projectDetail.updated")}</span>
@@ -611,6 +617,16 @@ export default function ProjectDetailPage() {
               return (
                 <Link
                   key={comparison.toVersion.id}
+                  data-tour={!isSynthetic && isFirstRow ? "latestDiff" : undefined}
+                  onClick={() => {
+                    // Following the walkthrough's last-step link (see
+                    // SampleProjectTour) hands off to SampleCompareTour on
+                    // the diff screen instead of ending here. Only while the
+                    // walkthrough is still active on its first pass — a
+                    // returning user just browsing their own history
+                    // shouldn't resurrect a finished/skipped tour.
+                    if (project?.isSample && getSampleTourStage() === "unseen") setTourAwaitingCompare();
+                  }}
                   to={
                     isSynthetic
                       ? `/projects/${projectId}/versions/${comparison.toVersion.id}`
@@ -639,7 +655,7 @@ export default function ProjectDetailPage() {
                         {(printability === "warn" || printability === "fail") && (
                           <span
                             title={printability === "fail" ? t("projectDetail.printabilityCheckFailed") : t("projectDetail.printabilityWarning")}
-                            className={printability === "fail" ? "text-red-400" : "text-amber-400"}
+                            className={printability === "fail" ? "text-red-400" : "text-amber-fg-400"}
                           >
                             {printability === "fail" ? "✕" : "⚠"}
                           </span>
@@ -686,7 +702,10 @@ export default function ProjectDetailPage() {
       )}
 
       {versions.length > 1 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs">
+        <div
+          data-tour="compare"
+          className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5 text-xs"
+        >
           <span className="font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.compareAnyTwo")}</span>
           <select
             value={compareAId}
@@ -751,7 +770,7 @@ export default function ProjectDetailPage() {
                       v{version.versionNumber}
                     </span>
                     {version.id === stableVersionId && (
-                      <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400">
+                      <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-fg-400">
                         {t("projectDetail.stable")}
                       </span>
                     )}
@@ -769,7 +788,7 @@ export default function ProjectDetailPage() {
                     {version.unresolvedCommentCount > 0 && (
                       <span
                         title={t("projectDetail.unresolvedTooltip", { count: version.unresolvedCommentCount })}
-                        className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400"
+                        className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-fg-400"
                       >
                         {t("projectDetail.unresolvedCount", { count: version.unresolvedCommentCount })}
                       </span>
@@ -892,6 +911,8 @@ export default function ProjectDetailPage() {
           subtitle={t("projectDetail.uploadingSubtitle")}
         />
       )}
+
+      {project?.isSample && versions.length > 0 && <SampleProjectTour />}
     </div>
   );
 }

@@ -89,6 +89,7 @@ export interface AnalyticsSummary {
   topLanguages: AnalyticsBreakdownEntry[];
   topReferrers: AnalyticsBreakdownEntry[];
   topDevices: AnalyticsBreakdownEntry[];
+  topBrowsers: AnalyticsBreakdownEntry[];
 }
 
 /** Self-hosted, cookie-less pageview analytics — see

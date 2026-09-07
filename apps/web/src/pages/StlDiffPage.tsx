@@ -78,7 +78,7 @@ export default function StlDiffPage() {
       <h2 className="mt-10 text-2xl font-bold text-ink-50">How to compare two STL files with Meshdiff</h2>
       <p className="mt-4">
         Open the{" "}
-        <a href="/compare-stl-files" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <a href="/compare-stl-files" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           STL comparison tool
         </a>
         , drag Version A into the first slot and Version B into the second. Meshdiff aligns and voxelizes both

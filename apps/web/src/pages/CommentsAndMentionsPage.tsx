@@ -125,12 +125,12 @@ export default function CommentsAndMentionsPage() {
         Have a question this didn't cover? Email{" "}
         <a
           href="mailto:support@projscope.com"
-          className="text-accent-400 underline underline-offset-2 hover:text-accent-300"
+          className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300"
         >
           support@projscope.com
         </a>
         , or see the full{" "}
-        <Link to="/docs" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/docs" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           Docs & FAQ
         </Link>
         .

@@ -127,9 +127,9 @@ export default function AdminUsersPage() {
                           user.tier === "team"
                             ? "bg-violet-500/15 text-violet-400"
                             : user.tier === "pro"
-                              ? "bg-accent-500/15 text-accent-400"
+                              ? "bg-accent-500/15 text-accent-fg-400"
                               : user.isTrialing
-                                ? "bg-amber-500/15 text-amber-400"
+                                ? "bg-amber-500/15 text-amber-fg-400"
                                 : "bg-ink-800 text-ink-400"
                         }`}
                       >

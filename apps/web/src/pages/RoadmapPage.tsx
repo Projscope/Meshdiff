@@ -8,7 +8,7 @@ export const META_DESCRIPTION =
 
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.5.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.6.0");
 
   const roadmapItems = {
     planned: [
@@ -36,6 +36,29 @@ export default function RoadmapPage() {
   };
 
   const changelog = [
+    {
+      version: "v1.6.0",
+      date: "2026-09-07",
+      title: "Guided onboarding, in-app feedback, and a friendlier light theme",
+      items: {
+        new: [
+          "\"Add Feedback\" button on every page — send a note, feature request, or bug report in a couple clicks",
+          "First-login guided walkthrough on the auto-seeded Sample Project — spotlight coach-marks across the project page and into a real version comparison, replayable anytime via \"Show me around\"",
+          "Dark/light theme toggle in the dashboard header, not just the marketing site",
+          "Animated Team-features explainer on the Features page",
+        ],
+        improved: [
+          "Team plan / Manage plan moved into the account dropdown next to the renewal date; the dropdown now closes on an outside click",
+          "Green and amber accent text keeps real contrast after switching to the light theme, instead of washing out",
+          "Version detail page split into General and Comments tabs, with Printability Details moved directly under Printability Gate",
+          "Comment popovers show just the name portion of an email, with Reply/Resolve grouped left and Delete on the right",
+        ],
+        fixed: [
+          "Marketing header/footer incorrectly stacked on top of the dashboard chrome on the Team page",
+          "A newly seeded Sample Project showed no thumbnail on the Projects list until opened at least once",
+        ],
+      },
+    },
     {
       version: "v1.5.0",
       date: "2026-08-27",
@@ -293,7 +316,7 @@ export default function RoadmapPage() {
                     <div className="space-y-6">
                       {release.items.new && release.items.new.length > 0 && (
                         <div>
-                          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-accent-400">New</p>
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-accent-fg-400">New</p>
                           <ul className="space-y-2">
                             {release.items.new.map((item) => (
                               <li key={item} className="flex gap-3 text-sm text-ink-300">

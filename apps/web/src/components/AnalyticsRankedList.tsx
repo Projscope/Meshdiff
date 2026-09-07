@@ -49,7 +49,7 @@ export default function AnalyticsRankedList({
               <span className="flex shrink-0 items-center gap-1.5 pl-2">
                 <span className="font-medium text-ink-400">{entry.count.toLocaleString()}</span>
                 {entry.todayCount > 0 && (
-                  <span className="text-xs font-semibold text-accent-400" title="Added today">
+                  <span className="text-xs font-semibold text-accent-fg-400" title="Added today">
                     +{entry.todayCount.toLocaleString()}
                   </span>
                 )}

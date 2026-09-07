@@ -8,7 +8,7 @@ function StatCard({ label, value, today }: { label: string; value: React.ReactNo
       <p className="mt-1.5 flex items-baseline gap-2">
         <span className="text-2xl font-bold text-ink-50">{value}</span>
         {!!today && (
-          <span className="text-sm font-semibold text-accent-400" title="From today">
+          <span className="text-sm font-semibold text-accent-fg-400" title="From today">
             +{today.toLocaleString()}
           </span>
         )}

@@ -365,7 +365,7 @@ export default function LiveDiffToolPage({
         {/* Community Commitment & Subscription Banner */}
         <section className="w-full rounded-2xl border border-ink-800 bg-ink-900/50 p-6 text-center backdrop-blur-sm sm:p-8">
           <div className="mx-auto flex max-w-2xl flex-col items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-500/30 bg-accent-500/10 px-3 py-1 text-[11px] font-semibold text-accent-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-500/30 bg-accent-500/10 px-3 py-1 text-[11px] font-semibold text-accent-fg-400">
               🤝 Built for the Community
             </span>
             <h2 className="text-xl font-bold tracking-tight text-ink-50 sm:text-2xl">
@@ -378,7 +378,7 @@ export default function LiveDiffToolPage({
             {/* Newsletter Subscription */}
             <div className="mt-2 w-full max-w-md">
               {subscribeSuccess ? (
-                <div className="rounded-lg border border-accent-500/40 bg-accent-500/10 p-3 text-xs font-medium text-accent-300">
+                <div className="rounded-lg border border-accent-500/40 bg-accent-500/10 p-3 text-xs font-medium text-accent-fg-300">
                   ✓ Thanks for subscribing! We&apos;ll keep you posted on new tools and updates.
                 </div>
               ) : (
@@ -463,7 +463,7 @@ export default function LiveDiffToolPage({
                     <span className="text-lg leading-none">{tool.icon}</span>
                     <h3
                       className={`text-sm font-semibold transition-colors ${
-                        isActive ? "text-accent-400" : "text-ink-50 group-hover:text-accent-300"
+                        isActive ? "text-accent-fg-400" : "text-ink-50 group-hover:text-accent-fg-300"
                       }`}
                     >
                       {tool.label}
@@ -481,7 +481,7 @@ export default function LiveDiffToolPage({
 
         {/* How It Works Section directly underneath choices */}
         <section className="w-full border-t border-ink-800/80 px-6 pt-6">
-          <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-accent-500">
+          <span className="block text-center text-[11px] font-semibold uppercase tracking-widest text-accent-fg-400">
             How it works
           </span>
           <h3 className="mt-1 text-center text-lg font-semibold text-ink-50 transition-all">
@@ -490,7 +490,7 @@ export default function LiveDiffToolPage({
           <div className="mx-auto mt-6 grid max-w-4xl gap-4 sm:grid-cols-3">
             {howItWorksContent.steps.map((step) => (
               <div key={step.num} className="rounded-lg border border-ink-800 bg-ink-900/60 p-4 transition-all">
-                <div className="flex h-5 w-5 items-center justify-center rounded bg-accent-500/15 text-[9px] font-semibold text-accent-400">
+                <div className="flex h-5 w-5 items-center justify-center rounded bg-accent-500/15 text-[9px] font-semibold text-accent-fg-400">
                   {step.num}
                 </div>
                 <h4 className="mt-2 text-xs font-semibold text-ink-50">{step.title}</h4>
@@ -506,7 +506,7 @@ export default function LiveDiffToolPage({
         <section className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto max-w-3xl">
             <div className="rounded-lg border border-accent-500/20 bg-gradient-to-br from-accent-500/5 to-accent-500/0 p-8 md:p-12">
-              <span className="inline-block rounded-full bg-accent-500/10 px-3 py-1 text-xs font-semibold text-accent-400">
+              <span className="inline-block rounded-full bg-accent-500/10 px-3 py-1 text-xs font-semibold text-accent-fg-400">
                 PRO PLAN
               </span>
               <h2 className="mt-4 text-2xl font-bold text-ink-50 md:text-3xl">
@@ -519,7 +519,7 @@ export default function LiveDiffToolPage({
               <div className="mt-8 grid gap-6 sm:grid-cols-2">
                 <div className="flex gap-3">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
-                    <Check size={16} weight="bold" className="text-accent-400" />
+                    <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-ink-50">Unlimited Projects</h3>
@@ -529,7 +529,7 @@ export default function LiveDiffToolPage({
 
                 <div className="flex gap-3">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
-                    <Check size={16} weight="bold" className="text-accent-400" />
+                    <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-ink-50">Shareable Links</h3>
@@ -539,7 +539,7 @@ export default function LiveDiffToolPage({
 
                 <div className="flex gap-3">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
-                    <Check size={16} weight="bold" className="text-accent-400" />
+                    <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-ink-50">Export Reports</h3>
@@ -549,7 +549,7 @@ export default function LiveDiffToolPage({
 
                 <div className="flex gap-3">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
-                    <Check size={16} weight="bold" className="text-accent-400" />
+                    <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-ink-50">No Watermark</h3>
@@ -619,7 +619,7 @@ export default function LiveDiffToolPage({
             {isSharedView && !isRestoringShare && !restoreError && (
               <div className="border-b border-ink-800 bg-ink-900 px-4 py-1.5 text-center text-[11px] text-ink-400">
                 <b><i>Checking diffs is free. Want to have a workspaces, projects, versioning and approvals before shipping?{" "} </i></b>
-                <a href="/#early-access" className="font-medium text-accent-400 hover:text-accent-300">
+                <a href="/#early-access" className="font-medium text-accent-fg-400 hover:text-accent-fg-300">
                   Try Meshdiff Pro
                 </a>
               </div>
@@ -659,7 +659,7 @@ export default function LiveDiffToolPage({
                         viewerARef.current?.loadDemo();
                         viewerBRef.current?.loadDemo();
                       }}
-                      className="rounded border border-accent-500/40 bg-accent-500/10 px-2 py-1 text-accent-300 hover:border-accent-400"
+                      className="rounded border border-accent-500/40 bg-accent-500/10 px-2 py-1 text-accent-fg-300 hover:border-accent-400"
                     >
                       Load Demo
                     </button>
@@ -702,7 +702,7 @@ export default function LiveDiffToolPage({
                 <button
                   type="button"
                   onClick={() => setIsFeedbackModalOpen(true)}
-                  className="relative rounded border border-accent-500/40 bg-accent-500/10 px-3 py-1.5 text-accent-300 hover:border-accent-400"
+                  className="relative rounded border border-accent-500/40 bg-accent-500/10 px-3 py-1.5 text-accent-fg-300 hover:border-accent-400"
                 >
                   <span className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full bg-accent-400" />
                   💬 Add Feedback
@@ -712,10 +712,10 @@ export default function LiveDiffToolPage({
 
             {/* Privacy Banner */}
             <div className="border-b border-accent-500/20 bg-accent-500/5 px-4 py-1.5 text-center text-[11px]">
-              <span className="font-medium text-accent-300">
+              <span className="font-medium text-accent-fg-300">
                 🔒 {activeTool === "compare" ? "Diffing" : "Viewing"} runs entirely client-side.
               </span>{" "}
-              <span className="text-accent-300/60">
+              <span className="text-accent-fg-300/60">
                 {activeTool === "compare"
                   ? "Nothing you drop here is uploaded unless you explicitly create a share link."
                   : "Nothing you drop here is ever uploaded."}
@@ -730,7 +730,7 @@ export default function LiveDiffToolPage({
                 </div>
               )}
               {activeTool === "compare" && sameFileWarning && (
-                <div className="rounded border border-amber-800 bg-amber-950/50 px-3 py-2 text-sm text-amber-300">
+                <div className="rounded border border-amber-800 bg-amber-500/10 px-3 py-2 text-sm text-amber-fg-300">
                   ⚠ {sameFileWarning}
                 </div>
               )}

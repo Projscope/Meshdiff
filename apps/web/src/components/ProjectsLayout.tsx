@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import EditWorkspaceModal from "./EditWorkspaceModal";
 import ConfirmDialog from "./ConfirmDialog";
 import LanguageSelect from "./LanguageSelect";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./ThemeToggle";
 
 // UI convenience only — hides the sidebar link for everyone else. The real
 // admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
@@ -85,6 +86,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [teams, setTeams] = useState<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Only one of these is ever mounted at a time (mobile sidebar footer vs.
+  // desktop top-bar avatar), both toggled by the same isMenuOpen state — a
+  // single outside-click listener below checks whichever is present.
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
   // TeamModal is create-only now — managing an existing team is a full page
   // at /teams/:teamId (see TeamDashboardPage.tsx) instead of this popup.
   const [showCreateTeam, setShowCreateTeam] = useState(false);
@@ -123,6 +129,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
       if (result.success) setProjects(result.data.projects);
     });
   }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (mobileMenuRef.current?.contains(target)) return;
+      if (desktopMenuRef.current?.contains(target)) return;
+      setIsMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isMenuOpen]);
 
   useEffect(() => {
     localStorage.setItem("meshdiff_projects_expanded", String(isProjectsExpanded));
@@ -256,7 +274,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const planTextClass = isTeamMember
     ? "text-violet-400"
     : isPro || isTrialing
-      ? "text-accent-400"
+      ? "text-accent-fg-400"
       : isRestricted
         ? "text-red-400"
         : "text-ink-300";
@@ -544,7 +562,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={() => setShowManagePlan(true)}
                   className={`shrink-0 text-[11px] font-medium ${
-                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
+                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-fg-400 hover:text-accent-fg-300"
                   }`}
                 >
                   {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
@@ -579,12 +597,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 {t("billing.paymentAndInvoices")}
               </button>
             )}
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2">
+              <ThemeToggle />
               <LanguageSelect />
             </div>
           </div>
 
-          <div className="relative border-t border-ink-800 p-3 md:hidden">
+          <div ref={mobileMenuRef} className="relative border-t border-ink-800 p-3 md:hidden">
             <button
               type="button"
               onClick={() => setIsMenuOpen((open) => !open)}
@@ -597,6 +616,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </button>
             {isMenuOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-ink-800 bg-ink-900 shadow-xl">
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
+                  >
+                    {t("sidebar.admin")}
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => setPendingSignOut(true)}
@@ -630,37 +658,13 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               the logo there, and this cluster reappears inside the mobile
               sidebar overlay instead (see the <aside> footer above). */}
           <header className="hidden items-center justify-end gap-4 border-b border-ink-800 px-6 py-2.5 md:flex">
-            <div className="flex items-center gap-2 text-xs">
-              <span className={`font-semibold ${planTextClass}`}>
-                {isTeamMember
-                  ? t("billing.teamPlan")
-                  : isPro
-                    ? t("billing.proPlan")
-                    : isTrialing
-                      ? t("billing.freeTrialPlan")
-                      : t("billing.freePlan")}{" "}
-                {t("billing.planSuffix")}
-              </span>
-              {canManagePlan && (
-                <button
-                  type="button"
-                  onClick={() => setShowManagePlan(true)}
-                  className={`font-medium ${
-                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
-                  }`}
-                >
-                  {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
-                </button>
-              )}
-            </div>
-
-            <div className="h-4 w-px bg-ink-800" />
-
             <LanguageSelect />
+
+            <ThemeToggle />
 
             <NotificationBell />
 
-            <div className="relative">
+            <div ref={desktopMenuRef} className="relative">
               <button
                 type="button"
                 onClick={() => setIsMenuOpen((open) => !open)}
@@ -694,6 +698,32 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                               : t("billing.freeBlurb")}
                     </p>
                   </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-ink-800 px-3 py-2">
+                    <span className={`text-xs font-semibold ${planTextClass}`}>
+                      {isTeamMember
+                        ? t("billing.teamPlan")
+                        : isPro
+                          ? t("billing.proPlan")
+                          : isTrialing
+                            ? t("billing.freeTrialPlan")
+                            : t("billing.freePlan")}{" "}
+                      {t("billing.planSuffix")}
+                    </span>
+                    {canManagePlan && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowManagePlan(true);
+                          setIsMenuOpen(false);
+                        }}
+                        className={`shrink-0 text-xs font-medium ${
+                          isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-fg-400 hover:text-accent-fg-300"
+                        }`}
+                      >
+                        {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
+                      </button>
+                    )}
+                  </div>
                   {isBillingOwner && (
                     <button
                       type="button"
@@ -702,6 +732,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     >
                       {t("billing.paymentAndInvoices")}
                     </button>
+                  )}
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
+                    >
+                      {t("sidebar.admin")}
+                    </Link>
                   )}
                   <button
                     type="button"
@@ -724,7 +763,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           <div
             className={`fixed right-4 top-4 z-40 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg ${
               notice.type === "success"
-                ? "border-accent-800 bg-accent-950/90 text-accent-300"
+                ? "border-accent-800 bg-accent-950/90 text-accent-fg-300"
                 : notice.type === "error"
                   ? "border-red-800 bg-red-950/90 text-red-300"
                   : "border-ink-700 bg-ink-900/95 text-ink-300"

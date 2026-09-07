@@ -56,3 +56,23 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
 
   request.userId = data.user.id;
 }
+
+/**
+ * Best-effort identity lookup for routes that stay open to anonymous
+ * callers (e.g. POST /feedback) but want to attribute a submission when the
+ * caller happens to be logged in. Unlike requireAuth, never rejects the
+ * request — a missing/invalid/expired token just resolves to null.
+ */
+export async function getOptionalUser(
+  request: FastifyRequest,
+): Promise<{ id: string; email: string | null } | null> {
+  const authHeader = request.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return null;
+
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.auth.getUser(authHeader.slice(7));
+  if (error || !data.user) return null;
+  return { id: data.user.id, email: data.user.email ?? null };
+}

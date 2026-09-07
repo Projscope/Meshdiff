@@ -22,10 +22,13 @@ async function insertNotification(
       | "version_state_changed"
       | "review_requested"
       | "gate_completed"
-      | "comment_status_changed";
-    projectId: string;
+      | "comment_status_changed"
+      | "feedback_submitted";
+    // Optional: feedback notifications aren't scoped to a project at all.
+    projectId?: string | null;
     versionId?: string | null;
     commentId?: string | null;
+    feedbackId?: string | null;
     summary: string;
   },
 ): Promise<void> {
@@ -38,9 +41,10 @@ async function insertNotification(
     recipient_user_id: entry.recipientUserId,
     actor_user_id: entry.actorUserId,
     type: entry.type,
-    project_id: entry.projectId,
+    project_id: entry.projectId ?? null,
     version_id: entry.versionId ?? null,
     comment_id: entry.commentId ?? null,
+    feedback_id: entry.feedbackId ?? null,
     summary: entry.summary,
   });
   if (error) log.error(error, "Failed to write notification");
@@ -169,6 +173,32 @@ export async function notifyGateCompleted(
       type: "gate_completed",
       projectId: params.projectId,
       versionId: params.versionId,
+      summary: params.summary,
+    });
+  }
+}
+
+/** Fans out to every admin (see getAdminUserIds() in requireAdmin.ts) when
+ * a new feedback submission comes in from the public, unauthenticated
+ * "Add Feedback" button — there's no project/team to notify instead, since
+ * the submitter isn't necessarily even a Meshdiff user. actorUserId is
+ * always null (anonymous submitter), so insertNotification's self-notify
+ * skip never applies here. */
+export async function notifyFeedbackSubmitted(
+  supabase: SupabaseClient,
+  log: FastifyBaseLogger,
+  params: {
+    recipientUserIds: string[];
+    feedbackId: string;
+    summary: string;
+  },
+): Promise<void> {
+  for (const recipientUserId of new Set(params.recipientUserIds)) {
+    await insertNotification(supabase, log, {
+      recipientUserId,
+      actorUserId: null,
+      type: "feedback_submitted",
+      feedbackId: params.feedbackId,
       summary: params.summary,
     });
   }

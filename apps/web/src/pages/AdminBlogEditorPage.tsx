@@ -19,9 +19,9 @@ import BlogMarkdown from "../components/BlogMarkdown";
  * showing up intact in a search result. */
 function excerptSeoHint(length: number): { label: string; className: string } {
   if (length === 0) return { label: "no meta description set", className: "text-ink-600" };
-  if (length < 50) return { label: "a bit short for a search snippet", className: "text-amber-400" };
-  if (length <= 160) return { label: "good length for a search snippet", className: "text-accent-400" };
-  return { label: "may get truncated in search results", className: "text-amber-400" };
+  if (length < 50) return { label: "a bit short for a search snippet", className: "text-amber-fg-400" };
+  if (length <= 160) return { label: "good length for a search snippet", className: "text-accent-fg-400" };
+  return { label: "may get truncated in search results", className: "text-amber-fg-400" };
 }
 
 /** Handles both /admin/blog/new (id === "new") and /admin/blog/:id (editing
@@ -315,7 +315,7 @@ export default function AdminBlogEditorPage() {
           {post && (
             <span
               className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                post.status === "published" ? "bg-accent-500/15 text-accent-400" : "bg-ink-800 text-ink-400"
+                post.status === "published" ? "bg-accent-500/15 text-accent-fg-400" : "bg-ink-800 text-ink-400"
               }`}
             >
               {post.status}
@@ -442,17 +442,17 @@ export default function AdminBlogEditorPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs text-ink-500">Content (Markdown)</span>
             <div className="flex items-center gap-3">
-              <button type="button" onClick={handleInsertLink} className="text-xs text-accent-400 hover:text-accent-300">
+              <button type="button" onClick={handleInsertLink} className="text-xs text-accent-fg-400 hover:text-accent-fg-300">
                 + Insert link
               </button>
-              <button type="button" onClick={handleInsertImageUrl} className="text-xs text-accent-400 hover:text-accent-300">
+              <button type="button" onClick={handleInsertImageUrl} className="text-xs text-accent-fg-400 hover:text-accent-fg-300">
                 + Image URL
               </button>
               <button
                 type="button"
                 onClick={() => inlineInputRef.current?.click()}
                 disabled={isUploading}
-                className="text-xs text-accent-400 hover:text-accent-300 disabled:opacity-50"
+                className="text-xs text-accent-fg-400 hover:text-accent-fg-300 disabled:opacity-50"
               >
                 {isUploading ? "Uploading…" : "+ Upload image/video"}
               </button>

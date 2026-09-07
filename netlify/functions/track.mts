@@ -60,6 +60,23 @@ function classifyDevice(userAgent: string): string {
   return "desktop";
 }
 
+/** Coarse browser family from the User-Agent header — order matters, since
+ * most browser UAs impersonate several others for compatibility (Edge and
+ * Opera both include "Chrome" and "Safari" tokens; Chrome itself includes
+ * "Safari"). Checked most-specific-first so a real Chrome UA doesn't get
+ * misclassified as Safari, etc. Same "good enough for a breakdown chart"
+ * scope as classifyDevice() above, not a full UA-parsing library. */
+function classifyBrowser(userAgent: string): string {
+  if (/Edg\//.test(userAgent)) return "Edge";
+  if (/OPR\/|Opera/.test(userAgent)) return "Opera";
+  if (/SamsungBrowser/.test(userAgent)) return "Samsung Internet";
+  if (/Firefox\//.test(userAgent)) return "Firefox";
+  if (/Chrome\//.test(userAgent)) return "Chrome";
+  if (/Safari\//.test(userAgent)) return "Safari";
+  if (/MSIE|Trident/.test(userAgent)) return "Internet Explorer";
+  return "Other";
+}
+
 function cleanPath(path: string | undefined): string {
   if (!path) return "/";
   const withoutQuery = path.split("?")[0]!.split("#")[0]!;
@@ -110,6 +127,7 @@ export default async function track(req: Request, context: NetlifyContext): Prom
   const userAgent = req.headers.get("user-agent") ?? "unknown";
   const visitorHash = createHash("sha256").update(`${ip}|${userAgent}|${day}|${salt}`).digest("hex");
   const device = classifyDevice(userAgent);
+  const browser = classifyBrowser(userAgent);
 
   try {
     const { data: inserted, error: dedupeError } = await supabase
@@ -131,6 +149,7 @@ export default async function track(req: Request, context: NetlifyContext): Prom
       ["language", language],
       ["referrer", referrer],
       ["device", device],
+      ["browser", browser],
     ];
 
     for (const [dimensionType, dimensionValue] of dimensions) {

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import * as THREE from "three";
-import { getVersion, listVersions, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
+import { getVersion, listVersions, getProject, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
+import SampleCompareTour from "../components/SampleCompareTour";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import DiffView, { type DiffMode, type DiffViewHandle, type DiffAlignment } from "../components/DiffView";
 import DetailedStatsPanel from "../components/DetailedStatsPanel";
@@ -33,6 +34,7 @@ export default function CompareVersionsPage() {
   const [boundingBoxB, setBoundingBoxB] = useState<[number, number, number]>([0, 0, 0]);
   const [error, setError] = useState<string | null>(null);
   const [allVersions, setAllVersions] = useState<VersionSummary[]>([]);
+  const [isSampleProject, setIsSampleProject] = useState(false);
   const [isProOrTeam, setIsProOrTeam] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isShareSubmitting, setIsShareSubmitting] = useState(false);
@@ -57,6 +59,11 @@ export default function CompareVersionsPage() {
       if (result.success) {
         setAllVersions([...result.data].sort((a, b) => a.versionNumber - b.versionNumber));
       }
+    });
+    // Only fetched to gate SampleCompareTour — the walkthrough's second leg,
+    // handed off from ProjectDetailPage's SampleProjectTour.
+    getProject(projectId).then((result) => {
+      if (result.success) setIsSampleProject(result.data.isSample);
     });
   }, [projectId]);
 
@@ -180,7 +187,7 @@ export default function CompareVersionsPage() {
             color="#4f8ff7"
           />
         </div>
-        <div className="min-h-0 flex-1">
+        <div data-tour="diffViewer" className="min-h-0 flex-1">
           <DiffView
             ref={diffViewRef}
             geometryA={geometryA}
@@ -310,7 +317,7 @@ export default function CompareVersionsPage() {
               {versionA.fileName} vs {versionB.fileName}
             </p>
 
-            <div className="mt-5">
+            <div data-tour="deltaPanel" className="mt-5">
               <DetailedStatsPanel stats={stats} hasComparison boundingBoxB={boundingBoxB} />
             </div>
           </>
@@ -334,6 +341,8 @@ export default function CompareVersionsPage() {
       {!isFullyLoaded && !error && (
         <LoadingModal title={t("compare.loadingTitle")} subtitle={t("compare.loadingSubtitle")} />
       )}
+
+      {isSampleProject && isFullyLoaded && <SampleCompareTour />}
     </div>
   );
 }

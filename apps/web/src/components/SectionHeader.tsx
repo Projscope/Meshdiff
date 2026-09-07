@@ -7,7 +7,7 @@ interface SectionHeaderProps {
 export default function SectionHeader({ tag, title, description }: SectionHeaderProps) {
   return (
     <div className="mx-auto mb-12 text-center">
-      <span className="mb-3 block text-xs font-semibold uppercase tracking-widest text-accent-500">
+      <span className="mb-3 block text-xs font-semibold uppercase tracking-widest text-accent-fg-400">
         {tag}
       </span>
       <h2 className="font-display text-3xl font-bold tracking-tight text-ink-50">{title}</h2>

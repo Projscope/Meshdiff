@@ -365,7 +365,7 @@ export default function TeamDashboardPage() {
                     <button
                       type="button"
                       onClick={() => void handleApprove(version.projectId, version.id)}
-                      className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-400 hover:border-accent-500"
+                      className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-fg-400 hover:border-accent-500"
                     >
                       Approve
                     </button>

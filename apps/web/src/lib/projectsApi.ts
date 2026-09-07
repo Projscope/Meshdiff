@@ -11,7 +11,14 @@ export interface ProjectSummary {
   createdAt: string;
   updatedAt: string;
   teamId: string | null;
+  /** Drives the walkthrough's list-page intro (SampleProjectIntro.tsx) —
+   * same flag as ProjectDetail.isSample, just on the list shape too. */
+  isSample: boolean;
   latestFileName: string | null;
+  /** Used to lazily render a list-card thumbnail when one hasn't been
+   * generated yet (see ProjectsListPage.tsx) — null once there are no
+   * versions to render from. */
+  latestVersionId: string | null;
   versionCount: number;
   latestPrintabilityStatus: "pass" | "warn" | "fail" | null;
   thumbnailUrl: string | null;
@@ -97,6 +104,11 @@ export interface ProjectDetail {
   /** This user's access level for the project. 'approver' is an "upgraded
    * member" — can approve/reject versions, nothing else admin-gated. */
   myRole: "owner" | "admin" | "approver" | "member";
+  /** True for the one auto-seeded project every new signup gets (see
+   * seedSampleProject.ts) — drives the first-login walkthrough
+   * (sampleProjectTour.ts / SampleProjectTour.tsx). Not derived from the
+   * name/description client-side since both are user-editable. */
+  isSample: boolean;
 }
 
 export interface TeamMember {
@@ -456,10 +468,12 @@ export interface NotificationSummary {
     | "version_state_changed"
     | "review_requested"
     | "gate_completed"
-    | "comment_status_changed";
+    | "comment_status_changed"
+    | "feedback_submitted";
   projectId: string | null;
   versionId: string | null;
   commentId: string | null;
+  feedbackId: string | null;
   summary: string;
   readAt: string | null;
   createdAt: string;

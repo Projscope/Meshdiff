@@ -76,11 +76,11 @@ export default function VersionControlPage() {
 
       <p className="mt-6">
         The comparison engine itself is free and requires no account — see the{" "}
-        <Link to="/stl-diff" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/stl-diff" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           STL diff guide
         </Link>{" "}
         for how the underlying voxel diff works. Saved project history and team approvals are part of the{" "}
-        <Link to="/pricing" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/pricing" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           Pro and Team plans
         </Link>
         .

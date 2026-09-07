@@ -1,11 +1,15 @@
 import { Fragment, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   listAdminFeedback,
+  getAdminFeedbackEntry,
   updateFeedbackStatus,
+  deleteFeedback,
   type AdminFeedbackPage,
   type FeedbackEntry,
   type FeedbackType,
 } from "../lib/feedbackApi";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const PAGE_SIZE = 25;
 
@@ -17,7 +21,7 @@ const TYPE_LABEL: Record<FeedbackType, string> = {
 
 const TYPE_STYLE: Record<FeedbackType, string> = {
   note: "bg-ink-800 text-ink-400",
-  feature: "bg-accent-500/15 text-accent-400",
+  feature: "bg-accent-500/15 text-accent-fg-400",
   bug: "bg-red-500/15 text-red-400",
 };
 
@@ -44,6 +48,9 @@ export default function AdminFeedbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<FeedbackEntry | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function refresh() {
     listAdminFeedback(page).then((result) => {
@@ -67,11 +74,46 @@ export default function AdminFeedbackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
+  // Deep link from a feedback_submitted notification (see
+  // NotificationInbox.tsx's targetPath()) — fetches that one entry directly
+  // rather than assuming it's on the currently-loaded page, then strips the
+  // param so refreshing doesn't reopen it.
+  useEffect(() => {
+    const feedbackId = searchParams.get("feedbackId");
+    if (!feedbackId) return;
+    getAdminFeedbackEntry(feedbackId).then((result) => {
+      if (result.success) setSelectedEntry(result.data);
+    });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("feedbackId");
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleToggleStatus(id: string, nextStatus: "new" | "reviewed") {
     setTogglingId(id);
     const result = await updateFeedbackStatus(id, nextStatus);
     if (result.success) refresh();
     setTogglingId(null);
+  }
+
+  async function handleConfirmDelete() {
+    if (!pendingDeleteId) return;
+    setIsDeleting(true);
+    const result = await deleteFeedback(pendingDeleteId);
+    setIsDeleting(false);
+    setPendingDeleteId(null);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    if (selectedEntry?.id === pendingDeleteId) setSelectedEntry(null);
+    refresh();
   }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
@@ -160,7 +202,7 @@ export default function AdminFeedbackPage() {
                         className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                           isReviewed
                             ? "bg-ink-800 text-ink-500 hover:bg-ink-700 hover:text-ink-300"
-                            : "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                            : "bg-amber-500/15 text-amber-fg-400 hover:bg-amber-500/25"
                         }`}
                       >
                         {togglingId === entry.id ? "…" : isReviewed ? "Reviewed" : "New"}
@@ -235,6 +277,16 @@ export default function AdminFeedbackPage() {
                 <span className="text-ink-300">{selectedEntry.page ?? "—"}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
+                <span className="text-ink-500">Submitted by</span>
+                <span className="text-ink-300">{selectedEntry.userEmail ?? "Anonymous"}</span>
+              </div>
+              {selectedEntry.userAgent && (
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-ink-500">Browser</span>
+                  <span className="break-words text-right text-ink-400">{selectedEntry.userAgent}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-ink-500">Received</span>
                 <span className="text-ink-300">{new Date(selectedEntry.createdAt).toLocaleString()}</span>
               </div>
@@ -249,7 +301,7 @@ export default function AdminFeedbackPage() {
                   className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                     selectedEntry.status === "reviewed"
                       ? "bg-ink-800 text-ink-500 hover:bg-ink-700 hover:text-ink-300"
-                      : "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                      : "bg-amber-500/15 text-amber-fg-400 hover:bg-amber-500/25"
                   }`}
                 >
                   {togglingId === selectedEntry.id
@@ -260,8 +312,30 @@ export default function AdminFeedbackPage() {
                 </button>
               </div>
             </div>
+
+            <div className="mt-5 flex justify-end border-t border-ink-800 pt-4">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteId(selectedEntry.id)}
+                className="rounded border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-600 hover:bg-red-500/10"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {pendingDeleteId && (
+        <ConfirmDialog
+          title="Delete this feedback?"
+          message="This can't be undone."
+          confirmLabel="Delete"
+          isDestructive
+          isConfirming={isDeleting}
+          onConfirm={() => void handleConfirmDelete()}
+          onCancel={() => setPendingDeleteId(null)}
+        />
       )}
     </div>
   );

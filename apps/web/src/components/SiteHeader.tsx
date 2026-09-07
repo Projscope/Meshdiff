@@ -21,13 +21,13 @@ function AnnouncementBar() {
   return (
     <div className="border-b border-ink-800 bg-ink-900 px-4 py-2 text-center text-xs text-ink-300">
       🎉 Pro and Team accounts are live —{" "}
-      <span className="font-semibold text-amber-400">
+      <span className="font-semibold text-amber-fg-400">
         Launch offer ends Sunday at midnight — 50% off ends in{" "}
       </span>
       <span className="font-semibold text-purple-400">
         <span className="font-mono tabular-nums">{countdown}</span>
       </span>{" "}
-      <Link to="/pricing" className="font-medium text-ink-100 hover:text-accent-300">
+      <Link to="/pricing" className="font-medium text-ink-100 hover:text-accent-fg-300">
         See pricing →
       </Link>
     </div>

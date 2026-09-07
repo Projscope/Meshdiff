@@ -46,7 +46,7 @@ export default function VersionActionButtons({
           onClick={onApprove}
           disabled={gatesUnmet}
           title={gatesUnmet ? t("approvalGates.blocksApproveTooltip") : ""}
-          className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-400 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-accent-700"
+          className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-fg-400 hover:border-accent-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-accent-700"
         >
           {t("projectDetail.approve")}
         </button>

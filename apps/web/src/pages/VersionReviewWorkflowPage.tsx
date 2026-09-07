@@ -44,7 +44,7 @@ export default function VersionReviewWorkflowPage() {
         </li>
         <li>
           <strong className="text-ink-100">Approved</strong> — signed off. This is the version{" "}
-          <Link to="/3d-print-version-control" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+          <Link to="/3d-print-version-control" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
             shareable links and downloads
           </Link>{" "}
           default to when nothing more specific is requested.
@@ -61,7 +61,7 @@ export default function VersionReviewWorkflowPage() {
         <strong className="text-ink-100">Admin</strong> and <strong className="text-ink-100">Approver</strong> roles
         can approve or request changes; a plain <strong className="text-ink-100">Member</strong> can upload and
         comment but has no review authority. See{" "}
-        <Link to="/docs/managing-team-members" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/docs/managing-team-members" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           Managing Team Members
         </Link>{" "}
         for the full breakdown of what each role can do.
@@ -79,7 +79,7 @@ export default function VersionReviewWorkflowPage() {
         If the project has approval gates configured, every one of them must be checked off before a version can be
         approved — attempting to approve early is rejected with the specific gate labels still outstanding, not just
         a generic error. See{" "}
-        <Link to="/docs/approval-gates" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/docs/approval-gates" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           Approval Gates
         </Link>{" "}
         for how those checklists work.
@@ -104,12 +104,12 @@ export default function VersionReviewWorkflowPage() {
         Have a question this didn't cover? Email{" "}
         <a
           href="mailto:support@projscope.com"
-          className="text-accent-400 underline underline-offset-2 hover:text-accent-300"
+          className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300"
         >
           support@projscope.com
         </a>
         , or see the full{" "}
-        <Link to="/docs" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/docs" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           Docs & FAQ
         </Link>
         .

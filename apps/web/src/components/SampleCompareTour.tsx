@@ -1,0 +1,147 @@
+import { useCallback, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
+import { setTourDismissed, useSampleTourStage, PROJECT_TOUR_STEP_COUNT, TOTAL_TOUR_STEPS } from "../lib/sampleProjectTour";
+
+interface Step {
+  target: string;
+  titleKey: string;
+  bodyKey: string;
+}
+
+const STEPS: Step[] = [
+  { target: "diffViewer", titleKey: "sampleTour.compareViewerTitle", bodyKey: "sampleTour.compareViewerBody" },
+  { target: "viewerControls", titleKey: "sampleTour.compareControlsTitle", bodyKey: "sampleTour.compareControlsBody" },
+  { target: "deltaPanel", titleKey: "sampleTour.compareDeltaTitle", bodyKey: "sampleTour.compareDeltaBody" },
+  { target: "feedbackButton", titleKey: "sampleTour.feedbackTitle", bodyKey: "sampleTour.feedbackBody" },
+];
+
+interface Rect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+const POPOVER_WIDTH = 300;
+const GAP = 12;
+
+/**
+ * The walkthrough's second leg — picks up on the diff screen after
+ * ProjectDetailPage's SampleProjectTour hands off via
+ * setTourAwaitingCompare() (see sampleProjectTour.ts's stage machine).
+ * Same spotlight/popover mechanics as SampleProjectTour, just a shorter,
+ * separately-mounted step list.
+ */
+export default function SampleCompareTour() {
+  const { t } = useTranslation();
+  const [stage] = useSampleTourStage();
+  const isActive = stage === "compare";
+  const [stepIndex, setStepIndex] = useState(0);
+  const [rect, setRect] = useState<Rect | null>(null);
+
+  const step = STEPS[stepIndex];
+
+  const recompute = useCallback(() => {
+    if (!step) return;
+    const el = document.querySelector(`[data-tour="${step.target}"]`);
+    if (!el) {
+      setRect(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+  }, [step]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    recompute();
+
+    const el = step ? document.querySelector(`[data-tour="${step.target}"]`) : null;
+    const resizeObserver = el ? new ResizeObserver(recompute) : null;
+    if (el && resizeObserver) resizeObserver.observe(el);
+
+    window.addEventListener("scroll", recompute, true);
+    window.addEventListener("resize", recompute);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("scroll", recompute, true);
+      window.removeEventListener("resize", recompute);
+    };
+  }, [isActive, step, recompute]);
+
+  if (!isActive || !step) return null;
+
+  const finish = () => setTourDismissed(true);
+  const goNext = () => (stepIndex === STEPS.length - 1 ? finish() : setStepIndex((i) => i + 1));
+  const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
+
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  const spaceBelow = rect ? viewportHeight - (rect.top + rect.height) : 0;
+  const placeAbove = rect ? spaceBelow < 220 && rect.top > 220 : false;
+
+  const popoverStyle: CSSProperties = rect
+    ? {
+        top: placeAbove ? undefined : rect.top + rect.height + GAP,
+        bottom: placeAbove ? viewportHeight - rect.top + GAP : undefined,
+        left: Math.min(Math.max(rect.left, 12), viewportWidth - POPOVER_WIDTH - 12),
+        width: POPOVER_WIDTH,
+      }
+    : {
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: POPOVER_WIDTH,
+      };
+
+  return (
+    <>
+      {rect && (
+        <div
+          className="pointer-events-none fixed z-[70] rounded transition-all duration-200"
+          style={{
+            top: rect.top - 4,
+            left: rect.left - 4,
+            width: rect.width + 8,
+            height: rect.height + 8,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)",
+          }}
+        />
+      )}
+      <div
+        className="fixed z-[71] rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm shadow-2xl transition-all duration-200"
+        style={popoverStyle}
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-500">
+          {t("sampleTour.stepOf", { current: PROJECT_TOUR_STEP_COUNT + stepIndex + 1, total: TOTAL_TOUR_STEPS })}
+        </p>
+        <h3 className="mt-1.5 text-sm font-semibold text-ink-50">{t(step.titleKey)}</h3>
+        <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{t(step.bodyKey)}</p>
+        <div className="mt-3 flex items-center justify-between">
+          <button type="button" onClick={finish} className="text-xs text-ink-500 hover:text-ink-300">
+            {t("sampleTour.skip")}
+          </button>
+          <div className="flex items-center gap-2">
+            {stepIndex > 0 && (
+              <button
+                type="button"
+                onClick={goBack}
+                className="rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
+              >
+                {t("sampleTour.back")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={goNext}
+              className="rounded bg-accent-500 px-2.5 py-1 text-xs font-medium text-chrome-950 hover:bg-accent-400"
+            >
+              {stepIndex === STEPS.length - 1 ? t("sampleTour.done") : t("sampleTour.next")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

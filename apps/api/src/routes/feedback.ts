@@ -1,14 +1,18 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth } from "../lib/requireAuth.js";
-import { requireAdmin } from "../lib/requireAdmin.js";
+import { requireAuth, getOptionalUser } from "../lib/requireAuth.js";
+import { requireAdmin, getAdminUserIds } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
+import { notifyFeedbackSubmitted } from "../lib/notify.js";
 
 const PAGE_SIZE = 25;
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_EMAIL_LENGTH = 320;
 const MAX_PAGE_LENGTH = 200;
+const MAX_USER_AGENT_LENGTH = 500;
 
 type FeedbackType = "note" | "feature" | "bug";
+
+const TYPE_LABEL: Record<FeedbackType, string> = { note: "note", feature: "feature request", bug: "bug report" };
 
 interface FeedbackRow {
   id: string;
@@ -18,6 +22,11 @@ interface FeedbackRow {
   page: string | null;
   status: "new" | "reviewed";
   created_at: string;
+  // Auto-captured, admin-only context — distinct from the optional `email`
+  // field above, which is contact info the submitter typed in themselves.
+  user_id: string | null;
+  user_email: string | null;
+  user_agent: string | null;
 }
 
 interface SubmitFeedbackBody {
@@ -44,6 +53,9 @@ function toFeedbackSummary(row: FeedbackRow) {
     page: row.page,
     status: row.status,
     createdAt: row.created_at,
+    userId: row.user_id,
+    userEmail: row.user_email,
+    userAgent: row.user_agent,
   };
 }
 
@@ -75,18 +87,41 @@ export default async function feedbackRoute(app: FastifyInstance): Promise<void>
     }
 
     const supabase = request.supabase!;
+    // Best-effort — the button is global now, so a logged-in user's request
+    // already carries a bearer token even though this route stays open to
+    // anonymous /live visitors. Purely for admin context; never blocks or
+    // surfaces back to the submitter.
+    const submitter = await getOptionalUser(request);
+    const userAgent = request.headers["user-agent"];
 
     try {
-      const { error } = await supabase.from("feedback").insert({
-        type,
-        message: trimmedMessage,
-        email: email?.trim() || null,
-        page: typeof page === "string" ? page.slice(0, MAX_PAGE_LENGTH) : null,
-      });
-      if (error) {
+      const { data: inserted, error } = await supabase
+        .from("feedback")
+        .insert({
+          type,
+          message: trimmedMessage,
+          email: email?.trim() || null,
+          page: typeof page === "string" ? page.slice(0, MAX_PAGE_LENGTH) : null,
+          user_id: submitter?.id ?? null,
+          user_email: submitter?.email ?? null,
+          user_agent: typeof userAgent === "string" ? userAgent.slice(0, MAX_USER_AGENT_LENGTH) : null,
+        })
+        .select("id")
+        .single();
+      if (error || !inserted) {
         app.log.error(error, "Failed to insert feedback");
         reply.code(502);
         return { success: false, error: "Failed to submit feedback, please try again" };
+      }
+
+      const adminUserIds = await getAdminUserIds(supabase);
+      if (adminUserIds.length > 0) {
+        const preview = trimmedMessage.length > 120 ? `${trimmedMessage.slice(0, 120)}…` : trimmedMessage;
+        await notifyFeedbackSubmitted(supabase, app.log, {
+          recipientUserIds: adminUserIds,
+          feedbackId: (inserted as { id: string }).id,
+          summary: `New ${TYPE_LABEL[type]}: "${preview}"`,
+        });
       }
 
       return { success: true, data: true };
@@ -128,6 +163,40 @@ export default async function feedbackRoute(app: FastifyInstance): Promise<void>
     },
   );
 
+  // Single-entry lookup — used by the notification deep-link (see
+  // NotificationInbox.tsx's targetPath()) to open one specific entry's
+  // detail modal regardless of which page of the (paginated) list it's on.
+  app.get<{ Params: { id: string } }>(
+    "/admin/feedback/:id",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const supabase = request.supabase!;
+
+      try {
+        const { data, error } = await supabase
+          .from("feedback")
+          .select("*")
+          .eq("id", request.params.id)
+          .maybeSingle();
+        if (error) {
+          app.log.error(error, "Failed to load feedback entry");
+          reply.code(502);
+          return { success: false, error: "Failed to load feedback" };
+        }
+        if (!data) {
+          reply.code(404);
+          return { success: false, error: "Feedback not found" };
+        }
+
+        return { success: true, data: toFeedbackSummary(data as FeedbackRow) };
+      } catch (err) {
+        app.log.error(err, "Admin feedback lookup threw");
+        reply.code(502);
+        return { success: false, error: "Failed to load feedback" };
+      }
+    },
+  );
+
   app.patch<{ Params: { id: string }; Body: UpdateFeedbackStatusBody }>(
     "/admin/feedback/:id",
     { preHandler: [requireAuth, requireAdmin] },
@@ -162,6 +231,38 @@ export default async function feedbackRoute(app: FastifyInstance): Promise<void>
         app.log.error(err, "Admin feedback status update threw");
         reply.code(502);
         return { success: false, error: "Failed to update feedback" };
+      }
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    "/admin/feedback/:id",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const supabase = request.supabase!;
+
+      try {
+        const { data, error } = await supabase
+          .from("feedback")
+          .delete()
+          .eq("id", request.params.id)
+          .select("id")
+          .maybeSingle();
+        if (error) {
+          app.log.error(error, "Failed to delete feedback");
+          reply.code(502);
+          return { success: false, error: "Failed to delete feedback" };
+        }
+        if (!data) {
+          reply.code(404);
+          return { success: false, error: "Feedback not found" };
+        }
+
+        return { success: true, data: true };
+      } catch (err) {
+        app.log.error(err, "Admin feedback delete threw");
+        reply.code(502);
+        return { success: false, error: "Failed to delete feedback" };
       }
     },
   );

@@ -115,7 +115,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
       let query = supabase
         .from("projects")
         .select(
-          "id, name, description, created_at, updated_at, team_id, versions(file_name, created_at, printability_status)",
+          "id, name, description, created_at, updated_at, team_id, is_sample, versions(id, file_name, created_at, printability_status)",
           { count: "exact" },
         );
       query =
@@ -149,6 +149,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
       const projects = await Promise.all(
         (rows ?? []).map(async (row) => {
           const versions = (row.versions ?? []) as Array<{
+            id: string;
             file_name: string;
             created_at: string;
             printability_status: "pass" | "warn" | "fail" | null;
@@ -166,7 +167,9 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             teamId: row.team_id,
+            isSample: row.is_sample,
             latestFileName: latest?.file_name ?? null,
+            latestVersionId: latest?.id ?? null,
             versionCount: versions.length,
             latestPrintabilityStatus: latest?.printability_status ?? null,
             thumbnailUrl: signed?.signedUrl ?? null,
@@ -199,7 +202,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
 
         const { data: row, error } = await supabase
           .from("projects")
-          .select("id, name, description, created_at, updated_at, team_id")
+          .select("id, name, description, created_at, updated_at, team_id, is_sample")
           .eq("id", request.params.projectId)
           .maybeSingle();
 
@@ -228,6 +231,7 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
             teamId: row.team_id,
             thumbnailUrl: signed?.signedUrl ?? null,
             myRole: access.role,
+            isSample: row.is_sample,
           },
         };
       } catch (err) {

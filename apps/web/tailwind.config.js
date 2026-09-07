@@ -56,6 +56,10 @@ export default {
           900: "#1b1f27",
           950: "#15181e",
         },
+        // Fixed, NOT theme-reactive — bg-accent-400/500 are the solid
+        // button/badge fills paired with the permanently-dark `chrome-950`
+        // text (see above), so they must stay this vivid in both themes or
+        // that pairing loses contrast on hover.
         accent: {
           50: "#ecfdf5",
           100: "#d1fae5",
@@ -68,6 +72,27 @@ export default {
           800: "#065f46",
           900: "#064e3b",
           950: "#022c22",
+        },
+        // Theme-reactive counterpart, for accent used as foreground text
+        // directly on the page/card background (text-accent-fg-400 etc.)
+        // rather than as a button fill — accent-300/400 read fine as light
+        // mint-green text on the dark theme's near-black background, but
+        // are far too pale for AA contrast on the light theme's near-white
+        // one. Only two stops exist since that covers every real text
+        // usage (see index.css for the actual light/dark values).
+        "accent-fg": {
+          300: "rgb(var(--accent-fg-300) / <alpha-value>)",
+          400: "rgb(var(--accent-fg-400) / <alpha-value>)",
+        },
+        // Same theme-reactive-text-color pattern as accent-fg, for amber
+        // "warning" text (printability callouts, bounding-box deltas) —
+        // Tailwind's stock amber-300/400 is used directly for solid
+        // badge/button fills elsewhere (bg-amber-500 + fixed chrome-950
+        // text) so that scale itself stays untouched; this is only for
+        // amber used as plain text on the page/card background.
+        "amber-fg": {
+          300: "rgb(var(--amber-fg-300) / <alpha-value>)",
+          400: "rgb(var(--amber-fg-400) / <alpha-value>)",
         },
       },
     },

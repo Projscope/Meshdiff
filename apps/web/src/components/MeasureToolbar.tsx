@@ -27,7 +27,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         }
         className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
           measure.isToolActive("distance")
-            ? "bg-amber-500/20 text-amber-400"
+            ? "bg-amber-500/20 text-amber-fg-400"
             : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
         }`}
       >

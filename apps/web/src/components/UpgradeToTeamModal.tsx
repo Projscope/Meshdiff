@@ -26,7 +26,7 @@ export default function UpgradeToTeamModal({ onClose }: { onClose: () => void })
         className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <span className="rounded bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-400">
+        <span className="rounded bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-fg-400">
           Team plan
         </span>
         <h3 className="mt-3 text-sm font-semibold text-ink-50">Upgrade to create a team</h3>

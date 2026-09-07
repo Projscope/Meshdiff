@@ -18,9 +18,12 @@ export default function SiteFooter() {
           <p className="mt-2 max-w-[22ch] text-xs text-ink-400">
             See exactly what changed between two 3D models.
           </p>
-          <span className="mt-2 inline-block rounded border border-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-ink-400">
+          <Link
+            to="/roadmap"
+            className="mt-2 inline-block rounded border border-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-200"
+          >
             v{APP_VERSION}
-          </span>
+          </Link>
         </div>
 
         <div>
