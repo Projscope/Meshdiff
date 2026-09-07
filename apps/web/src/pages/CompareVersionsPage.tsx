@@ -169,9 +169,16 @@ export default function CompareVersionsPage() {
   const isFullyLoaded = geometryA !== null && geometryB !== null && stats !== null;
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] w-full gap-4 px-4 py-4">
-      <div className="flex flex-1 flex-col gap-2 overflow-hidden">
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
+    // Stacks in DOM order on narrow screens (V1, V2, Combined, then the
+    // stats sidebar) instead of squeezing the desktop's fixed-height
+    // side-by-side layout down to unusable slivers — each viewer needs an
+    // explicit height at these breakpoints since h-full alone (see
+    // ReadOnlyMeshViewer/DiffView) has nothing to inherit from once the
+    // page is allowed to grow/scroll naturally instead of being pinned to
+    // one viewport-height row.
+    <div className="flex w-full flex-col gap-4 px-4 py-4 lg:h-[calc(100vh-2rem)] lg:flex-row">
+      <div className="flex flex-1 flex-col gap-2 lg:overflow-hidden">
+        <div className="grid h-[520px] grid-cols-1 gap-2 sm:h-[260px] sm:grid-cols-2 lg:h-auto lg:min-h-0 lg:flex-1">
           <ReadOnlyMeshViewer
             ref={viewerARef}
             label={versionA ? `v${versionA.versionNumber}` : t("compare.viewA")}
@@ -187,7 +194,7 @@ export default function CompareVersionsPage() {
             color="#4f8ff7"
           />
         </div>
-        <div data-tour="diffViewer" className="min-h-0 flex-1">
+        <div data-tour="diffViewer" className="h-[420px] lg:h-auto lg:min-h-0 lg:flex-1">
           <DiffView
             ref={diffViewRef}
             geometryA={geometryA}
@@ -239,7 +246,7 @@ export default function CompareVersionsPage() {
           bump into the scrollbar; overflow-x-hidden also guards against the
           CSS quirk where overflow-y: auto alone makes overflow-x compute to
           auto too, popping a horizontal scrollbar over a single stray pixel. */}
-      <div className="w-96 shrink-0 overflow-y-auto overflow-x-hidden">
+      <div className="w-full shrink-0 lg:w-96 lg:overflow-y-auto lg:overflow-x-hidden">
         <Link
           to={`/projects/${projectId}`}
           className="text-xs text-ink-500 hover:text-ink-300"
