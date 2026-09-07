@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -85,6 +85,11 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const [teams, setTeams] = useState<Array<{ id: string; name: string; myRole: "admin" | "approver" | "member" }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Only one of these is ever mounted at a time (mobile sidebar footer vs.
+  // desktop top-bar avatar), both toggled by the same isMenuOpen state — a
+  // single outside-click listener below checks whichever is present.
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
   // TeamModal is create-only now — managing an existing team is a full page
   // at /teams/:teamId (see TeamDashboardPage.tsx) instead of this popup.
   const [showCreateTeam, setShowCreateTeam] = useState(false);
@@ -123,6 +128,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
       if (result.success) setProjects(result.data.projects);
     });
   }, []);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (mobileMenuRef.current?.contains(target)) return;
+      if (desktopMenuRef.current?.contains(target)) return;
+      setIsMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isMenuOpen]);
 
   useEffect(() => {
     localStorage.setItem("meshdiff_projects_expanded", String(isProjectsExpanded));
@@ -584,7 +601,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="relative border-t border-ink-800 p-3 md:hidden">
+          <div ref={mobileMenuRef} className="relative border-t border-ink-800 p-3 md:hidden">
             <button
               type="button"
               onClick={() => setIsMenuOpen((open) => !open)}
@@ -597,6 +614,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             </button>
             {isMenuOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-ink-800 bg-ink-900 shadow-xl">
+                {isAdmin && (
+                  <Link
+                    to="/admin/dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
+                  >
+                    {t("sidebar.admin")}
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => setPendingSignOut(true)}
@@ -634,7 +660,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
             <NotificationBell />
 
-            <div className="relative">
+            <div ref={desktopMenuRef} className="relative">
               <button
                 type="button"
                 onClick={() => setIsMenuOpen((open) => !open)}
@@ -702,6 +728,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     >
                       {t("billing.paymentAndInvoices")}
                     </button>
+                  )}
+                  {isAdmin && (
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
+                    >
+                      {t("sidebar.admin")}
+                    </Link>
                   )}
                   <button
                     type="button"
