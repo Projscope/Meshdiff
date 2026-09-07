@@ -382,7 +382,7 @@ export default function ProjectDetailPage() {
     fail: t("projectDetail.printabilityFail"),
   };
   const PRINTABILITY_COLOR: Record<"pass" | "warn" | "fail", string> = {
-    pass: "text-accent-400",
+    pass: "text-accent-fg-400",
     warn: "text-amber-400",
     fail: "text-red-400",
   };
@@ -436,7 +436,7 @@ export default function ProjectDetailPage() {
               <button
                 type="button"
                 onClick={() => setTourDismissed(false)}
-                className="shrink-0 text-xs font-medium text-accent-400 hover:text-accent-300"
+                className="shrink-0 text-xs font-medium text-accent-fg-400 hover:text-accent-fg-300"
               >
                 {t("sampleTour.replayLink")}
               </button>
@@ -494,7 +494,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {isDragOver && (
-        <div className="mt-4 rounded-lg border-2 border-dashed border-accent-500 bg-accent-500/5 py-4 text-center text-sm text-accent-300">
+        <div className="mt-4 rounded-lg border-2 border-dashed border-accent-500 bg-accent-500/5 py-4 text-center text-sm text-accent-fg-300">
           {t("projectDetail.dropToUpload")}
         </div>
       )}
@@ -540,7 +540,7 @@ export default function ProjectDetailPage() {
             <StatCard label={t("projectDetail.openReviews")} value={openReviews} accent={openReviews > 0 ? "amber" : undefined} />
             <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{t("projectDetail.approvalRate")}</p>
-              <p className="mt-1.5 text-2xl font-bold text-accent-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
+              <p className="mt-1.5 text-2xl font-bold text-accent-fg-400">{approvalRate === null ? "—" : `${approvalRate}%`}</p>
               {approvalRate !== null && (
                 <div className="mt-2 h-1 overflow-hidden rounded-full bg-ink-800">
                   <div className="h-full rounded-full bg-accent-500" style={{ width: `${approvalRate}%` }} />
@@ -770,7 +770,7 @@ export default function ProjectDetailPage() {
                       v{version.versionNumber}
                     </span>
                     {version.id === stableVersionId && (
-                      <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400">
+                      <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-fg-400">
                         {t("projectDetail.stable")}
                       </span>
                     )}

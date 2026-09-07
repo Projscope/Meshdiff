@@ -27,7 +27,7 @@ function AnnouncementBar() {
       <span className="font-semibold text-purple-400">
         <span className="font-mono tabular-nums">{countdown}</span>
       </span>{" "}
-      <Link to="/pricing" className="font-medium text-ink-100 hover:text-accent-300">
+      <Link to="/pricing" className="font-medium text-ink-100 hover:text-accent-fg-300">
         See pricing →
       </Link>
     </div>

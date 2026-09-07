@@ -247,7 +247,7 @@ function HeroStatItem({ stat }: { stat: HeroStat }) {
       <span className="font-mono text-2xl font-bold text-ink-50">
         {stat.prefix}
         <span ref={ref}>{value}</span>
-        <span className="text-accent-400">{stat.suffix}</span>
+        <span className="text-accent-fg-400">{stat.suffix}</span>
       </span>
       <span className="mt-1 block text-xs text-ink-400">{stat.label}</span>
     </div>
@@ -304,7 +304,7 @@ function WorkflowAnimation() {
               <Icon
                 size={14}
                 weight={isActive ? "fill" : "light"}
-                className={`shrink-0 transition-colors duration-500 ${isActive ? "text-accent-400" : "text-ink-600"}`}
+                className={`shrink-0 transition-colors duration-500 ${isActive ? "text-accent-fg-400" : "text-ink-600"}`}
               />
               <span
                 className={`text-xs transition-colors duration-500 ${
@@ -391,7 +391,7 @@ function BracketAssemblyPanel() {
           {DEMO_GATES.map((gate) => (
             <div key={gate.label} className="flex items-center gap-2 text-xs">
               {gate.done ? (
-                <CheckCircle size={16} weight="fill" className="shrink-0 text-accent-400" />
+                <CheckCircle size={16} weight="fill" className="shrink-0 text-accent-fg-400" />
               ) : (
                 <Circle size={16} weight="bold" className="shrink-0 text-ink-600" />
               )}
@@ -446,7 +446,7 @@ export default function LandingPage() {
                 3D_Design_Review &middot; Team_Workflow
               </span>
               <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-tight text-ink-50 md:text-5xl">
-                Review 3D model changes before they become <span className="text-accent-400">expensive mistakes</span>.
+                Review 3D model changes before they become <span className="text-accent-fg-400">expensive mistakes</span>.
               </h1>
               <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-ink-400">
                 Compare revisions, discuss changes directly on the model, and approve the
@@ -480,7 +480,7 @@ export default function LandingPage() {
               </div>
 
               <p className="mt-5 flex items-center gap-1.5 text-xs text-ink-500">
-                <ShieldCheck size={14} weight="fill" className="text-accent-400" />
+                <ShieldCheck size={14} weight="fill" className="text-accent-fg-400" />
                 No account &middot; No install &middot; Files never leave your machine
               </p>
             </div>
@@ -521,7 +521,7 @@ export default function LandingPage() {
                           ) : (
                             <>
                               <div className="whitespace-nowrap font-mono text-xs">
-                                <span className="text-accent-400">+{row.added.toLocaleString()}</span>{" "}
+                                <span className="text-accent-fg-400">+{row.added.toLocaleString()}</span>{" "}
                                 <span className="text-red-400">-{row.removed.toLocaleString()}</span>
                               </div>
                               <div className="mt-1 flex h-1 w-16 overflow-hidden rounded-full bg-ink-800">
@@ -799,7 +799,7 @@ export default function LandingPage() {
         <section className="border-t border-ink-900 px-6 py-14">
           <div className="mx-auto max-w-3xl">
             <h2 className="flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-ink-50">
-              <ShieldCheck size={24} weight="fill" className="text-accent-400" />
+              <ShieldCheck size={24} weight="fill" className="text-accent-fg-400" />
               Your 3D models are your IP.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-400">

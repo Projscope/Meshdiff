@@ -67,7 +67,7 @@ export default function PricingPage() {
                   voxelizing happen entirely in your browser, so the practical ceiling is whatever memory your
                   browser tab has available. (Pro/Team Projects workspace uploads, which are stored server-side, do
                   have a 50MB file size cap — see the{" "}
-                  <Link to="/docs" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+                  <Link to="/docs" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
                     FAQ
                   </Link>{" "}
                   for details.)

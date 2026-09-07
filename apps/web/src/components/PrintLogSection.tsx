@@ -107,7 +107,7 @@ function SlicerProfileBlock({
           <a
             href={attachment.downloadUrl}
             download={attachment.fileName}
-            className="truncate text-xs text-accent-400 hover:text-accent-300"
+            className="truncate text-xs text-accent-fg-400 hover:text-accent-fg-300"
             title={attachment.fileName}
           >
             {attachment.fileName}

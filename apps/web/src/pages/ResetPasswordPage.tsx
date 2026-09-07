@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
 
         {isDone ? (
           <>
-            <p className="mt-2 text-sm text-accent-400">Password updated — you're signed in.</p>
+            <p className="mt-2 text-sm text-accent-fg-400">Password updated — you're signed in.</p>
             <button
               type="button"
               onClick={() => navigate("/projects")}

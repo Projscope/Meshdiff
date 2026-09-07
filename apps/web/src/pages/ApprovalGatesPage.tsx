@@ -68,7 +68,7 @@ export default function ApprovalGatesPage() {
         Every currently-active gate on a version has to be checked before it can be approved. Trying to approve
         early is rejected with the specific labels still outstanding named in the error — never a vague "requirements
         not met." See{" "}
-        <Link to="/docs/version-review-workflow" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/docs/version-review-workflow" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           Version Review Workflow
         </Link>{" "}
         for the rest of the approve/request-changes process gates plug into.
@@ -78,12 +78,12 @@ export default function ApprovalGatesPage() {
         Have a question this didn't cover? Email{" "}
         <a
           href="mailto:support@projscope.com"
-          className="text-accent-400 underline underline-offset-2 hover:text-accent-300"
+          className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300"
         >
           support@projscope.com
         </a>
         , or see the full{" "}
-        <Link to="/docs" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/docs" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           Docs & FAQ
         </Link>
         .

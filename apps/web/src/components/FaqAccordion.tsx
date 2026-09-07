@@ -29,7 +29,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
         Free is the diff engine itself, permanently — no account, no time limit. Pro adds saved project workspaces,
         version history, and PDF reports. Team adds comment pins, an approvals workflow, and print-log tracking. See
         the full{" "}
-        <Link to="/pricing" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/pricing" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           feature comparison
         </Link>
         .
@@ -58,7 +58,7 @@ export default function FaqAccordion() {
             >
               {item.q}
               <span
-                className={`ml-4 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-ink-800 text-accent-400 transition-transform ${
+                className={`ml-4 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-ink-800 text-accent-fg-400 transition-transform ${
                   isOpen ? "rotate-45" : ""
                 }`}
               >

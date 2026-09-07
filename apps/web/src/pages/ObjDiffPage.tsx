@@ -68,7 +68,7 @@ export default function ObjDiffPage() {
       <h2 className="mt-10 text-2xl font-bold text-ink-50">How to compare two OBJ files</h2>
       <p className="mt-4">
         Open the{" "}
-        <a href="/live" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <a href="/live" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           free diff tool
         </a>
         , drop your two OBJ files into the Compare view, and Meshdiff runs the voxel and heatmap diff entirely in

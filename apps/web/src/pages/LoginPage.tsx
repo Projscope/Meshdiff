@@ -188,8 +188,8 @@ export default function LoginPage() {
                   : "Send reset link"}
           </button>
           {error && <span className="text-xs text-red-400">{error}</span>}
-          {signupMessage && <span className="text-xs text-accent-400">{signupMessage}</span>}
-          {resetMessage && <span className="text-xs text-accent-400">{resetMessage}</span>}
+          {signupMessage && <span className="text-xs text-accent-fg-400">{signupMessage}</span>}
+          {resetMessage && <span className="text-xs text-accent-fg-400">{resetMessage}</span>}
           {pendingConfirmationEmail && (
             <div className="mt-1 flex items-center gap-2">
               <button

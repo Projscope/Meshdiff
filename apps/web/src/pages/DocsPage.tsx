@@ -123,7 +123,7 @@ export default function DocsPage() {
                   {" "}
                   <Link
                     to={faq.link.to}
-                    className="text-accent-400 underline underline-offset-2 hover:text-accent-300"
+                    className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300"
                   >
                     {faq.link.label}
                   </Link>
@@ -137,11 +137,11 @@ export default function DocsPage() {
 
       <p className="mt-10 text-sm text-ink-400">
         Still have a question? Email{" "}
-        <a href="mailto:support@projscope.com" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <a href="mailto:support@projscope.com" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           support@projscope.com
         </a>
         , or see the{" "}
-        <Link to="/roadmap" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <Link to="/roadmap" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           roadmap and changelog
         </Link>
         .

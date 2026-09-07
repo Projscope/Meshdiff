@@ -71,7 +71,7 @@ export default function ThreeMfDiffPage() {
       <h2 className="mt-10 text-2xl font-bold text-ink-50">How to compare two 3MF files</h2>
       <p className="mt-4">
         Open the{" "}
-        <a href="/compare-3mf-files" className="text-accent-400 underline underline-offset-2 hover:text-accent-300">
+        <a href="/compare-3mf-files" className="text-accent-fg-400 underline underline-offset-2 hover:text-accent-fg-300">
           3MF comparison tool
         </a>
         , drop Version A and Version B into their slots, and Meshdiff runs the voxel and heatmap diff locally in

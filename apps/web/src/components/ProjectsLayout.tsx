@@ -274,7 +274,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   const planTextClass = isTeamMember
     ? "text-violet-400"
     : isPro || isTrialing
-      ? "text-accent-400"
+      ? "text-accent-fg-400"
       : isRestricted
         ? "text-red-400"
         : "text-ink-300";
@@ -562,7 +562,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={() => setShowManagePlan(true)}
                   className={`shrink-0 text-[11px] font-medium ${
-                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
+                    isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-fg-400 hover:text-accent-fg-300"
                   }`}
                 >
                   {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
@@ -717,7 +717,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                           setIsMenuOpen(false);
                         }}
                         className={`shrink-0 text-xs font-medium ${
-                          isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-400 hover:text-accent-300"
+                          isRestricted ? "text-red-400 hover:text-red-300" : "text-accent-fg-400 hover:text-accent-fg-300"
                         }`}
                       >
                         {isBillingOwner ? t("billing.managePlan") : t("billing.upgrade")}
@@ -763,7 +763,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
           <div
             className={`fixed right-4 top-4 z-40 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg ${
               notice.type === "success"
-                ? "border-accent-800 bg-accent-950/90 text-accent-300"
+                ? "border-accent-800 bg-accent-950/90 text-accent-fg-300"
                 : notice.type === "error"
                   ? "border-red-800 bg-red-950/90 text-red-300"
                   : "border-ink-700 bg-ink-900/95 text-ink-300"

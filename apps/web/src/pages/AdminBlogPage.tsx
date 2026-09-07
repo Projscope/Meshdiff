@@ -78,7 +78,7 @@ export default function AdminBlogPage() {
               <>
                 <span
                   className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                    post.status === "published" ? "bg-accent-500/15 text-accent-400" : "bg-ink-800 text-ink-400"
+                    post.status === "published" ? "bg-accent-500/15 text-accent-fg-400" : "bg-ink-800 text-ink-400"
                   }`}
                 >
                   {post.status}

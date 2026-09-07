@@ -293,7 +293,7 @@ export default function RoadmapPage() {
                     <div className="space-y-6">
                       {release.items.new && release.items.new.length > 0 && (
                         <div>
-                          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-accent-400">New</p>
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-accent-fg-400">New</p>
                           <ul className="space-y-2">
                             {release.items.new.map((item) => (
                               <li key={item} className="flex gap-3 text-sm text-ink-300">

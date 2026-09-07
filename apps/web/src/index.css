@@ -23,6 +23,11 @@
   --ink-800: 38 44 56;
   --ink-900: 27 31 39;
   --ink-950: 21 24 30;
+  /* Dark-theme defaults match accent-300/400 in tailwind.config.js exactly
+     (110 231 183 = #6ee7b7, 52 211 153 = #34d399) — mint-green text reads
+     fine against this scale's near-black page background. */
+  --accent-fg-300: 110 231 183;
+  --accent-fg-400: 52 211 153;
   color-scheme: dark;
 }
 
@@ -39,6 +44,15 @@
   --ink-900: 232 236 243;
   --ink-950: 245 247 251;
   color-scheme: light;
+  /* The dark-theme mint greens above are ~2:1 contrast at best against this
+     theme's near-white page background — nowhere near AA. Swapped for
+     darker, more saturated greens from the same accent hue family instead
+     of just dimming: 5 150 105 = #059669 (~3.6:1 on white), 4 120 87 =
+     #047857 (~5.4:1, passes AA for normal text). accent-500 itself is
+     deliberately left alone (see tailwind.config.js) since it's a button
+     fill, not page-background text. */
+  --accent-fg-300: 5 150 105;
+  --accent-fg-400: 4 120 87;
 }
 
 body {
@@ -169,14 +183,14 @@ body {
   margin-top: 1.5em;
 }
 .prose-blog a {
-  color: theme("colors.accent.400");
+  color: theme("colors.accent-fg.400");
   text-decoration: underline;
-  text-decoration-color: theme("colors.accent.400" / 40%);
+  text-decoration-color: theme("colors.accent-fg.400" / 40%);
   text-underline-offset: 2px;
 }
 .prose-blog a:hover {
-  color: theme("colors.accent.300");
-  text-decoration-color: theme("colors.accent.300");
+  color: theme("colors.accent-fg.300");
+  text-decoration-color: theme("colors.accent-fg.300");
 }
 .prose-blog strong {
   color: rgb(var(--ink-50));

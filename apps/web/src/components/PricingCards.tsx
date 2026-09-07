@@ -156,7 +156,7 @@ export default function PricingCards() {
                 {tier.badge}
               </span>
             )}
-            <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-accent-400" : "text-ink-300"}`}>
+            <h3 className={`text-sm font-semibold ${tier.highlighted ? "text-accent-fg-400" : "text-ink-300"}`}>
               {tier.name}
             </h3>
             <div className="mt-2 flex items-baseline gap-1.5">
@@ -188,7 +188,7 @@ export default function PricingCards() {
                     type="button"
                     onClick={() => void handleCheckout(checkoutTier)}
                     disabled={isCheckingOut}
-                    className="mt-4 w-full rounded-lg border border-accent-500/40 bg-accent-500/10 py-2 text-sm font-medium text-accent-400 transition hover:bg-accent-500/15 disabled:opacity-50"
+                    className="mt-4 w-full rounded-lg border border-accent-500/40 bg-accent-500/10 py-2 text-sm font-medium text-accent-fg-400 transition hover:bg-accent-500/15 disabled:opacity-50"
                   >
                     {isCheckingOut ? "Redirecting…" : tier.cta.label}
                   </button>
@@ -200,7 +200,7 @@ export default function PricingCards() {
                 onClick={scrollToEarlyAccess}
                 className={`mt-4 w-full rounded-lg py-2 text-sm font-medium transition ${
                   tier.highlighted
-                    ? "border border-accent-500/40 bg-accent-500/10 text-accent-400 hover:bg-accent-500/15"
+                    ? "border border-accent-500/40 bg-accent-500/10 text-accent-fg-400 hover:bg-accent-500/15"
                     : "border border-ink-700 text-ink-300 hover:border-ink-500"
                 }`}
               >
@@ -210,7 +210,7 @@ export default function PricingCards() {
             <ul className="mt-5 flex flex-col gap-2 text-xs text-ink-400">
               {tier.features.map((feature) => (
                 <li key={feature} className="flex items-start gap-2">
-                  <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-accent-400" />
+                  <Check size={14} weight="bold" className="mt-0.5 shrink-0 text-accent-fg-400" />
                   <span>{feature}</span>
                 </li>
               ))}

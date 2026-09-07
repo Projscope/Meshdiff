@@ -33,7 +33,7 @@ export default function BlogPostPage() {
       <div className="flex min-h-screen items-center justify-center bg-ink-950 px-6 text-center">
         <div>
           <p className="text-sm text-ink-500">{error}</p>
-          <Link to="/blog" className="mt-4 inline-block text-sm text-accent-400 hover:text-accent-300">
+          <Link to="/blog" className="mt-4 inline-block text-sm text-accent-fg-400 hover:text-accent-fg-300">
             &larr; Back to the blog
           </Link>
         </div>

@@ -40,7 +40,7 @@ export default function WaitlistForm() {
 
   if (status === "success") {
     return (
-      <p className="text-sm text-accent-400">
+      <p className="text-sm text-accent-fg-400">
         You&apos;re on the list — we&apos;ll let you know when it ships.
       </p>
     );
@@ -75,7 +75,7 @@ export function CompactWaitlistForm() {
 
   if (status === "success") {
     return (
-      <p className="text-sm text-accent-400">
+      <p className="text-sm text-accent-fg-400">
         You&apos;re on the list — we&apos;ll let you know when it ships.
       </p>
     );

@@ -19,7 +19,7 @@ export default function PrintabilityRulesTooltip({ children, className }: Printa
         <span className="block font-semibold text-ink-200">How printability is determined</span>
         <ul className="mt-1.5 list-disc space-y-1 pl-4">
           <li>
-            <span className="font-medium text-accent-400">Pass</span> — no issues detected.
+            <span className="font-medium text-accent-fg-400">Pass</span> — no issues detected.
           </li>
           <li>
             <span className="font-medium text-amber-400">Warn</span> — thin walls (&lt;0.8mm), overhang angle

@@ -3,7 +3,7 @@ import type { CommentStatus } from "../lib/projectsApi";
 
 const STYLES: Record<CommentStatus, string> = {
   open: "border-ink-700 bg-ink-800 text-ink-400",
-  resolved: "border-accent-800 bg-accent-500/10 text-accent-400",
+  resolved: "border-accent-800 bg-accent-500/10 text-accent-fg-400",
   // Distinct from open — a reopened thread was previously resolved and
   // needs attention again, which is a different signal than "never looked
   // at" (open).

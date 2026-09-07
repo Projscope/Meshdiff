@@ -21,7 +21,7 @@ const TYPE_LABEL: Record<FeedbackType, string> = {
 
 const TYPE_STYLE: Record<FeedbackType, string> = {
   note: "bg-ink-800 text-ink-400",
-  feature: "bg-accent-500/15 text-accent-400",
+  feature: "bg-accent-500/15 text-accent-fg-400",
   bug: "bg-red-500/15 text-red-400",
 };
 
