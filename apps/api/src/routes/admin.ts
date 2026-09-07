@@ -6,6 +6,7 @@ import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "../lib/subsc
 import { isAdminEmail } from "../lib/requireAdmin.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 import { getDemoUserIds, setDemoAccount } from "../lib/demoAccounts.js";
+import { getAdminGrantsByUser, setAdminGrant, type GrantedTier } from "../lib/adminGrants.js";
 
 const PAGE_SIZE = 25;
 
@@ -23,6 +24,14 @@ interface AdminUserDemoParams {
 
 interface AdminUserDemoBody {
   demo?: boolean;
+}
+
+interface AdminUserGrantParams {
+  userId: string;
+}
+
+interface AdminUserGrantBody {
+  tier?: string;
 }
 
 interface SubscriptionRow {
@@ -92,6 +101,10 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           getAdminStats(supabase),
           getDemoUserIds(supabase),
         ]);
+        const grantsResult = await getAdminGrantsByUser(
+          supabase,
+          pageResult.error ? [] : pageResult.data.users.map((u) => u.id),
+        );
 
         if (pageResult.error) {
           app.log.error(pageResult.error, "Failed to list users");
@@ -108,7 +121,13 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           reply.code(502);
           return { success: false, error: "Failed to load users" };
         }
+        if (!grantsResult.success) {
+          app.log.error("Failed to load admin-granted tiers: " + grantsResult.error);
+          reply.code(502);
+          return { success: false, error: "Failed to load users" };
+        }
         const demoIds = demoIdsResult.data;
+        const grantsByUser = grantsResult.data;
 
         // totalProbe.error's fallback shape ({ users: [] }) has no `total`
         // field — only take it when the probe actually succeeded.
@@ -134,8 +153,10 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           // — reflect that here too so this list doesn't show them as an
           // expired free user.
           const isDemo = demoIds.has(u.id);
+          const isAdmin = isAdminEmail(u.email);
+          const adminGrantedTier = grantsByUser.get(u.id) ?? null;
 
-          if (isAdminEmail(u.email)) {
+          if (isAdmin) {
             return {
               id: u.id,
               email: u.email ?? null,
@@ -147,6 +168,29 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
               isTrialing: false,
               trialDaysRemaining: null,
               isDemo,
+              isAdmin,
+              adminGrantedTier,
+            };
+          }
+
+          // An admin grant (see adminGrants.ts) takes priority over a real
+          // subscription — same precedence getUserTier() applies on the
+          // actual access-gating path, so this list never disagrees with
+          // what the account can really do.
+          if (adminGrantedTier) {
+            return {
+              id: u.id,
+              email: u.email ?? null,
+              signupDate: u.created_at,
+              lastSignInAt: u.last_sign_in_at ?? null,
+              tier: adminGrantedTier,
+              status: null,
+              currentPeriodEnd: null,
+              isTrialing: false,
+              trialDaysRemaining: null,
+              isDemo,
+              isAdmin,
+              adminGrantedTier,
             };
           }
 
@@ -168,6 +212,8 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
             isTrialing: trial.isTrialing,
             trialDaysRemaining: trial.trialDaysRemaining,
             isDemo,
+            isAdmin,
+            adminGrantedTier,
           };
         });
 
@@ -209,6 +255,38 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         return { success: false, error: "Failed to update demo status" };
       }
       return { success: true, data: { userId, isDemo: demo } };
+    },
+  );
+
+  // Manually grants (tier: "pro"|"team") or clears (tier: "free") a tier for
+  // any account, independent of Stripe — see adminGrants.ts/
+  // 0037_admin_granted_tier.sql. Never touches that user's real
+  // subscription row, if they happen to have one; "free" only removes the
+  // override floor.
+  app.patch<{ Params: AdminUserGrantParams; Body: AdminUserGrantBody }>(
+    "/admin/users/:userId/subscription",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const supabase = request.supabase!;
+      const { userId } = request.params;
+      const tier = request.body?.tier;
+      if (tier !== "free" && tier !== "pro" && tier !== "team") {
+        reply.code(400);
+        return { success: false, error: "Body must include tier: 'free', 'pro', or 'team'" };
+      }
+
+      const result = await setAdminGrant(
+        supabase,
+        userId,
+        tier === "free" ? null : (tier as GrantedTier),
+        request.userId!,
+      );
+      if (!result.success) {
+        app.log.error("Failed to set admin-granted tier: " + result.error);
+        reply.code(502);
+        return { success: false, error: "Failed to update subscription" };
+      }
+      return { success: true, data: { userId, tier } };
     },
   );
 }

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { listAdminUsers, setUserDemoStatus, type AdminUsersPage } from "../lib/adminApi";
+import { listAdminUsers, setUserDemoStatus, setUserGrantedTier, type AdminUsersPage } from "../lib/adminApi";
 import AdminStatsGrid from "../components/AdminStatsGrid";
 
 const PAGE_SIZE = 25;
@@ -45,6 +45,18 @@ export default function AdminUsersPage() {
   async function handleToggleDemo(userId: string, nextIsDemo: boolean) {
     setTogglingUserId(userId);
     const result = await setUserDemoStatus(userId, nextIsDemo);
+    if (result.success) {
+      const refreshed = await listAdminUsers(page);
+      if (refreshed.success) setData(refreshed.data);
+    }
+    setTogglingUserId(null);
+  }
+
+  // Same refetch-rather-than-patch reasoning as handleToggleDemo above —
+  // this can also shift the stat widgets' Free/Trialing/Pro/Team split.
+  async function handleChangeGrant(userId: string, tier: "free" | "pro" | "team") {
+    setTogglingUserId(userId);
+    const result = await setUserGrantedTier(userId, tier);
     if (result.success) {
       const refreshed = await listAdminUsers(page);
       if (refreshed.success) setData(refreshed.data);
@@ -121,20 +133,39 @@ export default function AdminUsersPage() {
                     >
                       {user.email ?? "—"}
                     </span>
-                    <span className={`px-4 py-3 text-sm ${rowBorder}`}>
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                          user.tier === "team"
-                            ? "bg-violet-500/15 text-violet-400"
-                            : user.tier === "pro"
-                              ? "bg-accent-500/15 text-accent-fg-400"
-                              : user.isTrialing
-                                ? "bg-amber-500/15 text-amber-fg-400"
-                                : "bg-ink-800 text-ink-400"
-                        }`}
-                      >
-                        {user.isTrialing ? "trial" : user.tier}
-                      </span>
+                    <span className={`flex items-center gap-1.5 px-4 py-3 text-sm ${rowBorder}`}>
+                      {user.isAdmin ? (
+                        <span className="rounded bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-400">
+                          team
+                        </span>
+                      ) : (
+                        <select
+                          value={user.adminGrantedTier ?? "free"}
+                          onChange={(event) =>
+                            handleChangeGrant(user.id, event.target.value as "free" | "pro" | "team")
+                          }
+                          disabled={togglingUserId === user.id}
+                          title="Manually grant Pro/Team access, independent of billing — 'Free' just clears the grant, it never cancels a real subscription."
+                          className={`rounded border-none px-1.5 py-0.5 text-[10px] font-semibold uppercase disabled:cursor-not-allowed disabled:opacity-40 ${
+                            user.tier === "team"
+                              ? "bg-violet-500/15 text-violet-400"
+                              : user.tier === "pro"
+                                ? "bg-accent-500/15 text-accent-fg-400"
+                                : user.isTrialing
+                                  ? "bg-amber-500/15 text-amber-fg-400"
+                                  : "bg-ink-800 text-ink-400"
+                          }`}
+                        >
+                          <option value="free">{user.isTrialing ? "trial" : "free"}</option>
+                          <option value="pro">pro</option>
+                          <option value="team">team</option>
+                        </select>
+                      )}
+                      {user.adminGrantedTier && (
+                        <span title="Manually granted by an admin, not a real subscription" className="text-[10px] text-ink-600">
+                          granted
+                        </span>
+                      )}
                     </span>
                     <span className={`px-4 py-3 text-sm text-ink-500 ${rowBorder}`}>
                       {user.isTrialing

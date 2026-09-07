@@ -23,6 +23,20 @@ export const INACTIVE_SUBSCRIPTION_STATUSES = ["canceled", "past_due"];
 // /billing/subscription today, and reusable by any future gating without
 // duplicating the active/trialing check.
 export async function getUserTier(supabase: SupabaseClient, userId: string): Promise<UserTier> {
+  // An admin-granted tier (see adminGrants.ts, set from the Admin Users
+  // page) takes priority over — and needs no — a real Stripe row. `row` is
+  // null here since there's no actual subscription backing it; every
+  // caller already treats a null row as "no billing details to show",
+  // which is exactly right for a manual grant.
+  const { data: grant } = await supabase
+    .from("admin_granted_tier")
+    .select("tier")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (grant) {
+    return { tier: grant.tier as "pro" | "team", row: null };
+  }
+
   const { data } = await supabase
     .from("subscriptions")
     .select("tier, status, current_period_end, cancel_at_period_end, quantity")

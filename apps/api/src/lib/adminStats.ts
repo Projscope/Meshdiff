@@ -51,32 +51,21 @@ export async function getAdminStats(
   const rawTotalUsers = !totalProbe.error && "total" in totalProbe.data ? totalProbe.data.total : 0;
   const totalUsers = Math.max(0, rawTotalUsers - demoIds.size);
 
-  // "pro" here means "paying" for the stat card — includes Team
-  // subscribers, not just tier==='pro' rows, otherwise Team revenue would
-  // silently disappear from the conversion-rate stat.
-  let proCountQuery = supabase
-    .from("subscriptions")
-    .select("*", { count: "exact", head: true })
-    .in("tier", ["pro", "team"])
-    .not("status", "in", `(${INACTIVE_SUBSCRIPTION_STATUSES.join(",")})`);
-  if (demoIds.size > 0) {
-    proCountQuery = proCountQuery.not("user_id", "in", `(${[...demoIds].join(",")})`);
-  }
-  const { count: proCount, error: proCountError } = await proCountQuery;
-  if (proCountError) {
-    return { success: false, error: "Failed to count pro subscriptions" };
-  }
-
   // Subscriber-type breakdown (Free/Trialing/Pro/Team) — needs each
   // free-tier user's created_at, which a count-only query can't give.
   // Fetches every user in one listUsers() call, same pattern (and same
-  // "fine at this scale" reasoning) as getSignupBuckets() below.
-  const [usersResult, activeSubsResult] = await Promise.all([
+  // "fine at this scale" reasoning) as getSignupBuckets() below. Also folds
+  // in admin_granted_tier (see adminGrants.ts) with the same priority
+  // getUserTier() applies on the real access-gating path, so this
+  // breakdown — and the "pro" count derived from it below — can't drift
+  // from what an account can actually do.
+  const [usersResult, activeSubsResult, grantsResult] = await Promise.all([
     supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     supabase
       .from("subscriptions")
       .select("user_id, tier")
       .not("status", "in", `(${INACTIVE_SUBSCRIPTION_STATUSES.join(",")})`),
+    supabase.from("admin_granted_tier").select("user_id, tier"),
   ]);
   if (usersResult.error) {
     return { success: false, error: "Failed to load users" };
@@ -84,7 +73,11 @@ export async function getAdminStats(
   if (activeSubsResult.error) {
     return { success: false, error: "Failed to load subscriptions" };
   }
+  if (grantsResult.error) {
+    return { success: false, error: "Failed to load admin-granted tiers" };
+  }
   const tierByUserId = new Map(activeSubsResult.data.map((s) => [s.user_id as string, s.tier as string]));
+  const grantByUserId = new Map(grantsResult.data.map((g) => [g.user_id as string, g.tier as string]));
 
   let freeUsers = 0;
   let trialingUsers = 0;
@@ -92,13 +85,20 @@ export async function getAdminStats(
   let teamSubscribers = 0;
   for (const u of usersResult.data.users) {
     if (demoIds.has(u.id)) continue;
-    const activeTier = tierByUserId.get(u.id);
+    const activeTier = grantByUserId.get(u.id) ?? tierByUserId.get(u.id);
     if (isAdminEmail(u.email)) teamSubscribers++;
     else if (activeTier === "pro") proSubscribers++;
     else if (activeTier === "team") teamSubscribers++;
     else if (computeTrialStatus(u.created_at).isTrialing) trialingUsers++;
     else freeUsers++;
   }
+  // "pro" here means "paying" for the stat card — includes Team
+  // subscribers (real or admin-granted), not just tier==='pro' rows,
+  // otherwise Team revenue would silently disappear from the
+  // conversion-rate stat. Derived from the same breakdown above rather
+  // than a second, separately-filtered count query, so the two can't
+  // disagree.
+  const proCount = proSubscribers + teamSubscribers;
 
   // Share counts by who created them, using the tier snapshotted at share
   // time (share_stats.tier_at_share — see migration 0016), not a live join:
@@ -118,8 +118,8 @@ export async function getAdminStats(
     success: true,
     data: {
       totalUsers,
-      proUsers: proCount ?? 0,
-      conversionRate: totalUsers > 0 ? Math.round(((proCount ?? 0) / totalUsers) * 1000) / 10 : 0,
+      proUsers: proCount,
+      conversionRate: totalUsers > 0 ? Math.round((proCount / totalUsers) * 1000) / 10 : 0,
       freeUsers,
       trialingUsers,
       proSubscribers,
