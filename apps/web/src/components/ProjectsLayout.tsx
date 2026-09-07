@@ -24,6 +24,7 @@ import EditWorkspaceModal from "./EditWorkspaceModal";
 import ConfirmDialog from "./ConfirmDialog";
 import LanguageSelect from "./LanguageSelect";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./ThemeToggle";
 
 // UI convenience only — hides the sidebar link for everyone else. The real
 // admin boundary is server-side (requireAdmin.ts's ADMIN_EMAILS), so a
@@ -596,7 +597,8 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 {t("billing.paymentAndInvoices")}
               </button>
             )}
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2">
+              <ThemeToggle />
               <LanguageSelect />
             </div>
           </div>
@@ -657,6 +659,8 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               sidebar overlay instead (see the <aside> footer above). */}
           <header className="hidden items-center justify-end gap-4 border-b border-ink-800 px-6 py-2.5 md:flex">
             <LanguageSelect />
+
+            <ThemeToggle />
 
             <NotificationBell />
 
