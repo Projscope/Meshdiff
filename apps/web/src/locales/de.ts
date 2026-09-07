@@ -352,8 +352,12 @@ const de: TranslationResource = {
     diffBody: "Klicke oben auf v1 → v2, um genau zu sehen, was sich geändert hat — neue Geometrie in Grün, entfernte in Rot.",
     compareViewerTitle: "Der Unterschied, automatisch berechnet",
     compareViewerBody: "Hinzugefügte und entfernte Geometrie, Voxel für Voxel — kein manuelles Überlagern, kein Rätselraten.",
+    compareControlsTitle: "Erkunde die Ansicht",
+    compareControlsBody: "Wechsle zwischen Voxel-, Oberflächen- und Überlagerungsmodus, passe die Toleranz an oder setze die Kamera zurück — alles hier ist interaktiv.",
     compareDeltaTitle: "Jede Dimension der Änderung",
     compareDeltaBody: "Volumen, Begrenzungsrahmen und Oberfläche — die Zahlen hinter dem Bild, direkt hier.",
+    feedbackTitle: "Wir freuen uns über dein Feedback",
+    feedbackBody: "Etwas unklar, oder eine Idee? Klicke hier jederzeit, um uns eine Nachricht zu schicken — kein Konto nötig.",
   },
 };
 

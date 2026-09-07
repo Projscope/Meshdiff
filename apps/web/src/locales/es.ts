@@ -352,8 +352,12 @@ const es: TranslationResource = {
     diffBody: "Haz clic en v1 → v2 arriba para ver exactamente qué cambió — geometría añadida en verde, eliminada en rojo.",
     compareViewerTitle: "La diferencia, calculada automáticamente",
     compareViewerBody: "Geometría añadida y eliminada, vóxel por vóxel — sin superposición manual, sin conjeturas.",
+    compareControlsTitle: "Explora la vista",
+    compareControlsBody: "Cambia entre los modos Vóxeles, Superficie y Superposición, ajusta la tolerancia o reinicia la cámara — todo aquí es interactivo.",
     compareDeltaTitle: "Cada dimensión del cambio",
     compareDeltaBody: "Volumen, caja delimitadora y área de superficie — los números detrás de la imagen, justo aquí.",
+    feedbackTitle: "Nos encantaría conocer tu opinión",
+    feedbackBody: "¿Algo confuso, o tienes una idea? Haz clic aquí en cualquier momento para enviarnos una nota — no se necesita cuenta.",
   },
 };
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { setTourDismissed, useSampleTourStage } from "../lib/sampleProjectTour";
+import { setTourDismissed, useSampleTourStage, PROJECT_TOUR_STEP_COUNT, TOTAL_TOUR_STEPS } from "../lib/sampleProjectTour";
 
 interface Step {
   target: string;
@@ -11,7 +11,9 @@ interface Step {
 
 const STEPS: Step[] = [
   { target: "diffViewer", titleKey: "sampleTour.compareViewerTitle", bodyKey: "sampleTour.compareViewerBody" },
+  { target: "viewerControls", titleKey: "sampleTour.compareControlsTitle", bodyKey: "sampleTour.compareControlsBody" },
   { target: "deltaPanel", titleKey: "sampleTour.compareDeltaTitle", bodyKey: "sampleTour.compareDeltaBody" },
+  { target: "feedbackButton", titleKey: "sampleTour.feedbackTitle", bodyKey: "sampleTour.feedbackBody" },
 ];
 
 interface Rect {
@@ -112,7 +114,7 @@ export default function SampleCompareTour() {
         style={popoverStyle}
       >
         <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-500">
-          {t("sampleTour.stepOf", { current: stepIndex + 1, total: STEPS.length })}
+          {t("sampleTour.stepOf", { current: PROJECT_TOUR_STEP_COUNT + stepIndex + 1, total: TOTAL_TOUR_STEPS })}
         </p>
         <h3 className="mt-1.5 text-sm font-semibold text-ink-50">{t(step.titleKey)}</h3>
         <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{t(step.bodyKey)}</p>

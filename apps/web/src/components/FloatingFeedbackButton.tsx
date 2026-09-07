@@ -13,6 +13,7 @@ export default function FloatingFeedbackButton() {
     <>
       <button
         type="button"
+        data-tour="feedbackButton"
         onClick={() => setIsOpen(true)}
         title="Add Feedback"
         className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-accent-500/40 bg-ink-900/95 px-4 py-2.5 text-sm font-medium text-accent-300 shadow-lg backdrop-blur transition hover:border-accent-400 hover:bg-ink-900"

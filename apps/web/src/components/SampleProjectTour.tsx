@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { useSampleTourDismissed } from "../lib/sampleProjectTour";
+import { useSampleTourDismissed, TOTAL_TOUR_STEPS } from "../lib/sampleProjectTour";
 
 interface Step {
   target: string;
@@ -72,8 +72,9 @@ export default function SampleProjectTour() {
 
   if (dismissed || !step) return null;
 
+  const isLastStep = stepIndex === STEPS.length - 1;
   const finish = () => setDismissed(true);
-  const goNext = () => (stepIndex === STEPS.length - 1 ? finish() : setStepIndex((i) => i + 1));
+  const goNext = () => setStepIndex((i) => i + 1);
   const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
 
   // Position the popover near the target, flipping to whichever side of
@@ -116,7 +117,7 @@ export default function SampleProjectTour() {
         style={popoverStyle}
       >
         <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-500">
-          {t("sampleTour.stepOf", { current: stepIndex + 1, total: STEPS.length })}
+          {t("sampleTour.stepOf", { current: stepIndex + 1, total: TOTAL_TOUR_STEPS })}
         </p>
         <h3 className="mt-1.5 text-sm font-semibold text-ink-50">{t(step.titleKey)}</h3>
         <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{t(step.bodyKey)}</p>
@@ -138,13 +139,15 @@ export default function SampleProjectTour() {
                 {t("sampleTour.back")}
               </button>
             )}
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded bg-accent-500 px-2.5 py-1 text-xs font-medium text-chrome-950 hover:bg-accent-400"
-            >
-              {stepIndex === STEPS.length - 1 ? t("sampleTour.done") : t("sampleTour.next")}
-            </button>
+            {!isLastStep && (
+              <button
+                type="button"
+                onClick={goNext}
+                className="rounded bg-accent-500 px-2.5 py-1 text-xs font-medium text-chrome-950 hover:bg-accent-400"
+              >
+                {t("sampleTour.next")}
+              </button>
+            )}
           </div>
         </div>
       </div>

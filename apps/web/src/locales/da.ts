@@ -352,8 +352,12 @@ const da: TranslationResource = {
     diffBody: "Klik på v1 → v2 ovenfor for at se præcis, hvad der er ændret — tilføjet geometri i grønt, fjernet i rødt.",
     compareViewerTitle: "Forskellen, beregnet automatisk",
     compareViewerBody: "Tilføjet og fjernet geometri, voxel for voxel — ingen manuel overlejring, ingen gætteri.",
+    compareControlsTitle: "Udforsk visningen",
+    compareControlsBody: "Skift mellem Voxel-, Overflade- og Overlejringstilstand, juster tolerancen, eller nulstil kameraet — alt her er interaktivt.",
     compareDeltaTitle: "Hver dimension af ændringen",
     compareDeltaBody: "Volumen, afgrænsningsboks og overfladeareal — tallene bag billedet, lige her.",
+    feedbackTitle: "Vi vil gerne høre din feedback",
+    feedbackBody: "Er noget uklart, eller har du en idé? Klik her når som helst for at sende os en besked — ingen konto nødvendig.",
   },
 };
 

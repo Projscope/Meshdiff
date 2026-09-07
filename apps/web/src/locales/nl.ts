@@ -352,8 +352,12 @@ const nl: TranslationResource = {
     diffBody: "Klik hierboven op v1 → v2 om precies te zien wat er is veranderd — toegevoegde geometrie in groen, verwijderde in rood.",
     compareViewerTitle: "Het verschil, automatisch berekend",
     compareViewerBody: "Toegevoegde en verwijderde geometrie, voxel voor voxel — geen handmatige overlay, geen giswerk.",
+    compareControlsTitle: "Verken de weergave",
+    compareControlsBody: "Wissel tussen Voxel-, Oppervlakte- en Overlaymodus, pas de tolerantie aan of reset de camera — alles hier is interactief.",
     compareDeltaTitle: "Elke dimensie van de verandering",
     compareDeltaBody: "Volume, begrenzingsvak en oppervlakte — de cijfers achter het beeld, hier direct.",
+    feedbackTitle: "We horen graag je feedback",
+    feedbackBody: "Iets onduidelijk, of een idee? Klik hier op elk moment om ons een bericht te sturen — geen account nodig.",
   },
 };
 

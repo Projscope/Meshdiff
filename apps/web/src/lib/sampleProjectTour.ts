@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
 
+// The walkthrough spans two components across two pages (SampleProjectTour
+// on ProjectDetailPage, then SampleCompareTour on the diff screen) — shared
+// here so both can render one continuous "X of 7" counter instead of each
+// restarting its own "X of N".
+export const PROJECT_TOUR_STEP_COUNT = 5;
+export const COMPARE_TOUR_STEP_COUNT = 4;
+export const TOTAL_TOUR_STEPS = PROJECT_TOUR_STEP_COUNT + COMPARE_TOUR_STEP_COUNT;
+
 const STORAGE_KEY = "meshdiff_sample_tour_stage";
 // Same "localStorage + custom event" pattern as shadingMode.ts/showGrid.ts
 // — a per-browser preference, kept in sync across anything reading it on

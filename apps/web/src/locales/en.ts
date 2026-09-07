@@ -353,8 +353,12 @@ const en = {
     diffBody: "Click v1 → v2 above to see exactly what changed between them — added geometry in green, removed in red.",
     compareViewerTitle: "The diff, computed automatically",
     compareViewerBody: "Added geometry and removed geometry, voxel by voxel — no manual overlay, no guesswork.",
+    compareControlsTitle: "Explore the view",
+    compareControlsBody: "Switch between Voxels, Surface, and Overlay modes, adjust tolerance, or reset the camera — everything here is interactive.",
     compareDeltaTitle: "Every dimension of the change",
     compareDeltaBody: "Volume, bounding box, and surface area — the numbers behind the picture, right here.",
+    feedbackTitle: "We'd love your feedback",
+    feedbackBody: "Spot something confusing, or have an idea? Click here anytime to send us a note — no account needed.",
   },
 };
 
