@@ -616,7 +616,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               <div className="absolute bottom-full left-3 right-3 mb-1 overflow-hidden rounded-lg border border-ink-800 bg-ink-900 shadow-xl">
                 {isAdmin && (
                   <Link
-                    to="/admin/dashboard"
+                    to="/admin"
                     onClick={() => setIsMenuOpen(false)}
                     className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
                   >
@@ -731,7 +731,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   )}
                   {isAdmin && (
                     <Link
-                      to="/admin/dashboard"
+                      to="/admin"
                       onClick={() => setIsMenuOpen(false)}
                       className="block w-full px-3 py-2 text-left text-xs text-ink-300 hover:bg-ink-800"
                     >
