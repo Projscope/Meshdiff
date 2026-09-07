@@ -4,6 +4,8 @@ import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import CollapsibleSection, { PropertyList, PropertyRow } from "./CollapsibleSection";
 import { useDiffColors } from "../lib/diffPalette";
 
+type StatsForPanel = (VoxelDiffStats & { toleranceMm?: number }) | null;
+
 interface DetailedStatsPanelProps {
   /**
    * Version Stats/Printability always render from stats when present (even a
@@ -13,9 +15,14 @@ interface DetailedStatsPanelProps {
    * something — otherwise a "no diff" placeholder, per the v1 case where
    * there's no previous version to compare against.
    */
-  stats: (VoxelDiffStats & { toleranceMm?: number }) | null;
+  stats: StatsForPanel;
   hasComparison: boolean;
   boundingBoxB: [number, number, number];
+  /** VersionDetailPage renders PrintabilityDetailsCard itself, right under
+   * its own Printability Gate section, instead of leaving it in this grid —
+   * everywhere else (CompareVersionsPage, MeasureViewer, LiveDiffToolPage)
+   * has no such gate section to sit under, so it stays in the grid there. */
+  hidePrintabilityDetails?: boolean;
 }
 
 /** Bordered card wrapper for one grid cell — gives each section a visible
@@ -26,7 +33,40 @@ function SectionCard({ children }: { children: ReactNode }) {
   return <div className="rounded-lg border border-ink-800 bg-ink-900/40 p-3">{children}</div>;
 }
 
-export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB }: DetailedStatsPanelProps) {
+/** Extracted so VersionDetailPage can place it right under Printability
+ * Gate instead of down in DetailedStatsPanel's own grid (see
+ * hidePrintabilityDetails above) — same markup either way. */
+export function PrintabilityDetailsCard({ stats }: { stats: StatsForPanel }) {
+  const { t } = useTranslation();
+  if (!stats) return null;
+  return (
+    <SectionCard>
+      <CollapsibleSection title={t("statsPanel.printabilityDetails")}>
+        {stats.printabilityIssues.length > 0 && (
+          <div className="space-y-1 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
+            {stats.printabilityIssues.map((issue, i) => (
+              <div key={i} className="text-xs text-amber-fg-300">
+                • {issue}
+              </div>
+            ))}
+          </div>
+        )}
+        <PropertyList>
+          <PropertyRow label={t("statsPanel.wallThickness")} value={`${stats.minWallThickness.toFixed(2)} – ${stats.maxWallThickness.toFixed(2)} mm`} />
+          <PropertyRow label={t("statsPanel.maxOverhang")} value={`${stats.maxOverhangAngle.toFixed(1)}°`} />
+          <PropertyRow label={t("statsPanel.unsupportedArea")} value={`${stats.overhangAreaPercent.toFixed(1)}%`} />
+        </PropertyList>
+      </CollapsibleSection>
+    </SectionCard>
+  );
+}
+
+export default function DetailedStatsPanel({
+  stats,
+  hasComparison,
+  boundingBoxB,
+  hidePrintabilityDetails,
+}: DetailedStatsPanelProps) {
   const { t } = useTranslation();
   // Total volume isn't stored directly on VoxelDiffStats (only deltas are) —
   // derive it from the voxel counts rather than plumb a separate prop that
@@ -136,26 +176,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
         </CollapsibleSection>
       </SectionCard>
 
-      {stats && (
-        <SectionCard>
-          <CollapsibleSection title={t("statsPanel.printabilityDetails")}>
-            {stats.printabilityIssues.length > 0 && (
-              <div className="space-y-1 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
-                {stats.printabilityIssues.map((issue, i) => (
-                  <div key={i} className="text-xs text-amber-fg-300">
-                    • {issue}
-                  </div>
-                ))}
-              </div>
-            )}
-            <PropertyList>
-              <PropertyRow label={t("statsPanel.wallThickness")} value={`${stats.minWallThickness.toFixed(2)} – ${stats.maxWallThickness.toFixed(2)} mm`} />
-              <PropertyRow label={t("statsPanel.maxOverhang")} value={`${stats.maxOverhangAngle.toFixed(1)}°`} />
-              <PropertyRow label={t("statsPanel.unsupportedArea")} value={`${stats.overhangAreaPercent.toFixed(1)}%`} />
-            </PropertyList>
-          </CollapsibleSection>
-        </SectionCard>
-      )}
+      {!hidePrintabilityDetails && <PrintabilityDetailsCard stats={stats} />}
 
       {stats && (
         <SectionCard>

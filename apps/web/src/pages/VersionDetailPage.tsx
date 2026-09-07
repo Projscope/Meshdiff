@@ -26,7 +26,7 @@ import { extensionOf, loadMeshGeometry } from "../engine/loadMesh";
 import { extractThreeMFProperties, loadMeshForDisplay, type ThreeMFProperties } from "../engine/load3mfDisplayExtras";
 import PrintabilityBadge from "../components/PrintabilityBadge";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
-import DetailedStatsPanel from "../components/DetailedStatsPanel";
+import DetailedStatsPanel, { PrintabilityDetailsCard } from "../components/DetailedStatsPanel";
 import CommentsPanel from "../components/CommentsPanel";
 import CommentPopover from "../components/CommentPopover";
 import PendingCommentPopover from "../components/PendingCommentPopover";
@@ -1093,6 +1093,10 @@ export default function VersionDetailPage() {
                 </div>
 
                 <div className="mt-4">
+                  <PrintabilityDetailsCard stats={diffStats} />
+                </div>
+
+                <div className="mt-4">
                   <PrintLogSection
                     projectId={projectId!}
                     versionId={versionId!}
@@ -1113,6 +1117,7 @@ export default function VersionDetailPage() {
                     stats={diffStats}
                     hasComparison={hasComparison}
                     boundingBoxB={boundingBox}
+                    hidePrintabilityDetails
                   />
                 </div>
               </>
