@@ -202,7 +202,7 @@ export default function AdminFeedbackPage() {
                         className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                           isReviewed
                             ? "bg-ink-800 text-ink-500 hover:bg-ink-700 hover:text-ink-300"
-                            : "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                            : "bg-amber-500/15 text-amber-fg-400 hover:bg-amber-500/25"
                         }`}
                       >
                         {togglingId === entry.id ? "…" : isReviewed ? "Reviewed" : "New"}
@@ -301,7 +301,7 @@ export default function AdminFeedbackPage() {
                   className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                     selectedEntry.status === "reviewed"
                       ? "bg-ink-800 text-ink-500 hover:bg-ink-700 hover:text-ink-300"
-                      : "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                      : "bg-amber-500/15 text-amber-fg-400 hover:bg-amber-500/25"
                   }`}
                 >
                   {togglingId === selectedEntry.id

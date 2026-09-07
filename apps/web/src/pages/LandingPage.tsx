@@ -582,12 +582,12 @@ export default function LandingPage() {
                   className={`flex items-center gap-2 py-1.5 ${i < MESSY_FILENAMES.length - 1 ? "border-b border-ink-800" : ""}`}
                 >
                   <span className="text-ink-600">📄</span>
-                  <span className={i === MESSY_FILENAMES.length - 1 ? "text-amber-400" : ""}>{name}</span>
+                  <span className={i === MESSY_FILENAMES.length - 1 ? "text-amber-fg-400" : ""}>{name}</span>
                 </div>
               ))}
             </div>
             <p className="mt-6 flex items-center justify-center gap-2 text-sm font-semibold text-ink-300">
-              <Warning size={18} weight="fill" className="text-amber-400" />
+              <Warning size={18} weight="fill" className="text-amber-fg-400" />
               Sound familiar?
             </p>
             <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-ink-400">

@@ -205,6 +205,8 @@ const nl: TranslationResource = {
   versionDetail: {
     backToProject: "Terug naar project",
     back: "Terug",
+    generalTab: "Algemeen",
+    commentsTab: "Reacties",
     summary: "Samenvatting",
     noSummary: "Geen samenvatting beschikbaar.",
     printabilityGate: "Printbaarheidscontrole",

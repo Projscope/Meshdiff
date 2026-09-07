@@ -205,6 +205,8 @@ const da: TranslationResource = {
   versionDetail: {
     backToProject: "Tilbage til projekt",
     back: "Tilbage",
+    generalTab: "Generelt",
+    commentsTab: "Kommentarer",
     summary: "Resumé",
     noSummary: "Intet resumé tilgængeligt.",
     printabilityGate: "Printbarhedstjek",

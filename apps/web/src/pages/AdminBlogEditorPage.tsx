@@ -19,9 +19,9 @@ import BlogMarkdown from "../components/BlogMarkdown";
  * showing up intact in a search result. */
 function excerptSeoHint(length: number): { label: string; className: string } {
   if (length === 0) return { label: "no meta description set", className: "text-ink-600" };
-  if (length < 50) return { label: "a bit short for a search snippet", className: "text-amber-400" };
+  if (length < 50) return { label: "a bit short for a search snippet", className: "text-amber-fg-400" };
   if (length <= 160) return { label: "good length for a search snippet", className: "text-accent-fg-400" };
-  return { label: "may get truncated in search results", className: "text-amber-400" };
+  return { label: "may get truncated in search results", className: "text-amber-fg-400" };
 }
 
 /** Handles both /admin/blog/new (id === "new") and /admin/blog/:id (editing

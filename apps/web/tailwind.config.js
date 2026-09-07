@@ -84,6 +84,16 @@ export default {
           300: "rgb(var(--accent-fg-300) / <alpha-value>)",
           400: "rgb(var(--accent-fg-400) / <alpha-value>)",
         },
+        // Same theme-reactive-text-color pattern as accent-fg, for amber
+        // "warning" text (printability callouts, bounding-box deltas) —
+        // Tailwind's stock amber-300/400 is used directly for solid
+        // badge/button fills elsewhere (bg-amber-500 + fixed chrome-950
+        // text) so that scale itself stays untouched; this is only for
+        // amber used as plain text on the page/card background.
+        "amber-fg": {
+          300: "rgb(var(--amber-fg-300) / <alpha-value>)",
+          400: "rgb(var(--amber-fg-400) / <alpha-value>)",
+        },
       },
     },
   },

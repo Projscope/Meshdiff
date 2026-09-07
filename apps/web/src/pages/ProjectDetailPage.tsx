@@ -80,7 +80,7 @@ function StatCard({ label, value, accent }: { label: string; value: React.ReactN
   return (
     <div className="h-full rounded-lg border border-ink-800 bg-ink-900 p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">{label}</p>
-      <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-400" : "text-ink-50"}`}>
+      <p className={`mt-1.5 text-2xl font-bold ${accent === "amber" ? "text-amber-fg-400" : "text-ink-50"}`}>
         {value}
       </p>
     </div>
@@ -383,7 +383,7 @@ export default function ProjectDetailPage() {
   };
   const PRINTABILITY_COLOR: Record<"pass" | "warn" | "fail", string> = {
     pass: "text-accent-fg-400",
-    warn: "text-amber-400",
+    warn: "text-amber-fg-400",
     fail: "text-red-400",
   };
 
@@ -655,7 +655,7 @@ export default function ProjectDetailPage() {
                         {(printability === "warn" || printability === "fail") && (
                           <span
                             title={printability === "fail" ? t("projectDetail.printabilityCheckFailed") : t("projectDetail.printabilityWarning")}
-                            className={printability === "fail" ? "text-red-400" : "text-amber-400"}
+                            className={printability === "fail" ? "text-red-400" : "text-amber-fg-400"}
                           >
                             {printability === "fail" ? "✕" : "⚠"}
                           </span>
@@ -788,7 +788,7 @@ export default function ProjectDetailPage() {
                     {version.unresolvedCommentCount > 0 && (
                       <span
                         title={t("projectDetail.unresolvedTooltip", { count: version.unresolvedCommentCount })}
-                        className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400"
+                        className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-fg-400"
                       >
                         {t("projectDetail.unresolvedCount", { count: version.unresolvedCommentCount })}
                       </span>

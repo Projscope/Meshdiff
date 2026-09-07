@@ -22,7 +22,7 @@ export default function PrintabilityRulesTooltip({ children, className }: Printa
             <span className="font-medium text-accent-fg-400">Pass</span> — no issues detected.
           </li>
           <li>
-            <span className="font-medium text-amber-400">Warn</span> — thin walls (&lt;0.8mm), overhang angle
+            <span className="font-medium text-amber-fg-400">Warn</span> — thin walls (&lt;0.8mm), overhang angle
             &gt;55°, or unsupported area &gt;20%.
           </li>
           <li>

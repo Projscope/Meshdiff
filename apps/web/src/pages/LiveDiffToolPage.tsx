@@ -730,7 +730,7 @@ export default function LiveDiffToolPage({
                 </div>
               )}
               {activeTool === "compare" && sameFileWarning && (
-                <div className="rounded border border-amber-800 bg-amber-950/50 px-3 py-2 text-sm text-amber-300">
+                <div className="rounded border border-amber-800 bg-amber-500/10 px-3 py-2 text-sm text-amber-fg-300">
                   ⚠ {sameFileWarning}
                 </div>
               )}

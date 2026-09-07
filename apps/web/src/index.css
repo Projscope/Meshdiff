@@ -28,6 +28,11 @@
      fine against this scale's near-black page background. */
   --accent-fg-300: 110 231 183;
   --accent-fg-400: 52 211 153;
+  /* Same fix, same reasoning, for the amber "warning" text (printability
+     callouts, bounding-box deltas, etc.) — dark defaults match Tailwind's
+     stock amber-300/400 (252 211 77 = #fcd34d, 251 191 36 = #fbbf24). */
+  --amber-fg-300: 252 211 77;
+  --amber-fg-400: 251 191 36;
   color-scheme: dark;
 }
 
@@ -53,6 +58,11 @@
      fill, not page-background text. */
   --accent-fg-300: 5 150 105;
   --accent-fg-400: 4 120 87;
+  /* 180 83 9 = #b45309 (amber-700, ~4.8:1 on white), 146 64 14 = #92400e
+     (amber-800, ~7:1) — amber-500 itself is left alone for the same
+     button/badge-fill reason as accent-500. */
+  --amber-fg-300: 180 83 9;
+  --amber-fg-400: 146 64 14;
 }
 
 body {

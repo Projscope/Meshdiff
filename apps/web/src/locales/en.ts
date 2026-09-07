@@ -206,6 +206,8 @@ const en = {
   versionDetail: {
     backToProject: "Back to project",
     back: "Back",
+    generalTab: "General",
+    commentsTab: "Comments",
     summary: "Summary",
     noSummary: "No summary available.",
     printabilityGate: "Printability Gate",

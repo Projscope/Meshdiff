@@ -6,7 +6,7 @@ interface ApprovalBadgeProps {
 
 const STYLES: Record<ApprovalStatus, string> = {
   draft: "border-ink-700 bg-ink-800 text-ink-400",
-  in_review: "border-amber-800 bg-amber-500/10 text-amber-400",
+  in_review: "border-amber-800 bg-amber-500/10 text-amber-fg-400",
   changes_requested: "border-red-800 bg-red-500/10 text-red-400",
   approved: "border-accent-800 bg-accent-500/10 text-accent-fg-400",
   // Distinguishable from draft only by label — a superseded version is

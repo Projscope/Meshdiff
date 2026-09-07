@@ -205,6 +205,8 @@ const fr: TranslationResource = {
   versionDetail: {
     backToProject: "Retour au projet",
     back: "Retour",
+    generalTab: "Général",
+    commentsTab: "Commentaires",
     summary: "Résumé",
     noSummary: "Aucun résumé disponible.",
     printabilityGate: "Contrôle d'imprimabilité",

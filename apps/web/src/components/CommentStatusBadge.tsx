@@ -7,7 +7,7 @@ const STYLES: Record<CommentStatus, string> = {
   // Distinct from open — a reopened thread was previously resolved and
   // needs attention again, which is a different signal than "never looked
   // at" (open).
-  reopened: "border-amber-800 bg-amber-500/10 text-amber-400",
+  reopened: "border-amber-800 bg-amber-500/10 text-amber-fg-400",
 };
 
 // Separate state set/semantics from ApprovalBadge (a comment's lifecycle is

@@ -243,7 +243,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       )}
       {meshWarning && geometry && (
         <div
-          className="absolute left-3 right-3 top-9 z-10 truncate rounded bg-amber-950/70 px-2 py-1 text-[10px] text-amber-300"
+          className="absolute left-3 right-3 top-9 z-10 truncate rounded bg-amber-500/10 px-2 py-1 text-[10px] text-amber-fg-300"
           title={meshWarning}
         >
           ⚠ {meshWarning}

@@ -174,6 +174,13 @@ export default function VersionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isMeshLoading, setIsMeshLoading] = useState(true);
 
+  // The right panel's own General/Comments split — General keeps
+  // everything that was always here (summary, gates, stats); Comments
+  // moved out to its own tab so a long thread doesn't push the stats
+  // panels out of view. The 3D pin popovers themselves aren't affected —
+  // those render straight into the canvas regardless of which tab is active.
+  const [rightPanelTab, setRightPanelTab] = useState<"general" | "comments">("general");
+
   const [comments, setComments] = useState<CommentSummary[]>([]);
   // Empty on a personal (Pro) project — there's no one else to assign a
   // comment to or @mention (see PendingCommentPopover.tsx/CommentPopover.tsx).
@@ -331,6 +338,7 @@ export default function VersionDetailPage() {
           if (target) {
             setSelectedCommentId(target.parentCommentId ?? target.id);
             setLinkedCommentId(commentParam);
+            setRightPanelTab("comments");
           }
           setSearchParams(
             (prev) => {
@@ -798,7 +806,7 @@ export default function VersionDetailPage() {
               }
               className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
                 isToolActive("distance")
-                  ? "bg-amber-500/20 text-amber-400"
+                  ? "bg-amber-500/20 text-amber-fg-400"
                   : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               }`}
             >
@@ -1036,56 +1044,79 @@ export default function VersionDetailPage() {
               <h1 className="truncate text-sm font-semibold text-ink-50">{version.fileName}</h1>
             </div>
 
-            <div className="mt-5">
-              <CollapsibleSection title={t("versionDetail.summary")}>
-                <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-xs leading-relaxed text-ink-300">
-                  {version.changeSummary ?? t("versionDetail.noSummary")}
-                </div>
-              </CollapsibleSection>
-            </div>
-
-            <div className="mt-4">
-              <CollapsibleSection title={t("versionDetail.printabilityGate")}>
-                <PropertyList>
-                  <PropertyRow
-                    label={t("versionDetail.status")}
-                    value={
-                      <PrintabilityRulesTooltip>
-                        <PrintabilityBadge status={version.printabilityStatus} />
-                      </PrintabilityRulesTooltip>
-                    }
-                  />
-                </PropertyList>
-              </CollapsibleSection>
-            </div>
-
-            <div className="mt-4">
-              <PrintLogSection
-                projectId={projectId!}
-                versionId={versionId!}
-                slicerProfile={version.slicerProfile}
-                printPhoto={version.printPhoto}
-                onChange={() => void refreshVersion()}
-              />
-            </div>
-
-            {threeMFProperties && (
-              <div className="mt-5">
-                <ThreeMFPropertiesPanel properties={threeMFProperties} />
+            {isPro && (
+              <div className="mt-3 flex overflow-hidden rounded border border-ink-700 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setRightPanelTab("general")}
+                  className={`flex-1 px-3 py-1.5 font-medium ${
+                    rightPanelTab === "general" ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-200"
+                  }`}
+                >
+                  {t("versionDetail.generalTab")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRightPanelTab("comments")}
+                  className={`flex-1 px-3 py-1.5 font-medium ${
+                    rightPanelTab === "comments" ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-200"
+                  }`}
+                >
+                  {t("versionDetail.commentsTab")}
+                </button>
               </div>
             )}
 
-            <div className="mt-5">
-              <DetailedStatsPanel
-                stats={diffStats}
-                hasComparison={hasComparison}
-                boundingBoxB={boundingBox}
-              />
-            </div>
+            {rightPanelTab === "general" || !isPro ? (
+              <>
+                <div className="mt-5">
+                  <CollapsibleSection title={t("versionDetail.summary")}>
+                    <div className="rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-xs leading-relaxed text-ink-300">
+                      {version.changeSummary ?? t("versionDetail.noSummary")}
+                    </div>
+                  </CollapsibleSection>
+                </div>
 
+                <div className="mt-4">
+                  <CollapsibleSection title={t("versionDetail.printabilityGate")}>
+                    <PropertyList>
+                      <PropertyRow
+                        label={t("versionDetail.status")}
+                        value={
+                          <PrintabilityRulesTooltip>
+                            <PrintabilityBadge status={version.printabilityStatus} />
+                          </PrintabilityRulesTooltip>
+                        }
+                      />
+                    </PropertyList>
+                  </CollapsibleSection>
+                </div>
 
+                <div className="mt-4">
+                  <PrintLogSection
+                    projectId={projectId!}
+                    versionId={versionId!}
+                    slicerProfile={version.slicerProfile}
+                    printPhoto={version.printPhoto}
+                    onChange={() => void refreshVersion()}
+                  />
+                </div>
 
-            {isPro && (
+                {threeMFProperties && (
+                  <div className="mt-5">
+                    <ThreeMFPropertiesPanel properties={threeMFProperties} />
+                  </div>
+                )}
+
+                <div className="mt-5">
+                  <DetailedStatsPanel
+                    stats={diffStats}
+                    hasComparison={hasComparison}
+                    boundingBoxB={boundingBox}
+                  />
+                </div>
+              </>
+            ) : (
               <div className="mt-5">
                 <CommentsPanel
                   comments={comments}

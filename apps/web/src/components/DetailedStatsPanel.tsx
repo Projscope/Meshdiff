@@ -66,17 +66,17 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                   <PropertyRow
                     label={t("statsPanel.sizeDeltaX")}
                     value={`${stats.boundingBoxDeltaX >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaX).toFixed(1)} mm`}
-                    valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-400" : "text-ink-500"}
+                    valueClassName={stats.boundingBoxDeltaX !== 0 ? "text-amber-fg-400" : "text-ink-500"}
                   />
                   <PropertyRow
                     label={t("statsPanel.sizeDeltaY")}
                     value={`${stats.boundingBoxDeltaY >= 0 ? "→ " : "← "}${Math.abs(stats.boundingBoxDeltaY).toFixed(1)} mm`}
-                    valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-400" : "text-ink-500"}
+                    valueClassName={stats.boundingBoxDeltaY !== 0 ? "text-amber-fg-400" : "text-ink-500"}
                   />
                   <PropertyRow
                     label={t("statsPanel.sizeDeltaZ")}
                     value={`${stats.boundingBoxDeltaZ >= 0 ? "↑ " : "↓ "}${Math.abs(stats.boundingBoxDeltaZ).toFixed(1)} mm`}
-                    valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-400" : "text-ink-500"}
+                    valueClassName={stats.boundingBoxDeltaZ !== 0 ? "text-amber-fg-400" : "text-ink-500"}
                   />
                   <PropertyRow
                     label={t("statsPanel.triangles")}
@@ -96,12 +96,12 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                   />
                 </PropertyList>
                 {stats.thinWallWarning && (
-                  <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+                  <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-fg-300">
                     {t("statsPanel.thinWallWarning")}
                   </div>
                 )}
                 {stats.maxOverhangAngle > 45 && (
-                  <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+                  <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-fg-300">
                     {t("statsPanel.overhangsDetected", { angle: stats.maxOverhangAngle.toFixed(1) })}
                   </div>
                 )}
@@ -142,7 +142,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
             {stats.printabilityIssues.length > 0 && (
               <div className="space-y-1 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2">
                 {stats.printabilityIssues.map((issue, i) => (
-                  <div key={i} className="text-xs text-amber-300">
+                  <div key={i} className="text-xs text-amber-fg-300">
                     • {issue}
                   </div>
                 ))}
@@ -161,7 +161,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
         <SectionCard>
           <CollapsibleSection title={t("statsPanel.holeInventory")}>
             {stats.holeCountB > 0 && stats.minHoleDiameterMm < 2 && (
-              <div className="rounded-lg bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
+              <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-fg-300">
                 {t("statsPanel.smallHoleWarning", { diameter: stats.minHoleDiameterMm.toFixed(2) })}
               </div>
             )}
@@ -182,7 +182,7 @@ export default function DetailedStatsPanel({ stats, hasComparison, boundingBoxB 
                   <PropertyRow
                     label={t("statsPanel.diameterChanged")}
                     value={stats.holesDiameterChanged}
-                    valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-400" : "text-ink-500"}
+                    valueClassName={stats.holesDiameterChanged > 0 ? "text-amber-fg-400" : "text-ink-500"}
                   />
                 </>
               )}

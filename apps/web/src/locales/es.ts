@@ -205,6 +205,8 @@ const es: TranslationResource = {
   versionDetail: {
     backToProject: "Volver al proyecto",
     back: "Volver",
+    generalTab: "General",
+    commentsTab: "Comentarios",
     summary: "Resumen",
     noSummary: "No hay resumen disponible.",
     printabilityGate: "Control de imprimibilidad",

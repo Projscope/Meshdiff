@@ -6,7 +6,7 @@ interface PrintabilityBadgeProps {
 
 const STYLES: Record<"pass" | "warn" | "fail", string> = {
   pass: "bg-accent-500/10 text-accent-fg-400 border-accent-800",
-  warn: "bg-amber-500/10 text-amber-400 border-amber-800",
+  warn: "bg-amber-500/10 text-amber-fg-400 border-amber-800",
   fail: "bg-red-500/10 text-red-400 border-red-800",
 };
 
