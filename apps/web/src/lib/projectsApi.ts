@@ -379,6 +379,13 @@ export function resumeSubscription(): Promise<Result<{ cancelAtPeriodEnd: boolea
   return request("/billing/resume", { method: "POST" });
 }
 
+/** Lets a free-tier trial user pick which plan to trial — see
+ * TrialTierChoiceModal.tsx. Only takes effect while actually trialing; a
+ * harmless no-op otherwise (see PATCH /billing/trial-tier). */
+export function setTrialTier(tier: "pro" | "team"): Promise<Result<{ tier: string }>> {
+  return request("/billing/trial-tier", { method: "PATCH", body: JSON.stringify({ tier }) });
+}
+
 /** Switches an EXISTING Pro/Team subscription to the other tier in place
  * (prorated) — distinct from startProCheckout()/startTeamCheckout(), which
  * always start a brand-new subscription and would double-bill someone who

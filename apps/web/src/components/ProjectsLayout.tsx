@@ -25,7 +25,11 @@ import ConfirmDialog from "./ConfirmDialog";
 import LanguageSelect from "./LanguageSelect";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
+import TrialTierChoiceModal from "./TrialTierChoiceModal";
+import TeamCreateSpotlight from "./TeamCreateSpotlight";
 import { isAdminEmail } from "../lib/isAdmin";
+import { useTrialTierModalDismissed } from "../lib/trialTierChoiceModal";
+import { getTeamTourStage, setTeamTourStage } from "../lib/teamTour";
 
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
   pass: "bg-accent-500",
@@ -58,8 +62,27 @@ export function useRefreshProjectsSidebar(): () => void {
 // owner, and for a team member riding the owner's seats (mirrors the
 // backend's getAccountAccess().status==='pro', not a raw tier check —
 // see ProjectDetailPage.tsx/ProjectsListPage.tsx's upload/create gating).
-const AccountStatusContext = createContext<{ isRestricted: boolean; isPro: boolean }>({ isRestricted: false, isPro: false });
-export function useAccountStatus(): { isRestricted: boolean; isPro: boolean } {
+interface AccountStatusValue {
+  isRestricted: boolean;
+  isPro: boolean;
+  /** true for the first 14 days after a free signup — see
+   * TrialTierChoiceModal.tsx, which lets a trialing user choose 'pro' (the
+   * default) or 'team' below. */
+  isTrialing: boolean;
+  tier: "free" | "pro" | "team";
+  /** Re-fetches GET /billing/subscription and updates every field above —
+   * called after a successful trial-tier choice so the UI reflects it
+   * immediately, with no page reload. */
+  refreshSubscription: () => void;
+}
+const AccountStatusContext = createContext<AccountStatusValue>({
+  isRestricted: false,
+  isPro: false,
+  isTrialing: false,
+  tier: "free",
+  refreshSubscription: () => {},
+});
+export function useAccountStatus(): AccountStatusValue {
   return useContext(AccountStatusContext);
 }
 
@@ -103,6 +126,16 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   );
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  // Only the read side is needed here — TrialTierChoiceModal.tsx calls
+  // setTrialTierModalDismissed() directly when it closes.
+  const [dismissedTrialTierModal] = useTrialTierModalDismissed();
+  const [showTrialTierModal, setShowTrialTierModal] = useState(false);
+
+  const refreshSubscription = useCallback(() => {
+    void getSubscription().then((result) => {
+      if (result.success) setSubscription(result.data);
+    });
+  }, []);
 
   // Creating a team is a Team-plan feature, gated on the real subscription
   // tier — a non-Team user (Free or Pro) gets prompted to upgrade instead
@@ -240,16 +273,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   const emailInitial = user?.email?.[0]?.toUpperCase() ?? "?";
 
+  const isTrialing = !!subscription?.isTrialing;
   // isTeamMember is a display-only signal, true for the paying owner AND
   // any invited member riding their seats. It's OR'd with
   // subscription.tier==='team' below because a fresh Team subscriber isn't
   // a team_members row yet until they actually create their team (teams
   // and subscriptions are separate — see billing.ts) — without the OR,
   // someone who just paid for Team but hasn't created a team yet would
-  // wrongly show as "Free".
-  const isTeamMember = teams.length > 0 || subscription?.tier === "team";
+  // wrongly show as "Free". Excludes a Team-trial choice (tier==='team'
+  // while isTrialing) — TrialTierChoiceModal.tsx unlocks team-tier gating
+  // for a trialing user, but doesn't make them an actual team owner/member.
+  const isTeamMember = teams.length > 0 || (subscription?.tier === "team" && !isTrialing);
   const isPro = subscription?.tier === "pro";
-  const isTrialing = !!subscription?.isTrialing;
   // A free signup gets full ("pro") access for their first 14 days — see
   // getAccountAccess() in apps/api/src/lib/subscription.ts. Stays false
   // until the subscription fetch resolves, so the sidebar doesn't flash a
@@ -259,11 +294,25 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // no subscription/stripe_customers row of their own, so /billing/portal
   // would 404 for them — only the actual subscriber (Pro or Team) gets the
   // "Payment method & invoices" link and the full ManagePlanModal below.
-  const isBillingOwner = subscription?.tier === "pro" || subscription?.tier === "team";
+  // Excludes a Team-trial choice for the same reason as isTeamMember above
+  // — there's no real Stripe subscription behind it yet.
+  const isBillingOwner = (subscription?.tier === "pro" || subscription?.tier === "team") && !isTrialing;
   // Hide the plan-management trigger only for someone riding a team owner's
   // seats with no subscription of their own — everyone else (not yet
   // subscribed, or the actual payer) has a plan to manage.
   const canManagePlan = !isTeamMember || isBillingOwner;
+
+  // Auto-shows TrialTierChoiceModal.tsx once, only for a genuinely
+  // free-tier trial — never a real subscriber (isBillingOwner excludes the
+  // trial-choice case itself, see above, so this can't re-show just
+  // because the user already picked Team). The switcher link further down
+  // can still reopen it anytime by setting showTrialTierModal directly.
+  useEffect(() => {
+    if (isTrialing && !isBillingOwner && !dismissedTrialTierModal) {
+      setShowTrialTierModal(true);
+    }
+  }, [isTrialing, isBillingOwner, dismissedTrialTierModal]);
+
   const planTextClass = isTeamMember
     ? "text-violet-400"
     : isPro || isTrialing
@@ -286,8 +335,17 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
 
   return (
     <ProjectsSidebarRefreshContext.Provider value={fetchProjects}>
-    <AccountStatusContext.Provider value={{ isRestricted, isPro: subscription?.accountStatus === "pro" }}>
+    <AccountStatusContext.Provider
+      value={{
+        isRestricted,
+        isPro: subscription?.accountStatus === "pro",
+        isTrialing,
+        tier: subscription?.tier ?? "free",
+        refreshSubscription,
+      }}
+    >
       <div className="flex min-h-screen flex-col bg-ink-950 text-ink-100 md:flex-row">
+        <TeamCreateSpotlight />
         {/* Mobile-only top bar — the sidebar below becomes a hidden overlay
             under the md breakpoint, so this is the only way to open it or
             see the logo on a phone-width screen. */}
@@ -444,6 +502,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-600">{t("sidebar.teams")}</span>
                   <button
                     type="button"
+                    data-tour="newTeamButton"
                     onClick={handleCreateTeamClick}
                     title={subscription?.tier === "team" ? t("sidebar.newTeam") : t("sidebar.upgradeToCreateTeam")}
                     className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
@@ -581,6 +640,15 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       ? t("billing.trialEnded")
                       : t("billing.freeBlurb")}
             </p>
+            {isTrialing && !isBillingOwner && (
+              <button
+                type="button"
+                onClick={() => setShowTrialTierModal(true)}
+                className="mt-1 text-[11px] font-medium text-accent-fg-400 hover:text-accent-fg-300"
+              >
+                {subscription?.tier === "team" ? t("trialTierChoice.switchToPro") : t("trialTierChoice.switchToTeam")}
+              </button>
+            )}
             {isBillingOwner && (
               <button
                 type="button"
@@ -690,6 +758,18 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                               ? t("billing.trialEnded")
                               : t("billing.freeBlurb")}
                     </p>
+                    {isTrialing && !isBillingOwner && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowTrialTierModal(true);
+                          setIsMenuOpen(false);
+                        }}
+                        className="mt-1 text-[11px] font-medium text-accent-fg-400 hover:text-accent-fg-300"
+                      >
+                        {subscription?.tier === "team" ? t("trialTierChoice.switchToPro") : t("trialTierChoice.switchToTeam")}
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center justify-between gap-2 border-b border-ink-800 px-3 py-2">
                     <span className={`text-xs font-semibold ${planTextClass}`}>
@@ -792,12 +872,21 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             onCreated={(team) => {
               setTeams((prev) => [...prev, { ...team, myRole: "admin" }]);
               setShowCreateTeam(false);
+              // Advances the team-trial onboarding tour (see teamTour.ts)
+              // from the "click New team" spotlight to the dashboard
+              // walkthrough — a no-op if this team wasn't created as part
+              // of that tour.
+              if (getTeamTourStage() === "awaiting-team") {
+                setTeamTourStage("dashboard");
+              }
               navigate(`/teams/${team.id}`);
             }}
           />
         )}
 
         {showUpgrade && <UpgradeToTeamModal onClose={() => setShowUpgrade(false)} />}
+
+        {showTrialTierModal && <TrialTierChoiceModal onClose={() => setShowTrialTierModal(false)} />}
 
         {showManagePlan && subscription && (
           <ManagePlanModal

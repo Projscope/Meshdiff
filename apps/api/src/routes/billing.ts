@@ -6,6 +6,7 @@ import { requireSupabase } from "../lib/requireSupabase.js";
 import { getStripe, getFrontendUrl } from "../lib/stripe.js";
 import { getUserTier, getAccountAccess } from "../lib/subscription.js";
 import { priceIdForTier, tierForPriceId } from "../lib/priceCatalog.js";
+import { setTrialTierChoice } from "../lib/trialTierChoice.js";
 
 async function getOrCreateStripeCustomer(
   supabase: NonNullable<ReturnType<typeof getSupabase>>,
@@ -399,6 +400,28 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
 
   // Undoes a pending cancel-at-period-end before the period actually ends.
   app.post("/billing/resume", { preHandler: requireAuth }, (request, reply) => setCancelAtPeriodEnd(request, reply, false));
+
+  // Lets a free-tier trial user choose which plan to trial — see
+  // TrialTierChoiceModal.tsx and getUserTier()'s trial_tier_choice
+  // fallback in subscription.ts, which is the only place this actually
+  // takes effect. No "are you actually trialing" check needed here: same
+  // trust model as setTrialExtension() below, a harmless no-op outside a
+  // trial window since getUserTier() only ever consults this while
+  // computeTrialStatus() says isTrialing.
+  app.patch("/billing/trial-tier", { preHandler: requireAuth }, async (request, reply) => {
+    const { tier } = (request.body as { tier?: string }) ?? {};
+    if (tier !== "pro" && tier !== "team") {
+      reply.code(400);
+      return { success: false, error: "tier must be 'pro' or 'team'" };
+    }
+
+    const result = await setTrialTierChoice(request.supabase!, request.userId!, tier);
+    if (!result.success) {
+      reply.code(502);
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: { tier } };
+  });
 
   // Stripe calls this directly (no bearer token) — authenticity comes from
   // the signature check below, not requireAuth. Registered in its own
