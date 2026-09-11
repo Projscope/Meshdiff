@@ -16,6 +16,20 @@ export interface AdminUserRow {
    * the stat widgets and signups chart, no effect on the account itself.
    * See setUserDemoStatus() and apps/api/src/lib/demoAccounts.ts. */
   isDemo: boolean;
+  /** ADMIN_EMAILS account — already has permanent Pro/Team access
+   * regardless of subscription state, so the tier selector is disabled for
+   * these rows (setting a grant here would be a no-op). */
+  isAdmin: boolean;
+  /** Manually granted via the selector below (see adminGrants.ts) —
+   * distinct from `tier`/`status`, which already reflect the grant when one
+   * exists (same precedence the real access check applies). null when this
+   * account's tier comes from an actual Stripe subscription (or nothing). */
+  adminGrantedTier: "pro" | "team" | null;
+  /** Admin-set trial end date (ISO), if any — see trialExtensions.ts.
+   * `isTrialing`/`trialDaysRemaining` above already reflect it; this is
+   * just here so the UI can show an "extended" hint. null when the trial
+   * (if any) is on the default created_at + 14 days schedule. */
+  trialExtendedTo: string | null;
 }
 
 export interface AdminStats {
@@ -57,6 +71,27 @@ export function listAdminUsers(page = 1): Promise<Result<AdminUsersPage>> {
 
 export function setUserDemoStatus(userId: string, isDemo: boolean): Promise<Result<{ userId: string; isDemo: boolean }>> {
   return request(`/admin/users/${userId}/demo`, { method: "PATCH", body: JSON.stringify({ demo: isDemo }) });
+}
+
+/** "free" clears any existing grant — it never cancels a real Stripe
+ * subscription, just removes the manual floor. See adminGrants.ts. */
+export function setUserGrantedTier(
+  userId: string,
+  tier: "free" | "pro" | "team",
+): Promise<Result<{ userId: string; tier: string }>> {
+  return request(`/admin/users/${userId}/subscription`, { method: "PATCH", body: JSON.stringify({ tier }) });
+}
+
+/** Extends this user's trial by `days` from whichever is later, now or
+ * their current effective trial end — never shortens it, and stacks with
+ * any prior extension. Pass `null` to clear the extension outright and
+ * revert to the default created_at + 14 days schedule. See
+ * trialExtensions.ts. */
+export function extendUserTrial(
+  userId: string,
+  days: number | null,
+): Promise<Result<{ userId: string; trialEndsAt: string | null }>> {
+  return request(`/admin/users/${userId}/trial`, { method: "PATCH", body: JSON.stringify({ days }) });
 }
 
 export function getAdminDashboard(granularity: SignupGranularity = "week"): Promise<Result<AdminDashboard>> {

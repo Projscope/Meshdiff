@@ -2,38 +2,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDocumentMeta } from "../lib/useDocumentMeta";
 
-export const META_TITLE = "Roadmap & Changelog | Meshdiff";
+export const META_TITLE = "Changelog | Meshdiff";
 export const META_DESCRIPTION =
-  "What's shipped so far and what's next for Meshdiff's 3D model diff engine — version history, new features, and fixes.";
+  "Every release of Meshdiff's 3D model diff engine — version history, new features, and fixes.";
 
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
   const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.6.0");
-
-  const roadmapItems = {
-    planned: [
-      {
-        icon: "📧",
-        title: "Email notifications for reviews and mentions",
-        description: "Get notified by email when you're mentioned, assigned a comment, or a version needs your review — not just in-app, so nothing gets missed when you're away from the dashboard.",
-      },
-      {
-        icon: "🔐",
-        title: "Forgot password & OAuth",
-        description: "Self-serve password reset and login with Google OAuth for simpler account recovery and authentication.",
-      },
-      {
-        icon: "📊",
-        title: "Magnitude diff visualization",
-        description: "Show precise amount of change (scale/rotation/shift) rather than binary added/removed regions.",
-      },
-      {
-        icon: "👁️",
-        title: "Colorblind-friendly status indicators",
-        description: "Extend the colorblind-safe diff palette to approval badges, printability status, and other red/green indicators across the app.",
-      },
-    ],
-  };
 
   const changelog = [
     {
@@ -253,46 +228,19 @@ export default function RoadmapPage() {
   return (
     <div className="min-h-screen bg-ink-950 text-ink-50">
       {/* Hero */}
-      <section className="border-b border-ink-800 px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+      <section className="px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Roadmap</h1>
-          <h2 className="mt-4 text-2xl font-light text-ink-300">Where Meshdiff is headed.</h2>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Changelog</h1>
+          <h2 className="mt-4 text-2xl font-light text-ink-300">What's shipped so far.</h2>
           <p className="mt-6 text-base leading-relaxed text-ink-400">
-            Features we're actively building to improve your 3D comparison and design review workflow.
+            Every release to Meshdiff's 3D comparison and design review workflow, newest first.
           </p>
         </div>
       </section>
 
-      {/* Roadmap Sections & Changelog */}
-      <section className="border-t border-ink-800 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+      {/* Changelog */}
+      <section className="px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto max-w-4xl space-y-16">
-          {/* Coming Soon */}
-          <div>
-            <div className="mb-8">
-              <p className="text-xs font-semibold uppercase tracking-widest text-ink-500">Coming Soon</p>
-              <p className="mt-2 text-2xl font-light text-ink-200">What's Next</p>
-            </div>
-            <div className="space-y-4">
-              {roadmapItems.planned.map((item) => (
-                <div key={item.title} className="rounded-lg border border-ink-800 bg-ink-900/50 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl flex-shrink-0">{item.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-ink-50">{item.title}</h3>
-                      <p className="mt-2 text-sm text-ink-400">{item.description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Changelog */}
-          <div className="mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-ink-500">Changelog</p>
-            <p className="mt-2 text-3xl font-light text-ink-200">What's shipped so far.</p>
-          </div>
-
           <div className="space-y-6">
             {changelog.map((release) => {
               const isExpanded = expandedVersion === release.version;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import {
   createApprovalGate,
   deleteApprovalGate,
@@ -88,9 +89,19 @@ export default function ApprovalGateChecklist({ projectId, versionId, canConfigu
 
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-900 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">
-        {t("approvalGates.title")}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">
+          {t("approvalGates.title")}
+        </p>
+        <Link
+          to="/docs/approval-gates"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 text-[10px] text-ink-500 underline decoration-ink-700 hover:text-ink-300"
+        >
+          {t("approvalGates.learnMore")}
+        </Link>
+      </div>
       {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
       <div className="mt-2 space-y-1.5">
         {gates.map((gate) => (

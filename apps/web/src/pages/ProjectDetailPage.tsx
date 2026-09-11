@@ -34,6 +34,7 @@ import { renderMeshThumbnail } from "../engine/renderThumbnail";
 import { generateThumbnailFromVersion } from "../lib/projectThumbnail";
 import SampleProjectTour from "../components/SampleProjectTour";
 import { setTourDismissed, setTourAwaitingCompare, getSampleTourStage } from "../lib/sampleProjectTour";
+import { useTeamTourStage, isTeamTourActive } from "../lib/teamTour";
 
 // Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
 // — all three formats are safe again now that diffing runs client-side
@@ -92,6 +93,7 @@ export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { isPro } = useAccountStatus();
+  const [teamTourStage] = useTeamTourStage();
   const diffColors = useDiffColors();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [versions, setVersions] = useState<VersionSummary[]>([]);
@@ -912,7 +914,7 @@ export default function ProjectDetailPage() {
         />
       )}
 
-      {project?.isSample && versions.length > 0 && <SampleProjectTour />}
+      {project?.isSample && versions.length > 0 && !isTeamTourActive(teamTourStage) && <SampleProjectTour />}
     </div>
   );
 }

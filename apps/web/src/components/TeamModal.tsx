@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createTeam } from "../lib/projectsApi";
+import { useTeamTourStage } from "../lib/teamTour";
 
 interface TeamModalProps {
   onClose: () => void;
@@ -10,9 +12,14 @@ interface TeamModalProps {
  * approvals) lives at /teams/:teamId now (see TeamDashboardPage.tsx),
  * which the sidebar navigates to directly once a team exists. */
 export default function TeamModal({ onClose, onCreated }: TeamModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // See teamTour.ts — a short explainer only while this modal is reached
+  // as part of the Team-trial onboarding tour, not on every team creation.
+  const [tourStage] = useTeamTourStage();
+  const isTourStep = tourStage === "awaiting-team";
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -34,6 +41,7 @@ export default function TeamModal({ onClose, onCreated }: TeamModalProps) {
         onClick={(event) => event.stopPropagation()}
       >
         <h3 className="text-sm font-semibold text-ink-50">New Team</h3>
+        {isTourStep && <p className="mt-1.5 text-xs leading-relaxed text-ink-400">{t("teamTour.createFormBody")}</p>}
         <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-2">
           <input
             type="text"

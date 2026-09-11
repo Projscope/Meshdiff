@@ -7,6 +7,7 @@ import NewProjectModal from "../components/NewProjectModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import SampleProjectIntro from "../components/SampleProjectIntro";
 import { useAccountStatus } from "../components/ProjectsLayout";
+import { useTeamTourStage, isTeamTourActive } from "../lib/teamTour";
 
 const PAGE_SIZE = 10;
 
@@ -61,6 +62,7 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
 export default function ProjectsListPage() {
   const { t } = useTranslation();
   const { isPro } = useAccountStatus();
+  const [teamTourStage] = useTeamTourStage();
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<"name" | "date-newest" | "date-oldest">("date-newest");
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
@@ -272,7 +274,7 @@ export default function ProjectsListPage() {
         />
       )}
 
-      {projects?.some((p) => p.isSample) && <SampleProjectIntro />}
+      {projects?.some((p) => p.isSample) && !isTeamTourActive(teamTourStage) && <SampleProjectIntro />}
     </div>
   );
 }

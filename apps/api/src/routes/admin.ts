@@ -2,10 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
-import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "../lib/subscription.js";
+import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus, TRIAL_DAYS } from "../lib/subscription.js";
 import { isAdminEmail } from "../lib/requireAdmin.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 import { getDemoUserIds, setDemoAccount } from "../lib/demoAccounts.js";
+import { getAdminGrantsByUser, setAdminGrant, type GrantedTier } from "../lib/adminGrants.js";
+import { getTrialExtensionsByUser, getTrialExtension, setTrialExtension } from "../lib/trialExtensions.js";
 
 const PAGE_SIZE = 25;
 
@@ -23,6 +25,26 @@ interface AdminUserDemoParams {
 
 interface AdminUserDemoBody {
   demo?: boolean;
+}
+
+interface AdminUserGrantParams {
+  userId: string;
+}
+
+interface AdminUserGrantBody {
+  tier?: string;
+}
+
+interface AdminUserTrialParams {
+  userId: string;
+}
+
+interface AdminUserTrialBody {
+  /** Extends the trial by this many days from whichever is later, now or
+   * the account's current effective trial end — never shortens it. `null`
+   * clears any existing extension, reverting to the default created_at +
+   * 14 days computation. */
+  days?: number | null;
 }
 
 interface SubscriptionRow {
@@ -92,6 +114,14 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           getAdminStats(supabase),
           getDemoUserIds(supabase),
         ]);
+        const grantsResult = await getAdminGrantsByUser(
+          supabase,
+          pageResult.error ? [] : pageResult.data.users.map((u) => u.id),
+        );
+        const trialExtensionsResult = await getTrialExtensionsByUser(
+          supabase,
+          pageResult.error ? [] : pageResult.data.users.map((u) => u.id),
+        );
 
         if (pageResult.error) {
           app.log.error(pageResult.error, "Failed to list users");
@@ -108,7 +138,19 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           reply.code(502);
           return { success: false, error: "Failed to load users" };
         }
+        if (!grantsResult.success) {
+          app.log.error("Failed to load admin-granted tiers: " + grantsResult.error);
+          reply.code(502);
+          return { success: false, error: "Failed to load users" };
+        }
+        if (!trialExtensionsResult.success) {
+          app.log.error("Failed to load trial extensions: " + trialExtensionsResult.error);
+          reply.code(502);
+          return { success: false, error: "Failed to load users" };
+        }
         const demoIds = demoIdsResult.data;
+        const grantsByUser = grantsResult.data;
+        const trialExtensionsByUser = trialExtensionsResult.data;
 
         // totalProbe.error's fallback shape ({ users: [] }) has no `total`
         // field — only take it when the probe actually succeeded.
@@ -134,8 +176,11 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           // — reflect that here too so this list doesn't show them as an
           // expired free user.
           const isDemo = demoIds.has(u.id);
+          const isAdmin = isAdminEmail(u.email);
+          const adminGrantedTier = grantsByUser.get(u.id) ?? null;
+          const trialExtendedTo = trialExtensionsByUser.get(u.id) ?? null;
 
-          if (isAdminEmail(u.email)) {
+          if (isAdmin) {
             return {
               id: u.id,
               email: u.email ?? null,
@@ -147,6 +192,31 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
               isTrialing: false,
               trialDaysRemaining: null,
               isDemo,
+              isAdmin,
+              adminGrantedTier,
+              trialExtendedTo,
+            };
+          }
+
+          // An admin grant (see adminGrants.ts) takes priority over a real
+          // subscription — same precedence getUserTier() applies on the
+          // actual access-gating path, so this list never disagrees with
+          // what the account can really do.
+          if (adminGrantedTier) {
+            return {
+              id: u.id,
+              email: u.email ?? null,
+              signupDate: u.created_at,
+              lastSignInAt: u.last_sign_in_at ?? null,
+              tier: adminGrantedTier,
+              status: null,
+              currentPeriodEnd: null,
+              isTrialing: false,
+              trialDaysRemaining: null,
+              isDemo,
+              isAdmin,
+              adminGrantedTier,
+              trialExtendedTo,
             };
           }
 
@@ -155,8 +225,11 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           // Trial status only applies to a free-tier user — listUsers()
           // already returns created_at per row, so this is pure day-math,
           // no extra lookup (see getAccountAccess() for the same helper
-          // used on the actual access-gating path).
-          const trial = isActive ? { isTrialing: false, trialDaysRemaining: null } : computeTrialStatus(u.created_at);
+          // used on the actual access-gating path). trialExtendedTo (see
+          // trialExtensions.ts) overrides the default end date when set.
+          const trial = isActive
+            ? { isTrialing: false, trialDaysRemaining: null }
+            : computeTrialStatus(u.created_at, trialExtendedTo);
           return {
             id: u.id,
             email: u.email ?? null,
@@ -168,6 +241,9 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
             isTrialing: trial.isTrialing,
             trialDaysRemaining: trial.trialDaysRemaining,
             isDemo,
+            isAdmin,
+            adminGrantedTier,
+            trialExtendedTo,
           };
         });
 
@@ -209,6 +285,88 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         return { success: false, error: "Failed to update demo status" };
       }
       return { success: true, data: { userId, isDemo: demo } };
+    },
+  );
+
+  // Manually grants (tier: "pro"|"team") or clears (tier: "free") a tier for
+  // any account, independent of Stripe — see adminGrants.ts/
+  // 0037_admin_granted_tier.sql. Never touches that user's real
+  // subscription row, if they happen to have one; "free" only removes the
+  // override floor.
+  app.patch<{ Params: AdminUserGrantParams; Body: AdminUserGrantBody }>(
+    "/admin/users/:userId/subscription",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const supabase = request.supabase!;
+      const { userId } = request.params;
+      const tier = request.body?.tier;
+      if (tier !== "free" && tier !== "pro" && tier !== "team") {
+        reply.code(400);
+        return { success: false, error: "Body must include tier: 'free', 'pro', or 'team'" };
+      }
+
+      const result = await setAdminGrant(
+        supabase,
+        userId,
+        tier === "free" ? null : (tier as GrantedTier),
+        request.userId!,
+      );
+      if (!result.success) {
+        app.log.error("Failed to set admin-granted tier: " + result.error);
+        reply.code(502);
+        return { success: false, error: "Failed to update subscription" };
+      }
+      return { success: true, data: { userId, tier } };
+    },
+  );
+
+  // Extends (days: a positive number) or clears (days: null) a free-tier
+  // user's trial window — see trialExtensions.ts/0038_trial_extensions.sql.
+  // Stacks on whichever is later, now or the account's current effective
+  // trial end (including any prior extension), so repeated "+7 days"
+  // clicks never shorten what's already been granted.
+  app.patch<{ Params: AdminUserTrialParams; Body: AdminUserTrialBody }>(
+    "/admin/users/:userId/trial",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const supabase = request.supabase!;
+      const { userId } = request.params;
+      const days = request.body?.days;
+
+      if (days === null) {
+        const result = await setTrialExtension(supabase, userId, null, request.userId!);
+        if (!result.success) {
+          app.log.error("Failed to clear trial extension: " + result.error);
+          reply.code(502);
+          return { success: false, error: "Failed to update trial" };
+        }
+        return { success: true, data: { userId, trialEndsAt: null } };
+      }
+
+      if (typeof days !== "number" || !Number.isFinite(days) || days <= 0) {
+        reply.code(400);
+        return { success: false, error: "Body must include a positive number of 'days', or null to clear" };
+      }
+
+      const { data: userResult, error: userError } = await supabase.auth.admin.getUserById(userId);
+      if (userError || !userResult?.user) {
+        reply.code(404);
+        return { success: false, error: "User not found" };
+      }
+
+      const currentExtension = await getTrialExtension(supabase, userId);
+      const defaultEndsAtMs = new Date(userResult.user.created_at).getTime() + TRIAL_DAYS * 86_400_000;
+      const currentEndsAtMs = currentExtension ? new Date(currentExtension).getTime() : defaultEndsAtMs;
+      const baseMs = Math.max(Date.now(), currentEndsAtMs);
+      const newEndsAt = new Date(baseMs + days * 86_400_000).toISOString();
+
+      const result = await setTrialExtension(supabase, userId, newEndsAt, request.userId!);
+      if (!result.success) {
+        app.log.error("Failed to extend trial: " + result.error);
+        reply.code(502);
+        return { success: false, error: "Failed to update trial" };
+      }
+      return { success: true, data: { userId, trialEndsAt: newEndsAt } };
     },
   );
 }

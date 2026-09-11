@@ -18,6 +18,7 @@ import {
 import ApprovalBadge from "../components/ApprovalBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import RejectVersionModal from "../components/RejectVersionModal";
+import TeamDashboardTour from "../components/TeamDashboardTour";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -230,6 +231,7 @@ export default function TeamDashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <TeamDashboardTour />
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink-50">{team.name}</h1>
@@ -263,7 +265,7 @@ export default function TeamDashboardPage() {
             {roleChangeError}
           </div>
         )}
-        <ul className="mt-3 flex flex-col gap-2">
+        <ul data-tour="teamMembers" className="mt-3 flex flex-col gap-2">
           {team.members.map((member) => {
             const isSelf = member.userId === user?.id;
             const canEditRole = canManageMembers && !isSelf && !member.isOwner;
@@ -306,7 +308,11 @@ export default function TeamDashboardPage() {
         </ul>
 
         {canManageMembers && (
-          <form onSubmit={handleInvite} className="mt-4 flex flex-col gap-2 border-t border-ink-800 pt-4 sm:flex-row sm:items-end">
+          <form
+            data-tour="teamInvite"
+            onSubmit={handleInvite}
+            className="mt-4 flex flex-col gap-2 border-t border-ink-800 pt-4 sm:flex-row sm:items-end"
+          >
             <div className="flex-1">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Invite a member</label>
               <input
@@ -342,7 +348,7 @@ export default function TeamDashboardPage() {
         {inviteError && <p className="mt-2 text-xs text-red-400">{inviteError}</p>}
       </div>
 
-      <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
+      <div data-tour="teamPendingApprovals" className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Pending Approvals</p>
         {pending === null ? (
           <p className="mt-3 text-sm text-ink-500">Loading…</p>
