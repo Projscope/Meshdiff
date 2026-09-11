@@ -241,11 +241,23 @@ separate "read-only mode" to build — a lapsed trial and a canceled Pro
 subscription land in exactly the same `status: 'restricted'` state. See
 [pro.md](pro.md) for the full mechanism and what's exempt.
 
-See pro.md's "Admin overrides" for two related, ADMIN_EMAILS-driven
-behaviors layered on top of this: admin accounts get permanent access
-regardless of trial/subscription state, and admins can flag any account as
-a "demo" account to exclude it from the Admin dashboard's user-count
-widgets.
+See pro.md's "Admin overrides" for several more ADMIN_EMAILS-driven and
+admin-actioned behaviors layered on top of this: admin accounts get
+permanent access regardless of trial/subscription state; admins can flag
+any account as a "demo" account to exclude it from the Admin dashboard's
+user-count widgets; admins can manually grant any account Pro/Team
+(`admin_granted_tier`) or extend/shorten a specific account's trial window
+(`trial_extensions`) from the Admin Users table.
+
+**Trial tier choice** — a trialing free-tier user isn't stuck with the
+default Pro-level trial: `TrialTierChoiceModal.tsx` lets them choose to
+trial Team instead, which is a real functional unlock (team creation,
+approval workflow) via a `trial_tier_choice` table `getUserTier()` checks
+while trialing — not just different copy, and not admin-driven like the
+overrides above. Choosing Team also triggers a short guided walkthrough of
+team creation and roles before handing off to the existing Sample Project
+tour. See pro.md's "Trial tier choice" and teams.md's "Team-trial
+onboarding" for the full mechanism.
 
 ---
 
@@ -362,6 +374,38 @@ demo_accounts (
 -- Existence = flagged, no boolean column. An admin flips this per-user from
 -- the Admin Users table; excluded from getAdminStats()/getSignupBuckets()'s
 -- counts only — no effect on the account's own access. See pro.md.
+
+-- 20260101000037_admin_granted_tier.sql
+admin_granted_tier (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  tier text not null check (tier in ('pro','team')),
+  granted_by_user_id uuid references auth.users(id) on delete set null,
+  granted_at timestamptz not null default now()
+);
+-- Existence = manually granted by an admin, checked ahead of a real Stripe
+-- subscription in getUserTier(). See pro.md's "Admin overrides".
+
+-- 20260101000038_trial_extensions.sql
+trial_extensions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  trial_ends_at timestamptz not null,
+  granted_by_user_id uuid references auth.users(id) on delete set null,
+  granted_at timestamptz not null default now()
+);
+-- Existence = admin-overridden trial end date, used verbatim by
+-- computeTrialStatus() instead of the default created_at + 14 days — can
+-- extend or shorten the window. See pro.md's "Admin overrides".
+
+-- 20260101000039_trial_tier_choice.sql
+trial_tier_choice (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  tier text not null check (tier in ('team')),
+  chosen_at timestamptz not null default now()
+);
+-- Existence = a trialing user chose to trial Team instead of the default
+-- Pro-level access — only ever 'team' ('pro' is the absence of a row).
+-- Checked by getUserTier() only while actually trialing. See pro.md's
+-- "Trial tier choice".
 ```
 
 `has_active_team_access(p_user_id uuid) returns boolean` (SQL function,
@@ -376,11 +420,12 @@ Backend, `apps/api/src/lib/subscription.ts`:
 
 ```
 getAccountAccess(supabase, userId):
-  tier = getUserTier(userId).tier            // reads `subscriptions` directly
-  if tier != 'free': return { status: 'pro', tier, viaTeamMembership: false, isTrialing: false }
+  { tier, viaTrialChoice } = getUserTier(userId)   // checks admin_granted_tier, subscriptions,
+                                                    // then trial_tier_choice while trialing — see pro.md
+  if tier != 'free' and not viaTrialChoice: return { status: 'pro', tier, viaTeamMembership: false, isTrialing: false }
   if isAdminEmail(user.email): return { status: 'pro', tier: 'team', ... }   // permanent, see pro.md
-  trial = computeTrialStatus(user.created_at)                                // 14-day window, see pro.md
-  if trial.isTrialing: return { status: 'pro', tier: 'free', ...trial }
+  trial = computeTrialStatus(user.created_at, trialExtension)                // 14-day window (+ admin override), see pro.md
+  if trial.isTrialing: return { status: 'pro', tier, ...trial }              // tier here may be 'team' via trial choice
   hasTeamAccess = rpc has_active_team_access(userId)
   return { status: hasTeamAccess ? 'pro' : 'restricted', tier: 'free', viaTeamMembership: hasTeamAccess }
 ```
@@ -390,7 +435,9 @@ getAccountAccess(supabase, userId):
 seats, OR within the 14-day trial window, OR an ADMIN_EMAILS account."
 Never gate a feature on a raw `tier === 'pro'` string check; that wrongly
 excludes Team owners, members, and trialing free users (`tier` stays
-`'free'` during a trial — only `status` becomes `'pro'`). Concretely:
+`'free'` during a trial by default — only `status` becomes `'pro'` —
+except a trial user who's specifically chosen to trial Team, whose `tier`
+genuinely becomes `'team'`; see pro.md's "Trial tier choice"). Concretely:
 
 - `requireProjectWriteAccess()` (`apps/api/src/lib/requireProjectTierAccess.ts`)
   — gates comment creation, version approve/reject, deleting a version,
@@ -401,9 +448,12 @@ excludes Team owners, members, and trialing free users (`tier` stays
   don't add to it).
 - Frontend mirror: `useAccountStatus()` context in
   `apps/web/src/components/ProjectsLayout.tsx` exposes `{ isRestricted,
-  isPro }`, fetched once from `GET /billing/subscription`. Use `isPro` for
-  any client-side "should I show this button" check — it's the same
-  status field, not a re-derived guess.
+  isPro, isTrialing, tier, refreshSubscription }`, fetched once from
+  `GET /billing/subscription`. Use `isPro` for any client-side "should I
+  show this button" check — it's the same status field, not a re-derived
+  guess. `tier`/`isTrialing` are there for UI that needs to distinguish a
+  real subscription from a trial (e.g. `TrialTierChoiceModal.tsx`,
+  `isBillingOwner`'s "don't show Manage Plan for a trial choice" check).
 - Team-only (not just Pro) beyond that: `canReviewVersions()` in
   `apps/api/src/routes/versions.ts` — project owner always reviews; on a
   Team project, `admin` or `approver` role also can (`approver` is
@@ -420,10 +470,13 @@ excludes Team owners, members, and trialing free users (`tier` stays
 | GET    | `/billing/coupons`                             | None     | The general-availability promo code, if any is active  |
 | POST   | `/billing/portal`                              | Required | Creates Stripe Customer Portal session                 |
 | POST   | `/billing/cancel` / `/billing/resume`          | Required | Toggles `cancel_at_period_end` on the live subscription |
+| PATCH  | `/billing/trial-tier`                          | Required | Body `{ tier: 'pro'\|'team' }` — a trialing user's own choice, see pro.md's "Trial tier choice" |
 | POST   | `/billing/webhook`                             | None (Stripe signature) | Stripe webhook handler, raw-body content-type parser |
 | POST   | `/projects/:projectId/versions/:versionId/approve` / `/reject` | Required, Team reviewer role | Version-approval actions, see `canReviewVersions()` above |
 | GET    | `/teams/:teamId/pending-versions`              | Required | Cross-project queue of pending versions for reviewers   |
 | PATCH  | `/admin/users/:userId/demo`                    | Required, admin | Body `{ demo: boolean }` — flags/unflags a demo account, see pro.md |
+| PATCH  | `/admin/users/:userId/subscription`            | Required, admin | Body `{ tier: 'free'\|'pro'\|'team' }` — manual tier grant, see pro.md's "Admin overrides" |
+| PATCH  | `/admin/users/:userId/trial`                   | Required, admin | Body `{ days: number\|null }` — extends/shortens/clears a trial, see pro.md's "Admin overrides" |
 
 Frontend callers: `apps/web/src/lib/projectsApi.ts`
 (`startProCheckout`/`startTeamCheckout`/`getSubscription`/etc.) and

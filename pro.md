@@ -49,8 +49,11 @@ access) built on top of the same billing plumbing described here.
 
 A trialing free-tier account (see "The 14-day trial" below) resolves to
 `status: 'pro'` from `getAccountAccess()`, so it passes every check in this
-table identically to a real Pro/Team subscriber — there's no separate
-"trial-tier" column anywhere in the gating code.
+table identically to a real Pro/Team subscriber. `tier` itself normally
+stays `'free'` during a trial — except when the user has chosen to trial
+Team specifically (see "Trial tier choice" below), which is the one case
+where a trialing account's `tier` becomes `'team'` with no real
+subscription behind it.
 
 Enforced by two different checks, deliberately kept separate:
 - **`requireActiveAccess.ts`** — the route-level gate. Blocks a restricted account
@@ -75,6 +78,9 @@ everywhere in the product, instead of needing a parallel set of Team-aware check
 - **`UpgradeToProModal.tsx`**: the subscribe flow — shows an auto-applied default
   promo if one's active, a "Have a coupon code?" field for a manually-entered one,
   and starts a real Stripe Checkout session on submit.
+- **`TrialTierChoiceModal.tsx`**: shown once at the start of a trial, and
+  reopenable via a "switch" link in the account panel — see "Trial tier
+  choice" below.
 - **Gated buttons throughout the UI** (`ProjectsListPage.tsx`'s "+ New Project",
   `ProjectDetailPage.tsx`'s "Upload new version") read `isPro` from
   `AccountStatusContext`, which — despite the name — is `accountStatus === "pro"`,
@@ -120,11 +126,46 @@ projects/comments/version-uploads. There is no separate "read-only mode"
 implementation; trial expiry and subscription cancellation share one code
 path.
 
+## Trial tier choice
+
+A trialing free-tier user can choose to trial **Team** instead of the
+default Pro-level access — `TrialTierChoiceModal.tsx`, shown once
+(localStorage-gated, same "shown once" convention as the Sample Project
+tour) the first time a trialing user lands in the Projects workspace, and
+reopenable anytime during the trial via a "switch" link in the account
+panel (`ProjectsLayout.tsx`).
+
+Unlike the admin overrides below, this is a **user's own choice**, not an
+admin action, and it's a real functional unlock, not just different
+copy: `getUserTier()` (`apps/api/src/lib/subscription.ts`) checks a new
+`trial_tier_choice` table — existence = "chose Team" (there's no row for
+"chose Pro"; that's simply the default/absence) — only while
+`computeTrialStatus()` says the account is actually trialing. When it
+applies, `getUserTier()` returns `tier: 'team'` with `row: null` and
+`viaTrialChoice: true`; `getAccountAccess()` treats that as
+`status: 'pro'` same as any trialing account, but keeps computing real
+`isTrialing`/`trialDaysRemaining` for it (unlike a real Team subscriber,
+who is never "trialing"). Every call site that reads `getUserTier()`
+directly (`POST /teams`'s tier check, `GET /billing/subscription`) sees
+`tier: 'team'` automatically — no special-casing needed anywhere except
+`ProjectsLayout.tsx`'s `isBillingOwner`/`isTeamMember` display logic,
+which explicitly excludes `viaTrialChoice` so a Team-trialing user isn't
+shown "Manage Plan"/payment links for a subscription that doesn't exist.
+
+Choosing Team for the first time also kicks off a short guided
+walkthrough of team creation and roles (`TeamCreateSpotlight.tsx` →
+`TeamDashboardTour.tsx`, tracked by `teamTour.ts`'s own localStorage
+stage machine) before handing off to the existing Sample Project tour —
+see [teams.md](teams.md) for that flow. Switching back to Pro just
+deletes the `trial_tier_choice` row; there's no separate "cleared" state
+to distinguish from "never chose."
+
 ## Admin overrides
 
-Two more behaviors live in `subscription.ts`/`admin.ts`, both keyed off the
-same `ADMIN_EMAILS` env var that already gates the `/admin/*` panel
-(`requireAdmin.ts`'s `isAdminEmail()`):
+Several more behaviors live in `subscription.ts`/`admin.ts`, all keyed off
+either the same `ADMIN_EMAILS` env var that gates the `/admin/*` panel
+(`requireAdmin.ts`'s `isAdminEmail()`), or an admin acting on someone
+else's account from the Admin Users table:
 
 - **Permanent access.** An admin account always resolves to `status: 'pro'`,
   `tier: 'team'` from `getAccountAccess()` — checked *before* the trial/team
@@ -141,6 +182,26 @@ same `ADMIN_EMAILS` env var that already gates the `/admin/*` panel
   billing, and everything else about it is completely unaffected — this
   exists purely so seeded/test/showcase accounts don't skew what the
   dashboard reports about real users.
+- **Manually granted tier.** An admin can grant any account Pro or Team
+  from the Admin Users table's tier selector (`PATCH
+  /admin/users/:userId/subscription` → `adminGrants.ts`'s
+  `setUserGrantedTier()`, backed by the `admin_granted_tier` table —
+  existence = granted, `'free'` clears it). `getUserTier()` checks this
+  *first*, ahead of a real Stripe subscription, so it's a floor a real
+  subscription can't be undercut by, but the two never actually conflict
+  in practice (an admin grant is for accounts with no real subscription).
+  `row` stays `null` for a grant, same as a trial-tier choice — every
+  caller already treats a null row as "nothing billing-related to show,"
+  which is correct for both.
+- **Trial extension.** An admin can push a specific account's trial end
+  date out (or in) from the Admin Users table's `+7d`/`+30d`/`clear`
+  buttons (`PATCH /admin/users/:userId/trial` → `trialExtensions.ts`'s
+  `setTrialExtension()`, backed by the `trial_extensions` table). When
+  present, `computeTrialStatus()` uses this date verbatim instead of the
+  default `created_at + 14 days` — it can extend *or* shorten the window.
+  Stacks with itself (a later `+7d` extends from whichever is later, now
+  or the current effective end date) rather than resetting from today
+  every time.
 
 ## Data model
 
@@ -148,6 +209,9 @@ same `ADMIN_EMAILS` env var that already gates the `/admin/*` panel
 stripe_customers     -- user_id -> stripe_customer_id
 subscriptions         -- user_id (unique), tier ∈ {pro, team}, status, quantity, stripe_price_id
 demo_accounts         -- user_id (PK) -- existence = flagged as a demo account, see "Admin overrides" above
+admin_granted_tier    -- user_id (PK), tier ∈ {pro, team} -- existence = manually granted, see "Admin overrides" above
+trial_extensions      -- user_id (PK), trial_ends_at -- overrides the default created_at + 14 days, see "Admin overrides" above
+trial_tier_choice     -- user_id (PK), tier ∈ {team} -- existence = chose to trial Team, see "Trial tier choice" above
 ```
 
 Key backend files:
@@ -155,13 +219,21 @@ Key backend files:
 - `apps/api/migrations/0017_team_billing.sql` — added the `team` tier value and
   `quantity` column (Team billing reuses this same table)
 - `apps/api/migrations/0025_demo_accounts.sql` — the `demo_accounts` table
-- `apps/api/src/routes/billing.ts` — checkout, Customer Portal, cancel/resume, and
-  the webhook handler (`checkout.session.completed`,
-  `customer.subscription.updated`, `customer.subscription.deleted`)
+- `apps/api/migrations/0037_admin_granted_tier.sql` — the `admin_granted_tier` table
+- `apps/api/migrations/0038_trial_extensions.sql` — the `trial_extensions` table
+- `apps/api/migrations/0039_trial_tier_choice.sql` — the `trial_tier_choice` table
+- `apps/api/src/routes/billing.ts` — checkout, Customer Portal, cancel/resume,
+  `PATCH /billing/trial-tier`, and the webhook handler
+  (`checkout.session.completed`, `customer.subscription.updated`,
+  `customer.subscription.deleted`)
 - `apps/api/src/lib/subscription.ts` — `getUserTier()`, `getAccountAccess()`,
   `computeTrialStatus()` — the single source of truth for "what tier is this
   user" and "does this request have paid access"
 - `apps/api/src/lib/demoAccounts.ts` — `getDemoUserIds()`, `setDemoAccount()`
+- `apps/api/src/lib/adminGrants.ts` — `getAdminGrantsByUser()`, `setUserGrantedTier()`
+- `apps/api/src/lib/trialExtensions.ts` — `getTrialExtension()`, `setTrialExtension()`
+- `apps/api/src/lib/trialTierChoice.ts` — `getTrialTierChoice()`, `setTrialTierChoice()`
+- `apps/web/src/components/TrialTierChoiceModal.tsx` — the Pro/Team trial-choice UI
 - `apps/api/src/lib/requireAdmin.ts` — `isAdminEmail()`, shared by the
   `/admin/*` panel gate and the permanent-access check above
 - `apps/api/src/lib/priceCatalog.ts` — server-side price-ID → tier whitelist (CLAUDE.md's
