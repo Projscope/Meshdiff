@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Canvas } from "@react-three/fiber";
@@ -19,6 +19,8 @@ import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import { meshRepairWarning } from "../lib/meshRepairMessage";
 import type { MeshRepairReport } from "@meshdiff/shared/engine/repairMesh";
 import { useShadingMode } from "../lib/shadingMode";
+import { useClippingPlaneState, computeClippingPlane } from "../lib/clippingPlane";
+import ClippingPlaneControl from "./ClippingPlaneControl";
 import EdgeOverlay from "./EdgeOverlay";
 import LoadingCube from "./LoadingCube";
 import PrintabilityBadge from "./PrintabilityBadge";
@@ -75,6 +77,11 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
   const mouseButtons = useOrbitMouseButtons(controlScheme);
   const measure = useMeasureTool();
   const [shadingMode] = useShadingMode();
+  const [clippingPlaneState] = useClippingPlaneState();
+  const clipPlane = useMemo(
+    () => computeClippingPlane(clippingPlaneState, displayGeometry),
+    [clippingPlaneState, displayGeometry],
+  );
 
   async function handleFile(file: File) {
     setIsLoading(true);
@@ -213,6 +220,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
               onResetView={() => resetViewRef.current?.()}
             />
           )}
+          {displayGeometry && <ClippingPlaneControl />}
         </div>
 
         {meshWarning && displayGeometry && (
@@ -254,7 +262,12 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
           </div>
         )}
 
-        <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
+        <Canvas
+          camera={{ position: [50, 50, 50], fov: 45 }}
+          onCreated={({ gl }) => {
+            gl.localClippingEnabled = true;
+          }}
+        >
           <ModelScene gridPosition={gridPosition} gridFadeDistance={gridFadeDistance} axisOrigin={axisOrigin}>
             {displayGeometry && (
               <Bounds key={displayGeometry.uuid} fit clip observe margin={1.2}>
@@ -266,19 +279,21 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                   onPointerMove={measure.onPointerMove}
                   onPointerOut={measure.onPointerOut}
                 >
-                  {/* key forces a fresh material instance when hasVertexColors
-                      or shadingMode flips — mutating vertexColors/flatShading
-                      on an already-compiled material doesn't recompile its
+                  {/* key forces a fresh material instance when hasVertexColors,
+                      shadingMode, or whether a clip plane is active changes —
+                      mutating vertexColors/flatShading/clippingPlanes count on
+                      an already-compiled material doesn't recompile its
                       shader. */}
                   <meshStandardMaterial
-                    key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
+                    key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}-${clipPlane ? "clip" : "noclip"}`}
                     color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                     vertexColors={hasVertexColors}
                     flatShading={shadingMode === "flat"}
                     transparent={shadingMode === "transparent"}
                     opacity={shadingMode === "transparent" ? 0.4 : 1}
                     depthWrite={shadingMode !== "transparent"}
-                    side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
+                    side={shadingMode === "transparent" || clipPlane ? THREE.DoubleSide : THREE.FrontSide}
+                    clippingPlanes={clipPlane ? [clipPlane] : []}
                   />
                 </mesh>
                 {shadingMode === "transparent" && <EdgeOverlay geometry={displayGeometry} />}

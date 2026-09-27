@@ -8,9 +8,19 @@ export const META_DESCRIPTION =
 
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.6.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.7.0");
 
   const changelog = [
+    {
+      version: "v1.7.0",
+      date: "2026-09-27",
+      title: "Cross-section view",
+      items: {
+        new: [
+          "Cross-section / clipping-plane tool on every 3D viewer — cut the model open along the X, Y, or Z axis to inspect internal cavities, bores, and wall thickness without switching to transparent shading",
+        ],
+      },
+    },
     {
       version: "v1.6.0",
       date: "2026-09-07",

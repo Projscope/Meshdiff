@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Canvas } from "@react-three/fiber";
@@ -17,6 +17,8 @@ import { useMeasureTool } from "../lib/useMeasureTool";
 import { meshRepairWarning } from "../lib/meshRepairMessage";
 import type { MeshRepairReport } from "@meshdiff/shared/engine/repairMesh";
 import { useShadingMode } from "../lib/shadingMode";
+import { useClippingPlaneState, computeClippingPlane } from "../lib/clippingPlane";
+import ClippingPlaneControl from "./ClippingPlaneControl";
 import EdgeOverlay from "./EdgeOverlay";
 
 interface ViewerProps {
@@ -68,6 +70,11 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const measure = useMeasureTool();
   const [shadingMode] = useShadingMode();
+  const [clippingPlaneState] = useClippingPlaneState();
+  const clipPlane = useMemo(
+    () => computeClippingPlane(clippingPlaneState, displayGeometry),
+    [clippingPlaneState, displayGeometry],
+  );
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -196,6 +203,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             onResetView={() => resetViewRef.current?.()}
           />
         )}
+        {geometry && <ClippingPlaneControl />}
       </div>
       {showControls && geometry && (
         <div className="absolute left-3 top-8 z-20 rounded border border-ink-700 bg-ink-900 p-2 text-xs text-ink-300">
@@ -284,6 +292,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         gl={{ preserveDrawingBuffer: true }}
         onCreated={({ gl }) => {
           canvasElRef.current = gl.domElement;
+          gl.localClippingEnabled = true;
         }}
       >
         <ModelScene gridFadeDistance={gridFadeDistance}>
@@ -297,20 +306,22 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 onPointerMove={measure.onPointerMove}
                 onPointerOut={measure.onPointerOut}
               >
-                {/* key forces a fresh material instance when hasVertexColors
-                    or shadingMode flips — mutating vertexColors/flatShading
-                    on an already-compiled material in place doesn't
-                    recompile its shader, so the change would silently be
-                    ignored otherwise. */}
+                {/* key forces a fresh material instance when hasVertexColors,
+                    shadingMode, or whether a clip plane is active changes —
+                    mutating vertexColors/flatShading/clippingPlanes count on
+                    an already-compiled material in place doesn't recompile
+                    its shader, so the change would silently be ignored
+                    otherwise. */}
                 <meshStandardMaterial
-                  key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
+                  key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}-${clipPlane ? "clip" : "noclip"}`}
                   color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                   vertexColors={hasVertexColors}
                   flatShading={shadingMode === "flat"}
                   transparent={shadingMode === "transparent"}
                   opacity={shadingMode === "transparent" ? 0.4 : 1}
                   depthWrite={shadingMode !== "transparent"}
-                  side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
+                  side={shadingMode === "transparent" || clipPlane ? THREE.DoubleSide : THREE.FrontSide}
+                  clippingPlanes={clipPlane ? [clipPlane] : []}
                 />
               </mesh>
               {shadingMode === "transparent" && <EdgeOverlay geometry={displayGeometry} />}
