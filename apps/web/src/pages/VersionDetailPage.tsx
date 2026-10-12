@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import * as THREE from "three";
@@ -39,6 +39,8 @@ import ControlSchemeSelect from "../components/ControlSchemeSelect";
 import ShadingModeToggle from "../components/ShadingModeToggle";
 import GridToggle from "../components/GridToggle";
 import { useShadingMode } from "../lib/shadingMode";
+import { useClippingPlaneState, computeClippingPlane } from "../lib/clippingPlane";
+import ClippingPlaneControl from "../components/ClippingPlaneControl";
 import EdgeOverlay from "../components/EdgeOverlay";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import LoadingCube from "../components/LoadingCube";
@@ -156,6 +158,11 @@ export default function VersionDetailPage() {
   const [controlScheme] = useControlScheme();
   const mouseButtons = useOrbitMouseButtons(controlScheme);
   const [shadingMode] = useShadingMode();
+  const [clippingPlaneState] = useClippingPlaneState();
+  const clipPlane = useMemo(
+    () => computeClippingPlane(clippingPlaneState, geometry),
+    [clippingPlaneState, geometry],
+  );
   const [hasVertexColors, setHasVertexColors] = useState(false);
   const [threeMFProperties, setThreeMFProperties] = useState<ThreeMFProperties | null>(null);
 
@@ -846,7 +853,7 @@ export default function VersionDetailPage() {
               type="button"
               onClick={() => zoomToFitRef.current?.()}
               title={t("viewer.zoomToFit")}
-              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              className="flex h-7 w-7 items-center justify-center rounded-sm text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⛶
             </button>
@@ -854,18 +861,24 @@ export default function VersionDetailPage() {
               type="button"
               onClick={() => resetViewRef.current?.()}
               title={t("viewer.resetViewTooltip")}
-              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              className="flex h-7 w-7 items-center justify-center rounded-sm text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⟲
             </button>
             <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <ShadingModeToggle />
             <GridToggle />
+            <ClippingPlaneControl />
             <div className="mx-0.5 h-5 w-px bg-ink-800" />
             <ControlSchemeSelect showLegend={false} />
           </div>
         )}
-        <Canvas camera={{ position: [50, 50, 50], fov: 45 }}>
+        <Canvas
+          camera={{ position: [50, 50, 50], fov: 45 }}
+          onCreated={({ gl }) => {
+            gl.localClippingEnabled = true;
+          }}
+        >
           {/* Comment pins' stored positions come from raycasting against the
               (rotated) mesh — see ModelScene.tsx for the Z-up-to-Y-up
               transform they, and everything else here, inherit. */}
@@ -887,19 +900,21 @@ export default function VersionDetailPage() {
                     setNearbyEdges([]);
                   }}
                 >
-                  {/* key forces a fresh material instance when hasVertexColors
-                      or shadingMode flips — mutating vertexColors/flatShading
-                      on an already-compiled material doesn't recompile its
+                  {/* key forces a fresh material instance when hasVertexColors,
+                      shadingMode, or whether a clip plane is active changes —
+                      mutating vertexColors/flatShading/clippingPlanes count on
+                      an already-compiled material doesn't recompile its
                       shader. */}
                   <meshStandardMaterial
-                    key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
+                    key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}-${clipPlane ? "clip" : "noclip"}`}
                     color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                     vertexColors={hasVertexColors}
                     flatShading={shadingMode === "flat"}
                     transparent={shadingMode === "transparent"}
                     opacity={shadingMode === "transparent" ? 0.4 : 1}
                     depthWrite={shadingMode !== "transparent"}
-                    side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
+                    side={shadingMode === "transparent" || clipPlane ? THREE.DoubleSide : THREE.FrontSide}
+                    clippingPlanes={clipPlane ? [clipPlane] : []}
                   />
                 </mesh>
                 {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}
@@ -1030,7 +1045,7 @@ export default function VersionDetailPage() {
         </Link>
 
         {error && (
-          <div className="mt-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+          <div className="mt-3 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
             {error}
           </div>
         )}
@@ -1038,14 +1053,14 @@ export default function VersionDetailPage() {
         {version && (
           <>
             <div className="mt-2 flex items-center gap-2">
-              <span className="rounded border border-ink-700 bg-ink-800 px-2 py-0.5 text-xs font-semibold text-ink-300">
+              <span className="rounded-sm border border-ink-700 bg-ink-800 px-2 py-0.5 text-xs font-semibold text-ink-300">
                 v{version.versionNumber}
               </span>
               <h1 className="truncate text-sm font-semibold text-ink-50">{version.fileName}</h1>
             </div>
 
             {isPro && (
-              <div className="mt-3 flex overflow-hidden rounded border border-ink-700 text-xs">
+              <div className="mt-3 flex overflow-hidden rounded-sm border border-ink-700 text-xs">
                 <button
                   type="button"
                   onClick={() => setRightPanelTab("general")}

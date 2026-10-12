@@ -356,10 +356,10 @@ function BracketAssemblyPanel() {
           <Cube size={56} weight="thin" className="text-ink-700" />
         </div>
         <div className="absolute left-[38%] top-[38%] flex -translate-x-1/2 -translate-y-1/2 items-center gap-1">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-red-400 bg-red-500 text-[10px] shadow">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-red-400 bg-red-500 text-[10px] shadow-sm">
             📍
           </span>
-          <span className="rounded bg-ink-950/90 px-1.5 py-0.5 text-[10px] font-medium text-ink-200 shadow">
+          <span className="rounded-sm bg-ink-950/90 px-1.5 py-0.5 text-[10px] font-medium text-ink-200 shadow-sm">
             #12
           </span>
         </div>
@@ -672,7 +672,7 @@ export default function LandingPage() {
                         </div>
                         <div className="shrink-0 text-right">
                           {row.commentCount ? (
-                            <span className="flex items-center gap-1 rounded border border-ink-700 bg-ink-950 px-2 py-0.5 text-[11px] font-medium text-ink-300">
+                            <span className="flex items-center gap-1 rounded-sm border border-ink-700 bg-ink-950 px-2 py-0.5 text-[11px] font-medium text-ink-300">
                               <ChatCircle size={12} weight="fill" />
                               {row.commentCount} comments
                             </span>
@@ -891,14 +891,14 @@ export default function LandingPage() {
           <div className="mt-8 flex justify-center gap-3">
             <a
               href="/live"
-              className="rounded border border-ink-700 px-4 py-2 text-xs font-medium text-ink-300 hover:border-ink-500 hover:text-ink-50 transition-colors"
+              className="rounded-sm border border-ink-700 px-4 py-2 text-xs font-medium text-ink-300 hover:border-ink-500 hover:text-ink-50 transition-colors"
             >
               Try free tool
             </a>
             <button
               type="button"
               onClick={scrollToPricing}
-              className="rounded bg-accent-700 px-4 py-2 text-xs font-medium text-ink-50 hover:bg-accent-800 transition-colors"
+              className="rounded-sm bg-accent-700 px-4 py-2 text-xs font-medium text-ink-50 hover:bg-accent-800 transition-colors"
             >
               View pricing
             </button>

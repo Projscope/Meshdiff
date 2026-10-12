@@ -14,7 +14,7 @@ export default function DiffPaletteSelect() {
       value={palette}
       onChange={(event) => setPalette(event.target.value as "classic" | "colorblind" | "contrast")}
       title={t("viewer.diffPaletteTooltip")}
-      className="rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-[11px] text-ink-200"
+      className="rounded-sm border border-ink-700 bg-ink-900 px-1 py-0.5 text-[11px] text-ink-200"
     >
       <option value="classic">{t("viewer.colorsClassic")}</option>
       <option value="colorblind">{t("viewer.colorsColorblind")}</option>

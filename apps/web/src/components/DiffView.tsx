@@ -380,7 +380,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           </span>
         )}
         {!isPending && !hasError && (
-          <div className="flex overflow-hidden rounded border border-ink-700 text-[11px]">
+          <div className="flex overflow-hidden rounded-sm border border-ink-700 text-[11px]">
             <button
               type="button"
               onClick={() => onModeChange("voxel")}
@@ -409,7 +409,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
           // Radius/distance measuring — Overlay only for now (see the
           // wiring effect above for why): it's the mode with both meshes
           // rendered as plain, raycastable <mesh> elements already.
-          <div className="flex overflow-hidden rounded border border-ink-700 text-[11px]">
+          <div className="flex overflow-hidden rounded-sm border border-ink-700 text-[11px]">
             <button
               type="button"
               onClick={() => measure.toggleMeasuring("distance")}
@@ -441,7 +441,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             type="button"
             onClick={() => zoomToFitRef.current?.()}
             title={t("viewer.zoomToFit")}
-            className="rounded border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
+            className="rounded-sm border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
           >
             {t("diffView.zoomToModel")}
           </button>
@@ -451,7 +451,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
             type="button"
             onClick={() => resetViewRef.current?.()}
             title={t("viewer.resetViewTooltip")}
-            className="rounded border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
+            className="rounded-sm border border-ink-700 px-2 py-0.5 text-[11px] text-ink-300 hover:border-ink-500 hover:text-ink-50"
           >
             ⟲ {t("diffView.resetView")}
           </button>
@@ -475,10 +475,10 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               step={0.05}
               value={toleranceMm}
               onChange={(event) => onToleranceChange(Math.max(0, Number(event.target.value)))}
-              className="w-12 rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
+              className="w-12 rounded-sm border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
             />
             {t("diffView.mm")}
-            <div className="flex overflow-hidden rounded border border-ink-700">
+            <div className="flex overflow-hidden rounded-sm border border-ink-700">
               {sensitivityPresets.map((preset) => (
                 <button
                   key={preset.label}
@@ -504,7 +504,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
               value={alignment}
               onChange={(event) => onAlignmentChange(event.target.value as DiffAlignment)}
               title={t("diffView.alignTooltip")}
-              className="rounded border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
+              className="rounded-sm border border-ink-700 bg-ink-900 px-1 py-0.5 text-ink-200"
             >
               <option value="none">{t("diffView.alignNone")}</option>
               <option value="floor">{t("diffView.alignFloor")}</option>

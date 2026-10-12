@@ -20,7 +20,7 @@ export default function SiteFooter() {
           </p>
           <Link
             to="/roadmap"
-            className="mt-2 inline-block rounded border border-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-200"
+            className="mt-2 inline-block rounded-sm border border-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-200"
           >
             v{APP_VERSION}
           </Link>

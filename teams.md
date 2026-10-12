@@ -42,9 +42,18 @@ spec; this file is specifically about how Teams work under the hood.
 ## Where it lives in the app
 
 - **Sidebar** (`ProjectsLayout.tsx`): a "Teams" section lists the teams you belong to;
-  clicking one navigates to its dashboard. The "+" button either opens the team
-  dashboard's create form (if you're already the Team subscriber) or an upgrade
-  prompt (`UpgradeToTeamModal.tsx`) that starts a real Stripe Checkout session.
+  clicking one navigates to its dashboard. The "+" button opens the team dashboard's
+  create form whenever `getUserTier()` says `tier === 'team'` — a real Stripe
+  subscriber *or* a free-tier trial user who's chosen to trial Team (see pro.md's
+  "Trial tier choice") — and an upgrade prompt (`UpgradeToTeamModal.tsx`) otherwise.
+- **Team-trial onboarding** (`TeamCreateSpotlight.tsx` → `TeamDashboardTour.tsx`,
+  `apps/web/src/lib/teamTour.ts`): the first time a trialing user picks Team, a
+  spotlight points at the "+" button above, a short explainer appears in the create
+  form, and — once the team actually exists — a 3-step coach-mark tour walks the new
+  dashboard (members, invite + roles, pending approvals). Finishing or skipping
+  navigates to `/projects`, where the separate, unrelated Sample Project tour picks
+  up on its own; the two are suppressed against each other while either is active so
+  their coach-marks don't render on top of one another.
 - **Team dashboard** (`/teams/:teamId`, `TeamDashboardPage.tsx`): the home base for a
   team — seat usage, member roster with invite/remove, a **Pending Approvals** queue
   aggregated across every project the team owns (not just one project at a time),

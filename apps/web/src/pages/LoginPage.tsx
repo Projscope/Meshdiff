@@ -141,7 +141,7 @@ export default function LoginPage() {
             placeholder="you@company.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
+            className="rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
           />
           {mode !== "reset" && (
             <input
@@ -151,7 +151,7 @@ export default function LoginPage() {
               placeholder="Password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
+              className="rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
             />
           )}
           {mode === "signin" && (
@@ -173,7 +173,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-1 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
+            className="mt-1 rounded-sm bg-indigo-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
           >
             {isSubmitting
               ? mode === "signin"

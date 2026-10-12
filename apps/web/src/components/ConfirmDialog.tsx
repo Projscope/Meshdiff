@@ -23,11 +23,11 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
   return (
-    // z-[9999] rather than a lower Tailwind step — this needs to reliably
+    // z-9999 rather than a lower Tailwind step — this needs to reliably
     // sit above drei's <Html> 3D overlays (e.g. CommentPopover), whose
     // zIndexRange can assign inline z-index values up to 100 depending on
     // camera depth, well past a plain z-50.
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4" onClick={onCancel}>
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 p-4" onClick={onCancel}>
       <div
         className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
@@ -48,7 +48,7 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+            className="flex-1 rounded-sm border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
           >
             {cancelLabel ?? t("common.cancel")}
           </button>

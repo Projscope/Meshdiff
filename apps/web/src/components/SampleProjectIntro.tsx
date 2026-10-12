@@ -80,7 +80,7 @@ export default function SampleProjectIntro() {
     <>
       {rect && (
         <div
-          className="pointer-events-none fixed z-[70] rounded transition-all duration-200"
+          className="pointer-events-none fixed z-70 rounded-sm transition-all duration-200"
           style={{
             top: rect.top - 4,
             left: rect.left - 4,
@@ -91,7 +91,7 @@ export default function SampleProjectIntro() {
         />
       )}
       <div
-        className="fixed z-[71] rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm shadow-2xl transition-all duration-200"
+        className="fixed z-71 rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm shadow-2xl transition-all duration-200"
         style={popoverStyle}
       >
         <h3 className="text-sm font-semibold text-ink-50">{t("sampleTour.introTitle")}</h3>

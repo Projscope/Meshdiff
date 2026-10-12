@@ -56,7 +56,7 @@ export function PropertyRow({
   return (
     <div className="flex flex-col gap-0.5 px-3 py-2 text-xs overflow-hidden">
       <span className="text-ink-500">{label}</span>
-      <span className={`break-words ${valueClassName}`}>{value}</span>
+      <span className={`wrap-break-word ${valueClassName}`}>{value}</span>
     </div>
   );
 }

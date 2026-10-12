@@ -77,6 +77,21 @@ function classifyBrowser(userAgent: string): string {
   return "Other";
 }
 
+/** Crawlers, headless browsers, scripted HTTP clients and link-preview
+ * fetchers — checked against the User-Agent, so a client that lies about it
+ * still gets through. Googlebot renders JS and would otherwise count as a
+ * visitor. */
+const BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|curl\/|wget|python-requests|httpclient|axios|node-fetch|go-http|java\/|preview|facebookexternalhit|embedly|monitor|uptime/i;
+
+function isValidPath(path: unknown): path is string {
+  return typeof path === "string" && path.length <= 200 && /^\/[A-Za-z0-9\-._~\/%]*$/.test(path.split("?")[0]!.split("#")[0]!);
+}
+
+function cleanLanguage(language: unknown): string {
+  if (typeof language !== "string") return "unknown";
+  return /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,3}$/.test(language) ? language : "unknown";
+}
+
 function cleanPath(path: string | undefined): string {
   if (!path) return "/";
   const withoutQuery = path.split("?")[0]!.split("#")[0]!;
@@ -104,6 +119,13 @@ export default async function track(req: Request, context: NetlifyContext): Prom
     return json({ success: false, error: "Invalid request body" }, 400);
   }
 
+  // Rejected requests still answer 200 so a scripted caller can't tell it
+  // was filtered and adapt; the client never reads the response anyway.
+  const userAgent = req.headers.get("user-agent") ?? "";
+  if (!userAgent || BOT_UA.test(userAgent) || !isValidPath(body.path)) {
+    return json({ success: true }, 200);
+  }
+
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const salt = process.env.ANALYTICS_HASH_SALT;
@@ -117,14 +139,13 @@ export default async function track(req: Request, context: NetlifyContext): Prom
   const path = cleanPath(body.path);
   const ownOrigin = req.headers.get("origin") ?? new URL(req.url).origin;
   const referrer = referrerHost(body.referrer, ownOrigin);
-  const language = (body.language ?? "unknown").slice(0, 35);
+  const language = cleanLanguage(body.language);
 
   // context.geo/context.ip are Netlify Functions v2-only — populated by
   // Netlify's edge in production, generally absent/mocked in `netlify dev`
   // local runs. Default gracefully rather than erroring either way.
   const country = context.geo?.country?.code ?? "unknown";
   const ip = context.ip ?? "unknown";
-  const userAgent = req.headers.get("user-agent") ?? "unknown";
   const visitorHash = createHash("sha256").update(`${ip}|${userAgent}|${day}|${salt}`).digest("hex");
   const device = classifyDevice(userAgent);
   const browser = classifyBrowser(userAgent);

@@ -426,7 +426,7 @@ export default function ProjectDetailPage() {
                 type="button"
                 onClick={() => setIsEditModalOpen(true)}
                 title={t("projectDetail.editProjectTooltip")}
-                className="shrink-0 rounded p-1 text-ink-500 hover:bg-ink-800 hover:text-ink-200"
+                className="shrink-0 rounded-sm p-1 text-ink-500 hover:bg-ink-800 hover:text-ink-200"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -453,7 +453,7 @@ export default function ProjectDetailPage() {
               disabled={isChangingTeam}
               onChange={(event) => void handleChangeTeam(event.target.value || null)}
               title={t("projectDetail.teamSelectTooltip")}
-              className="rounded border border-ink-700 bg-ink-950 px-2 py-2 text-xs text-ink-300 disabled:opacity-50"
+              className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-2 text-xs text-ink-300 disabled:opacity-50"
             >
               <option value="">{t("projectDetail.personalOption")}</option>
               {myTeams.map((team) => (
@@ -467,7 +467,7 @@ export default function ProjectDetailPage() {
             <button
               type="button"
               onClick={() => void handleShare()}
-              className="flex items-center gap-1.5 rounded border border-ink-700 px-3 py-2 text-xs font-medium text-ink-200 hover:border-ink-500"
+              className="flex items-center gap-1.5 rounded-sm border border-ink-700 px-3 py-2 text-xs font-medium text-ink-200 hover:border-ink-500"
             >
               🔗 {shareCopied ? t("projectDetail.shareCopied") : t("projectDetail.shareProject")}
             </button>
@@ -478,7 +478,7 @@ export default function ProjectDetailPage() {
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || !isPro}
             title={!isPro ? t("projectDetail.uploadUpgradeTooltip") : ""}
-            className="flex items-center gap-2 rounded bg-accent-500 px-3 py-2 text-xs font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-sm bg-accent-500 px-3 py-2 text-xs font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
           >
             {isUploading ? t("projectDetail.uploading") : t("projectDetail.upload")}
           </button>
@@ -487,7 +487,7 @@ export default function ProjectDetailPage() {
               type="button"
               onClick={() => setIsDeleteProjectOpen(true)}
               title={t("projectDetail.deleteProjectTooltip")}
-              className="rounded border border-ink-700 px-3 py-2 text-xs font-medium text-red-400 hover:border-red-500/60 hover:bg-red-500/10"
+              className="rounded-sm border border-ink-700 px-3 py-2 text-xs font-medium text-red-400 hover:border-red-500/60 hover:bg-red-500/10"
             >
               {t("common.delete")}
             </button>
@@ -502,7 +502,7 @@ export default function ProjectDetailPage() {
       )}
 
       {error && (
-        <div className="mt-4 flex items-start justify-between gap-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+        <div className="mt-4 flex items-start justify-between gap-3 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
           <span>{error}</span>
           <button
             type="button"
@@ -527,7 +527,7 @@ export default function ProjectDetailPage() {
             <img
               src={project.thumbnailUrl}
               alt={project.name}
-              className="mt-3 aspect-square w-full rounded bg-ink-950 object-contain"
+              className="mt-3 aspect-square w-full rounded-sm bg-ink-950 object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
@@ -712,7 +712,7 @@ export default function ProjectDetailPage() {
           <select
             value={compareAId}
             onChange={(event) => setCompareAId(event.target.value)}
-            className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
+            className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
           >
             {versions.map((v) => (
               <option key={v.id} value={v.id}>
@@ -724,7 +724,7 @@ export default function ProjectDetailPage() {
           <select
             value={compareBId}
             onChange={(event) => setCompareBId(event.target.value)}
-            className="rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
+            className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
           >
             {versions.map((v) => (
               <option key={v.id} value={v.id}>
@@ -768,11 +768,11 @@ export default function ProjectDetailPage() {
                 >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold text-ink-300">
+                    <span className="shrink-0 rounded-sm bg-ink-800 px-1.5 py-0.5 text-[11px] font-semibold text-ink-300">
                       v{version.versionNumber}
                     </span>
                     {version.id === stableVersionId && (
-                      <span className="shrink-0 rounded border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-fg-400">
+                      <span className="shrink-0 rounded-sm border border-accent-800 bg-accent-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-fg-400">
                         {t("projectDetail.stable")}
                       </span>
                     )}
@@ -780,7 +780,7 @@ export default function ProjectDetailPage() {
                       <ApprovalBadge status={version.approvalStatus} />
                     )}
                     {version.gateStatus && version.gateStatus.totalCount > 0 && (
-                      <span className="shrink-0 rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
+                      <span className="shrink-0 rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400">
                         {t("approvalGates.gateCount", {
                           satisfied: version.gateStatus.satisfiedCount,
                           total: version.gateStatus.totalCount,
@@ -790,7 +790,7 @@ export default function ProjectDetailPage() {
                     {version.unresolvedCommentCount > 0 && (
                       <span
                         title={t("projectDetail.unresolvedTooltip", { count: version.unresolvedCommentCount })}
-                        className="shrink-0 rounded border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-fg-400"
+                        className="shrink-0 rounded-sm border border-amber-800 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-fg-400"
                       >
                         {t("projectDetail.unresolvedCount", { count: version.unresolvedCommentCount })}
                       </span>
@@ -810,7 +810,7 @@ export default function ProjectDetailPage() {
                     />
                     <Link
                       to={`/projects/${projectId}/versions/${version.id}`}
-                      className="shrink-0 rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
+                      className="shrink-0 rounded-sm border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
                     >
                       {t("projectDetail.view")}
                     </Link>
@@ -818,7 +818,7 @@ export default function ProjectDetailPage() {
                       type="button"
                       onClick={() => void handleDownloadVersion(version.id)}
                       title={t("projectDetail.downloadVersionTooltip")}
-                      className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-200 hover:border-ink-500"
+                      className="shrink-0 rounded-sm border border-ink-700 p-1.5 text-ink-200 hover:border-ink-500"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -830,7 +830,7 @@ export default function ProjectDetailPage() {
                       type="button"
                       onClick={() => setPendingDelete({ id: version.id, versionNumber: version.versionNumber })}
                       title={t("projectDetail.deleteVersionTooltip")}
-                      className="shrink-0 rounded border border-ink-700 p-1.5 text-ink-400 hover:border-red-700 hover:text-red-400"
+                      className="shrink-0 rounded-sm border border-ink-700 p-1.5 text-ink-400 hover:border-red-700 hover:text-red-400"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                         <polyline points="3 6 5 6 21 6" />

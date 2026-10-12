@@ -126,7 +126,7 @@ export default function AdminFeedbackPage() {
       </div>
 
       {error && (
-        <div className="mt-6 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="mt-6 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
       {data === null && !error && <div className="mt-6 text-sm text-ink-500">Loading…</div>}
@@ -167,7 +167,7 @@ export default function AdminFeedbackPage() {
                       onClick={() => setSelectedEntry(entry)}
                       className={`px-4 py-3 text-left hover:bg-ink-900/60 ${rowBorder}`}
                     >
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${TYPE_STYLE[entry.type]}`}>
+                      <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase ${TYPE_STYLE[entry.type]}`}>
                         {TYPE_LABEL[entry.type]}
                       </span>
                     </button>
@@ -176,7 +176,7 @@ export default function AdminFeedbackPage() {
                       onClick={() => setSelectedEntry(entry)}
                       className={`min-w-0 px-4 py-3 text-left text-sm text-ink-200 hover:bg-ink-900/60 ${rowBorder}`}
                     >
-                      <p className="line-clamp-2 break-words">{entry.message}</p>
+                      <p className="line-clamp-2 wrap-break-word">{entry.message}</p>
                       {entry.email && <p className="mt-1 truncate text-xs text-ink-500">{entry.email}</p>}
                     </button>
                     <button
@@ -220,7 +220,7 @@ export default function AdminFeedbackPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-sm border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 ← Prev
               </button>
@@ -231,7 +231,7 @@ export default function AdminFeedbackPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-sm border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next →
               </button>
@@ -251,7 +251,7 @@ export default function AdminFeedbackPage() {
           >
             <div className="flex items-start justify-between gap-3">
               <span
-                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${TYPE_STYLE[selectedEntry.type]}`}
+                className={`rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase ${TYPE_STYLE[selectedEntry.type]}`}
               >
                 {TYPE_LABEL[selectedEntry.type]}
               </span>
@@ -259,13 +259,13 @@ export default function AdminFeedbackPage() {
                 type="button"
                 onClick={() => setSelectedEntry(null)}
                 aria-label="Close"
-                className="rounded px-1 text-sm leading-none text-ink-500 hover:text-ink-200"
+                className="rounded-sm px-1 text-sm leading-none text-ink-500 hover:text-ink-200"
               >
                 ✕
               </button>
             </div>
 
-            <p className="mt-4 whitespace-pre-wrap break-words text-sm text-ink-100">{selectedEntry.message}</p>
+            <p className="mt-4 whitespace-pre-wrap wrap-break-word text-sm text-ink-100">{selectedEntry.message}</p>
 
             <div className="mt-5 space-y-2 border-t border-ink-800 pt-4 text-xs">
               <div className="flex items-center justify-between gap-3">
@@ -283,7 +283,7 @@ export default function AdminFeedbackPage() {
               {selectedEntry.userAgent && (
                 <div className="flex items-start justify-between gap-3">
                   <span className="shrink-0 text-ink-500">Browser</span>
-                  <span className="break-words text-right text-ink-400">{selectedEntry.userAgent}</span>
+                  <span className="wrap-break-word text-right text-ink-400">{selectedEntry.userAgent}</span>
                 </div>
               )}
               <div className="flex items-center justify-between gap-3">
@@ -317,7 +317,7 @@ export default function AdminFeedbackPage() {
               <button
                 type="button"
                 onClick={() => setPendingDeleteId(selectedEntry.id)}
-                className="rounded border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-600 hover:bg-red-500/10"
+                className="rounded-sm border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-600 hover:bg-red-500/10"
               >
                 Delete
               </button>

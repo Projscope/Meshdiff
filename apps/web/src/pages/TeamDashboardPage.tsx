@@ -213,7 +213,7 @@ export default function TeamDashboardPage() {
   if (error && !team) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
       </div>
     );
   }
@@ -241,7 +241,7 @@ export default function TeamDashboardPage() {
           <button
             type="button"
             onClick={() => void handleManageBilling()}
-            className="shrink-0 rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+            className="shrink-0 rounded-sm border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
           >
             Manage billing
           </button>
@@ -249,7 +249,7 @@ export default function TeamDashboardPage() {
       </div>
 
       {error && (
-        <div className="mt-4 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="mt-4 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -261,7 +261,7 @@ export default function TeamDashboardPage() {
       <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 p-4">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Members</p>
         {roleChangeError && (
-          <div className="mt-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+          <div className="mt-3 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
             {roleChangeError}
           </div>
         )}
@@ -280,14 +280,14 @@ export default function TeamDashboardPage() {
                       onChange={(event) =>
                         void handleRoleChange(member.userId, event.target.value as "admin" | "approver" | "member")
                       }
-                      className="rounded border border-ink-700 bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-300 disabled:opacity-50"
+                      className="rounded-sm border border-ink-700 bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-300 disabled:opacity-50"
                     >
                       <option value="admin">Admin</option>
                       <option value="approver">Approver</option>
                       <option value="member">Member</option>
                     </select>
                   ) : (
-                    <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-400">
+                    <span className="rounded-sm bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-400">
                       {member.isOwner ? "Owner" : member.role}
                     </span>
                   )}
@@ -296,7 +296,7 @@ export default function TeamDashboardPage() {
                       type="button"
                       onClick={() => setPendingRemove({ userId: member.userId, email: member.email })}
                       title="Remove from team"
-                      className="rounded px-1.5 py-0.5 text-xs text-red-400 hover:bg-red-500/10"
+                      className="rounded-sm px-1.5 py-0.5 text-xs text-red-400 hover:bg-red-500/10"
                     >
                       Remove
                     </button>
@@ -324,13 +324,13 @@ export default function TeamDashboardPage() {
                   setInviteEmail(event.target.value);
                   if (event.target.value === "") setInviteError(null);
                 }}
-                className="mt-1 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
+                className="mt-1 w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
               />
             </div>
             <select
               value={inviteRole}
               onChange={(event) => setInviteRole(event.target.value as "admin" | "approver" | "member")}
-              className="rounded border border-ink-700 bg-ink-950 px-2 py-2 text-sm text-ink-200"
+              className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-2 text-sm text-ink-200"
             >
               <option value="member">Member</option>
               <option value="approver">Approver</option>
@@ -339,7 +339,7 @@ export default function TeamDashboardPage() {
             <button
               type="submit"
               disabled={isInviting}
-              className="rounded bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
+              className="rounded-sm bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
             >
               {isInviting ? "Inviting…" : "Invite"}
             </button>
@@ -371,7 +371,7 @@ export default function TeamDashboardPage() {
                     <button
                       type="button"
                       onClick={() => void handleApprove(version.projectId, version.id)}
-                      className="shrink-0 rounded border border-accent-700 px-2.5 py-1 text-xs text-accent-fg-400 hover:border-accent-500"
+                      className="shrink-0 rounded-sm border border-accent-700 px-2.5 py-1 text-xs text-accent-fg-400 hover:border-accent-500"
                     >
                       Approve
                     </button>
@@ -380,7 +380,7 @@ export default function TeamDashboardPage() {
                       onClick={() =>
                         setPendingReject({ projectId: version.projectId, id: version.id, versionNumber: version.versionNumber })
                       }
-                      className="shrink-0 rounded border border-red-800 px-2.5 py-1 text-xs text-red-400 hover:border-red-600"
+                      className="shrink-0 rounded-sm border border-red-800 px-2.5 py-1 text-xs text-red-400 hover:border-red-600"
                     >
                       Reject
                     </button>
@@ -406,7 +406,7 @@ export default function TeamDashboardPage() {
                     setActivityDateFrom(event.target.value);
                     setActivityPage(1);
                   }}
-                  className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
+                  className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -418,7 +418,7 @@ export default function TeamDashboardPage() {
                     setActivityDateTo(event.target.value);
                     setActivityPage(1);
                   }}
-                  className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
+                  className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -429,7 +429,7 @@ export default function TeamDashboardPage() {
                     setActivityMember(event.target.value);
                     setActivityPage(1);
                   }}
-                  className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
+                  className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                 >
                   <option value="all">All members</option>
                   {activityActors.map((email) => (
@@ -443,7 +443,7 @@ export default function TeamDashboardPage() {
                 <button
                   type="button"
                   onClick={clearActivityFilters}
-                  className="rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-400 hover:border-ink-500 hover:text-ink-200"
+                  className="rounded-sm border border-ink-700 px-2.5 py-1 text-xs text-ink-400 hover:border-ink-500 hover:text-ink-200"
                 >
                   Clear filters
                 </button>
@@ -493,7 +493,7 @@ export default function TeamDashboardPage() {
                       <span className="whitespace-nowrap text-right text-xs text-ink-400">
                         {entry.actorEmail ?? "Someone"}
                       </span>
-                      <span className="justify-self-end rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-400">
+                      <span className="justify-self-end rounded-sm bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase text-ink-400">
                         {actor?.isOwner ? "Owner" : (actor?.role ?? "—")}
                       </span>
                     </div>
@@ -514,7 +514,7 @@ export default function TeamDashboardPage() {
                     type="button"
                     disabled={activityPageClamped <= 1}
                     onClick={() => setActivityPage(activityPageClamped - 1)}
-                    className="rounded border border-ink-700 px-2.5 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ink-700"
+                    className="rounded-sm border border-ink-700 px-2.5 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ink-700"
                   >
                     Previous
                   </button>
@@ -525,7 +525,7 @@ export default function TeamDashboardPage() {
                     type="button"
                     disabled={activityPageClamped >= activityTotalPages}
                     onClick={() => setActivityPage(activityPageClamped + 1)}
-                    className="rounded border border-ink-700 px-2.5 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ink-700"
+                    className="rounded-sm border border-ink-700 px-2.5 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ink-700"
                   >
                     Next
                   </button>

@@ -18,15 +18,15 @@ export default function UpgradeToTeamModal({ onClose }: { onClose: () => void })
   }
 
   return (
-    // z-[110]: the 3D viewer's comment pins render via drei's <Html>
+    // z-110: the 3D viewer's comment pins render via drei's <Html>
     // with zIndexRange={[100, 0]} (see CommentPopover.tsx) — a plain z-50
     // here would let an open comment popover render on top of this modal.
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
         className="w-full max-w-sm rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <span className="rounded bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-fg-400">
+        <span className="rounded-sm bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-fg-400">
           Team plan
         </span>
         <h3 className="mt-3 text-sm font-semibold text-ink-50">Upgrade to create a team</h3>
@@ -40,14 +40,14 @@ export default function UpgradeToTeamModal({ onClose }: { onClose: () => void })
             type="button"
             onClick={() => void handleUpgrade()}
             disabled={isStarting}
-            className="flex-1 rounded bg-accent-500 px-4 py-2 text-center text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
+            className="flex-1 rounded-sm bg-accent-500 px-4 py-2 text-center text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
           >
             {isStarting ? "Redirecting…" : "Upgrade to Team"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded border border-ink-700 px-4 py-2 text-center text-sm text-ink-300 hover:border-ink-500"
+            className="flex-1 rounded-sm border border-ink-700 px-4 py-2 text-center text-sm text-ink-300 hover:border-ink-500"
           >
             Cancel
           </button>

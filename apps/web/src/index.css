@@ -1,6 +1,154 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, Segoe UI,
+    Helvetica, Arial, sans-serif;
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink-50: rgb(var(--ink-50));
+  --color-ink-100: rgb(var(--ink-100));
+  --color-ink-200: rgb(var(--ink-200));
+  --color-ink-300: rgb(var(--ink-300));
+  --color-ink-400: rgb(var(--ink-400));
+  --color-ink-500: rgb(var(--ink-500));
+  --color-ink-600: rgb(var(--ink-600));
+  --color-ink-700: rgb(var(--ink-700));
+  --color-ink-800: rgb(var(--ink-800));
+  --color-ink-900: rgb(var(--ink-900));
+  --color-ink-950: rgb(var(--ink-950));
+
+  --color-chrome-50: #f5f7fb;
+  --color-chrome-100: #e8ecf3;
+  --color-chrome-200: #d1d8e4;
+  --color-chrome-300: #aab5c8;
+  --color-chrome-400: #7c879e;
+  --color-chrome-500: #5a6478;
+  --color-chrome-600: #444d5f;
+  --color-chrome-700: #333b4a;
+  --color-chrome-800: #262c38;
+  --color-chrome-900: #1b1f27;
+  --color-chrome-950: #15181e;
+
+  --color-accent-50: #ecfdf5;
+  --color-accent-100: #d1fae5;
+  --color-accent-200: #a7f3d0;
+  --color-accent-300: #6ee7b7;
+  --color-accent-400: #34d399;
+  --color-accent-500: #10b981;
+  --color-accent-600: #059669;
+  --color-accent-700: #047857;
+  --color-accent-800: #065f46;
+  --color-accent-900: #064e3b;
+  --color-accent-950: #022c22;
+
+  --color-accent-fg-300: rgb(var(--accent-fg-300));
+  --color-accent-fg-400: rgb(var(--accent-fg-400));
+
+  --color-amber-fg-300: rgb(var(--amber-fg-300));
+  --color-amber-fg-400: rgb(var(--amber-fg-400));
+
+  /* Tailwind 4 turned these into unitless ratios, which children with an
+     arbitrary size (text-[11px]) inherit scaled to their own font size;
+     Tailwind 3 passed down the fixed rem value. Pinned to v3's values so
+     small badges and labels keep their original height. */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+  --text-5xl--line-height: 1;
+  --text-6xl--line-height: 1;
+  --text-7xl--line-height: 1;
+  --text-8xl--line-height: 1;
+  --text-9xl--line-height: 1;
+
+  /* Tailwind 4 redefined its stock palette in OKLCH, which shifts hues
+     slightly. These pin the stops this app actually uses to their Tailwind 3
+     hex values so the migration doesn't change any color. */
+  --color-gray-200: #e5e7eb;
+  --color-red-200: #fecaca;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-red-800: #991b1b;
+  --color-red-950: #450a0a;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-800: #92400e;
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
+  --color-green-400: #4ade80;
+  --color-green-500: #22c55e;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
+  --color-sky-500: #0ea5e9;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-800: #3730a3;
+  --color-indigo-950: #1e1b4b;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-purple-400: #c084fc;
+  --color-purple-500: #a855f7;
+  --color-fuchsia-400: #e879f9;
+  --color-fuchsia-500: #d946ef;
+  --color-pink-400: #f472b6;
+  --color-pink-500: #ec4899;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-500: #737373;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+  --color-neutral-950: #0a0a0a;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  /* Tailwind 3 used gray-400 for placeholders; Tailwind 4 uses 50% of the
+     text color, which would shift every input without its own placeholder
+     class. */
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+  }
+
+  /* Tailwind 3's preflight made enabled buttons show a pointer cursor;
+     Tailwind 4 dropped that, so restore it. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 /* Theme tokens for the `ink` Tailwind color scale (see tailwind.config.js).
    Dark is the site's native/default theme; :root carries those values
@@ -193,14 +341,14 @@ body {
   margin-top: 1.5em;
 }
 .prose-blog a {
-  color: theme("colors.accent-fg.400");
+  color: var(--color-accent-fg-400);
   text-decoration: underline;
-  text-decoration-color: theme("colors.accent-fg.400" / 40%);
+  text-decoration-color: rgb(var(--accent-fg-400) / 40%);
   text-underline-offset: 2px;
 }
 .prose-blog a:hover {
-  color: theme("colors.accent-fg.300");
-  text-decoration-color: theme("colors.accent-fg.300");
+  color: var(--color-accent-fg-300);
+  text-decoration-color: var(--color-accent-fg-300);
 }
 .prose-blog strong {
   color: rgb(var(--ink-50));

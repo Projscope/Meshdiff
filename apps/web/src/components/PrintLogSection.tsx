@@ -234,14 +234,14 @@ function PrintPhotoBlock({
             value={caption}
             onChange={(event) => setCaption(event.target.value)}
             placeholder={t("printLog.captionPlaceholder")}
-            className="w-full rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-xs text-ink-100 placeholder:text-ink-600 focus:border-accent-500 focus:outline-none"
+            className="w-full rounded-sm border border-ink-700 bg-ink-950 px-2 py-1.5 text-xs text-ink-100 placeholder:text-ink-600 focus:border-accent-500 focus:outline-hidden"
           />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => void handleUpload()}
               disabled={isBusy}
-              className="rounded bg-accent-500 px-2.5 py-1 text-[11px] font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
+              className="rounded-sm bg-accent-500 px-2.5 py-1 text-[11px] font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
             >
               {isBusy ? t("printLog.uploading") : t("printLog.save")}
             </button>

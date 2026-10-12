@@ -50,8 +50,30 @@ export function initAnalytics(): void {
  * need to know whether it succeeded. `sendBeacon` survives the page
  * unloading immediately after (e.g. on a route change), which a plain
  * fetch can't reliably guarantee without `keepalive`. */
+const OWNER_FLAG_KEY = "meshdiff_no_track";
+
+/** Remembers that this browser belongs to an admin so its public-page visits
+ * stop counting — IP filtering would break on a dynamic IP. Survives sign-out
+ * on purpose; clear localStorage to start counting this browser again. */
+export function markBrowserAsOwner(): void {
+  try {
+    localStorage.setItem(OWNER_FLAG_KEY, "1");
+  } catch {
+    // Storage blocked — worst case the admin's own visits keep counting.
+  }
+}
+
+function isOwnerBrowser(): boolean {
+  try {
+    return localStorage.getItem(OWNER_FLAG_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function trackPageview(): void {
   if (!import.meta.env.PROD) return;
+  if (isOwnerBrowser()) return;
 
   const payload = JSON.stringify({
     path: window.location.pathname,

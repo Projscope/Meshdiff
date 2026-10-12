@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Canvas } from "@react-three/fiber";
@@ -17,6 +17,8 @@ import { useMeasureTool } from "../lib/useMeasureTool";
 import { meshRepairWarning } from "../lib/meshRepairMessage";
 import type { MeshRepairReport } from "@meshdiff/shared/engine/repairMesh";
 import { useShadingMode } from "../lib/shadingMode";
+import { useClippingPlaneState, computeClippingPlane } from "../lib/clippingPlane";
+import ClippingPlaneControl from "./ClippingPlaneControl";
 import EdgeOverlay from "./EdgeOverlay";
 
 interface ViewerProps {
@@ -68,6 +70,11 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
   const zoomToFitRef = useRef<(() => void) | null>(null);
   const measure = useMeasureTool();
   const [shadingMode] = useShadingMode();
+  const [clippingPlaneState] = useClippingPlaneState();
+  const clipPlane = useMemo(
+    () => computeClippingPlane(clippingPlaneState, displayGeometry),
+    [clippingPlaneState, displayGeometry],
+  );
 
   async function handleFile(file: File) {
     const result = await loadMeshGeometry(file);
@@ -185,7 +192,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           type="button"
           onClick={() => setShowControls(!showControls)}
           title={t("viewer.rotateZoomSpeedTooltip")}
-          className="rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
+          className="rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
         >
           ⚙
         </button>
@@ -196,9 +203,10 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             onResetView={() => resetViewRef.current?.()}
           />
         )}
+        {geometry && <ClippingPlaneControl />}
       </div>
       {showControls && geometry && (
-        <div className="absolute left-3 top-8 z-20 rounded border border-ink-700 bg-ink-900 p-2 text-xs text-ink-300">
+        <div className="absolute left-3 top-8 z-20 rounded-sm border border-ink-700 bg-ink-900 p-2 text-xs text-ink-300">
           <div className="flex flex-col gap-1.5 w-32">
             <label className="flex items-center justify-between gap-2">
               <span>Rotate:</span>
@@ -227,14 +235,14 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
-              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
+              className="mt-1 w-full rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Zoom to model
             </button>
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
-              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
+              className="mt-1 w-full rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Reset view
             </button>
@@ -243,7 +251,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       )}
       {meshWarning && geometry && (
         <div
-          className="absolute left-3 right-3 top-9 z-10 truncate rounded bg-amber-500/10 px-2 py-1 text-[10px] text-amber-fg-300"
+          className="absolute left-3 right-3 top-9 z-10 truncate rounded-sm bg-amber-500/10 px-2 py-1 text-[10px] text-amber-fg-300"
           title={meshWarning}
         >
           ⚠ {meshWarning}
@@ -259,7 +267,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 event.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
+              className="rounded-sm border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
             >
               Browse files
             </button>
@@ -271,7 +279,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                   void handleLoadDemo();
                 }}
                 disabled={isLoadingDemo}
-                className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50 disabled:opacity-50"
+                className="rounded-sm border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50 disabled:opacity-50"
               >
                 {isLoadingDemo ? "Loading…" : "or load demo"}
               </button>
@@ -284,6 +292,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         gl={{ preserveDrawingBuffer: true }}
         onCreated={({ gl }) => {
           canvasElRef.current = gl.domElement;
+          gl.localClippingEnabled = true;
         }}
       >
         <ModelScene gridFadeDistance={gridFadeDistance}>
@@ -297,20 +306,22 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 onPointerMove={measure.onPointerMove}
                 onPointerOut={measure.onPointerOut}
               >
-                {/* key forces a fresh material instance when hasVertexColors
-                    or shadingMode flips — mutating vertexColors/flatShading
-                    on an already-compiled material in place doesn't
-                    recompile its shader, so the change would silently be
-                    ignored otherwise. */}
+                {/* key forces a fresh material instance when hasVertexColors,
+                    shadingMode, or whether a clip plane is active changes —
+                    mutating vertexColors/flatShading/clippingPlanes count on
+                    an already-compiled material in place doesn't recompile
+                    its shader, so the change would silently be ignored
+                    otherwise. */}
                 <meshStandardMaterial
-                  key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}`}
+                  key={`${hasVertexColors ? "vertex-colors" : "solid"}-${shadingMode}-${clipPlane ? "clip" : "noclip"}`}
                   color={hasVertexColors ? "#ffffff" : "#4f8ff7"}
                   vertexColors={hasVertexColors}
                   flatShading={shadingMode === "flat"}
                   transparent={shadingMode === "transparent"}
                   opacity={shadingMode === "transparent" ? 0.4 : 1}
                   depthWrite={shadingMode !== "transparent"}
-                  side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
+                  side={shadingMode === "transparent" || clipPlane ? THREE.DoubleSide : THREE.FrontSide}
+                  clippingPlanes={clipPlane ? [clipPlane] : []}
                 />
               </mesh>
               {shadingMode === "transparent" && <EdgeOverlay geometry={displayGeometry} />}

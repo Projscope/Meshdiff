@@ -30,20 +30,20 @@ export default function RejectVersionModal({ versionLabel, isSubmitting, onConfi
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             rows={3}
-            className="rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
+            className="rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
           />
           <div className="mt-2 flex gap-2">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 rounded bg-red-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-red-500 disabled:opacity-50"
+              className="flex-1 rounded-sm bg-red-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-red-500 disabled:opacity-50"
             >
               {isSubmitting ? "Rejecting…" : "Reject"}
             </button>
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+              className="flex-1 rounded-sm border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
             >
               Cancel
             </button>

@@ -52,7 +52,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         type="button"
         onClick={onZoomToFit}
         title={t("viewer.zoomToFit")}
-        className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+        className="flex h-7 w-7 items-center justify-center rounded-sm text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
       >
         ⛶
       </button>
@@ -60,7 +60,7 @@ export default function MeasureToolbar({ measure, onZoomToFit, onResetView }: Me
         type="button"
         onClick={onResetView}
         title={t("viewer.resetViewTooltip")}
-        className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+        className="flex h-7 w-7 items-center justify-center rounded-sm text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
       >
         ⟲
       </button>

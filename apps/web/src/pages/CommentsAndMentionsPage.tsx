@@ -81,7 +81,7 @@ export default function CommentsAndMentionsPage() {
 
       <h2 className="mt-10 text-2xl font-bold text-ink-50">@Mentions</h2>
       <p className="mt-4">
-        Type <code className="rounded bg-ink-900 px-1.5 py-0.5 text-xs">@</code> followed by a teammate's email
+        Type <code className="rounded-sm bg-ink-900 px-1.5 py-0.5 text-xs">@</code> followed by a teammate's email
         anywhere in a comment or reply — Meshdiff matches by full email address, not a username or handle, the same
         convention team invites already use. A mention only notifies someone if they actually have access to the
         project; an @-mention of an email with no access (or no Meshdiff account at all) is simply left as plain

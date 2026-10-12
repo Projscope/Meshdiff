@@ -21,7 +21,7 @@ export default function CommentStatusBadge({ status }: { status: CommentStatus }
     reopened: t("comments.statusReopened"),
   };
   return (
-    <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${STYLES[status]}`}>
+    <span className={`rounded-sm border px-1.5 py-0.5 text-[10px] font-medium ${STYLES[status]}`}>
       {labels[status]}
     </span>
   );

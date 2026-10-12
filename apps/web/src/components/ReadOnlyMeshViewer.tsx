@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { Bounds, OrbitControls } from "@react-three/drei";
@@ -11,6 +11,8 @@ import MeasureSceneOverlay from "./MeasureSceneOverlay";
 import { useMeasureTool } from "../lib/useMeasureTool";
 import { useControlScheme, useOrbitMouseButtons } from "../lib/controlScheme";
 import { useShadingMode } from "../lib/shadingMode";
+import { useClippingPlaneState, computeClippingPlane } from "../lib/clippingPlane";
+import ClippingPlaneControl from "./ClippingPlaneControl";
 import EdgeOverlay from "./EdgeOverlay";
 
 interface ReadOnlyMeshViewerProps {
@@ -41,6 +43,11 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
   const mouseButtons = useOrbitMouseButtons(controlScheme);
   const measure = useMeasureTool();
   const [shadingMode] = useShadingMode();
+  const [clippingPlaneState] = useClippingPlaneState();
+  const clipPlane = useMemo(
+    () => computeClippingPlane(clippingPlaneState, geometry),
+    [clippingPlaneState, geometry],
+  );
 
   useImperativeHandle(ref, () => ({
     captureScreenshot: () => canvasElRef.current?.toDataURL("image/png") ?? null,
@@ -68,6 +75,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
           {geometry ? label : fallbackLabel}
         </span>
         {geometry && <MeasureToolbar measure={measure} onZoomToFit={() => zoomToFitRef.current?.()} onResetView={() => resetViewRef.current?.()} />}
+        {geometry && <ClippingPlaneControl />}
       </div>
       {!geometry && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-ink-600">
@@ -79,6 +87,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
         gl={{ preserveDrawingBuffer: true }}
         onCreated={({ gl }) => {
           canvasElRef.current = gl.domElement;
+          gl.localClippingEnabled = true;
         }}
       >
         <ModelScene>
@@ -95,17 +104,19 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
                 onPointerMove={measure.onPointerMove}
                 onPointerOut={measure.onPointerOut}
               >
-                {/* key forces a fresh material instance when shadingMode
-                    flips — mutating flatShading on an already-compiled
+                {/* key forces a fresh material instance when shadingMode or
+                    whether a clip plane is active changes — mutating
+                    flatShading/clippingPlanes count on an already-compiled
                     material doesn't recompile its shader. */}
                 <meshStandardMaterial
-                  key={shadingMode}
+                  key={`${shadingMode}-${clipPlane ? "clip" : "noclip"}`}
                   color={color}
                   flatShading={shadingMode === "flat"}
                   transparent={shadingMode === "transparent"}
                   opacity={shadingMode === "transparent" ? 0.4 : 1}
                   depthWrite={shadingMode !== "transparent"}
-                  side={shadingMode === "transparent" ? THREE.DoubleSide : THREE.FrontSide}
+                  side={shadingMode === "transparent" || clipPlane ? THREE.DoubleSide : THREE.FrontSide}
+                  clippingPlanes={clipPlane ? [clipPlane] : []}
                 />
               </mesh>
               {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}

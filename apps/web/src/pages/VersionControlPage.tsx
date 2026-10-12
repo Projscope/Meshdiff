@@ -25,7 +25,7 @@ export default function VersionControlPage() {
       <h2 className="text-2xl font-bold text-ink-50">Text version control doesn't work for meshes</h2>
       <p className="mt-4">
         Git, and every version control system built on it, works by diffing lines of text. That's fine for code and
-        even for a slicer's <code className="rounded bg-ink-900 px-1.5 py-0.5 text-xs">.gcode</code> or config
+        even for a slicer's <code className="rounded-sm bg-ink-900 px-1.5 py-0.5 text-xs">.gcode</code> or config
         files, but it falls apart the moment you point it at an STL, 3MF, or OBJ file. Binary mesh formats have no
         "lines" to diff — a single tweak to one dimension can reorder every triangle in the file, so Git sees a
         completely rewritten blob and can tell you nothing more useful than "this file changed." You end up back to

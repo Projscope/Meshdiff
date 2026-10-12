@@ -52,10 +52,10 @@ export default function TrialTierChoiceModal({ onClose }: { onClose: () => void 
   }
 
   return (
-    // z-[110]: matches UpgradeToTeamModal.tsx — the 3D viewer's comment
+    // z-110: matches UpgradeToTeamModal.tsx — the 3D viewer's comment
     // pins render via drei's <Html> with zIndexRange={[100, 0]}, so a plain
     // z-50 here would let an open comment popover render on top.
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4" onClick={handleClose}>
+    <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/70 p-4" onClick={handleClose}>
       <div
         className="w-full max-w-2xl rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
@@ -69,7 +69,7 @@ export default function TrialTierChoiceModal({ onClose }: { onClose: () => void 
             type="button"
             onClick={handleClose}
             title={t("trialTierChoice.close")}
-            className="shrink-0 rounded px-1 text-sm leading-none text-ink-500 hover:text-ink-200"
+            className="shrink-0 rounded-sm px-1 text-sm leading-none text-ink-500 hover:text-ink-200"
           >
             ✕
           </button>

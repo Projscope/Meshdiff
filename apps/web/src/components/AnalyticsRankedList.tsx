@@ -39,7 +39,7 @@ export default function AnalyticsRankedList({
       <div className="mt-3 flex flex-col gap-2">
         {entries.length === 0 && <p className="text-sm text-ink-600">No data yet</p>}
         {visible.map((entry) => (
-          <div key={entry.value} className="relative overflow-hidden rounded" title={entry.value}>
+          <div key={entry.value} className="relative overflow-hidden rounded-sm" title={entry.value}>
             <div
               className="absolute inset-y-0 left-0 bg-accent-500/15"
               style={{ width: `${(entry.count / max) * 100}%` }}
@@ -65,7 +65,7 @@ export default function AnalyticsRankedList({
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-sm border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             ← Prev
           </button>
@@ -76,7 +76,7 @@ export default function AnalyticsRankedList({
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-sm border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next →
           </button>

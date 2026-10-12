@@ -63,7 +63,7 @@ export default function PendingCommentPopover({ position, members, onSubmit, onC
           value={text}
           onChange={(event) => setText(event.target.value)}
           placeholder="Leave a comment at this point…"
-          className="w-full rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-600"
+          className="w-full rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-600"
         />
         {mentionMatch && members.length > 0 && (
           <MentionAutocomplete members={members} query={mentionMatch[1]} onSelect={handleSelectMention} />
@@ -83,7 +83,7 @@ export default function PendingCommentPopover({ position, members, onSubmit, onC
                 <select
                   value={assigneeUserId}
                   onChange={(event) => setAssigneeUserId(event.target.value)}
-                  className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-1.5 py-1 text-[11px] text-ink-200"
+                  className="min-w-0 flex-1 rounded-sm border border-ink-700 bg-ink-950 px-1.5 py-1 text-[11px] text-ink-200"
                 >
                   <option value="">{t("comments.unassigned")}</option>
                   {members
@@ -97,7 +97,7 @@ export default function PendingCommentPopover({ position, members, onSubmit, onC
                 <select
                   value={priority}
                   onChange={(event) => setPriority(event.target.value as CommentPriority | "")}
-                  className="shrink-0 rounded border border-ink-700 bg-ink-950 px-1.5 py-1 text-[11px] text-ink-200"
+                  className="shrink-0 rounded-sm border border-ink-700 bg-ink-950 px-1.5 py-1 text-[11px] text-ink-200"
                 >
                   <option value="">{t("comments.priorityNone")}</option>
                   <option value="low">{t("comments.priorityLow")}</option>
@@ -113,14 +113,14 @@ export default function PendingCommentPopover({ position, members, onSubmit, onC
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-sm bg-indigo-600 px-2 py-1 text-[11px] font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
           >
             {isSubmitting ? "Posting…" : "Post"}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
+            className="rounded-sm border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
           >
             Cancel
           </button>

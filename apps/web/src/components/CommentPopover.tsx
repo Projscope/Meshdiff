@@ -64,7 +64,7 @@ function CommentEntry({
   return (
     <div
       className={
-        highlighted ? "-mx-1.5 rounded border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-1.5" : undefined
+        highlighted ? "-mx-1.5 rounded-sm border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-1.5" : undefined
       }
     >
       <div className="flex items-center gap-1.5">
@@ -77,7 +77,7 @@ function CommentEntry({
         </span>
         <CommentStatusBadge status={comment.status} />
       </div>
-      <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
+      <p className="mt-0.5 whitespace-pre-wrap wrap-break-word text-xs text-ink-100">{comment.body}</p>
       {comment.assigneeEmail && (
         <p className="mt-0.5 text-[10px] text-ink-500">
           → <span className="text-ink-400">{emailLocalPart(comment.assigneeEmail)}</span>
@@ -158,14 +158,14 @@ export default function CommentPopover({
           type="button"
           onClick={onClose}
           title={t("viewer.closeTooltip")}
-          className="absolute right-1.5 top-1.5 rounded px-1 text-xs leading-none text-ink-500 hover:text-ink-200"
+          className="absolute right-1.5 top-1.5 rounded-sm px-1 text-xs leading-none text-ink-500 hover:text-ink-200"
         >
           ✕
         </button>
 
         <div
           className={`pr-5 ${
-            isTopCommentLinked ? "-mx-1.5 rounded border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-4" : ""
+            isTopCommentLinked ? "-mx-1.5 rounded-sm border-l-2 border-accent-500 bg-accent-500/10 py-1 pl-2 pr-4" : ""
           }`}
         >
           <div className="flex items-center gap-1.5">
@@ -178,7 +178,7 @@ export default function CommentPopover({
             </span>
             <CommentStatusBadge status={comment.status} />
           </div>
-          <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-ink-100">{comment.body}</p>
+          <p className="mt-0.5 whitespace-pre-wrap wrap-break-word text-xs text-ink-100">{comment.body}</p>
           {comment.assigneeEmail && (
             <p className="mt-0.5 text-[10px] text-ink-500">
               → <span className="text-ink-400">{emailLocalPart(comment.assigneeEmail)}</span>
@@ -195,7 +195,7 @@ export default function CommentPopover({
               value={replyText}
               onChange={(event) => setReplyText(event.target.value)}
               placeholder={t("comments.writeReplyPlaceholder")}
-              className="w-full rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-600"
+              className="w-full rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-600"
             />
             {mentionMatch && members.length > 0 && (
               <MentionAutocomplete members={members} query={mentionMatch[1]} onSelect={handleSelectMention} />
@@ -204,14 +204,14 @@ export default function CommentPopover({
               <button
                 type="submit"
                 disabled={isSubmittingReply}
-                className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
+                className="rounded-sm bg-indigo-600 px-2 py-1 text-[11px] font-medium text-ink-50 hover:bg-indigo-500 disabled:opacity-50"
               >
                 {isSubmittingReply ? t("comments.posting") : t("comments.post")}
               </button>
               <button
                 type="button"
                 onClick={() => setIsReplying(false)}
-                className="rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
+                className="rounded-sm border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
               >
                 {t("common.cancel")}
               </button>

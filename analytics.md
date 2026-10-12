@@ -89,12 +89,14 @@ same trust boundary as every other RPC in this project — see
   — atomic upsert-increment. Supabase-js's `.upsert()` can't express
   `SET count = count + 1` without a read-then-write race, hence the RPC.
 - `count_distinct_visitors(from, to)` — `COUNT(DISTINCT visitor_hash)` over
-  a date range. **This is the only correct way to get a true period-level
-  unique-visitor count** — summing `analytics_daily_rollup`'s per-day
-  `visitor_count` across a range double-counts a visitor active on
-  multiple days. The rollup's `visitor_count` is only valid as a *daily*
-  metric (used for the trend chart); the dashboard's period-total "Unique
-  Visitors" stat card always goes through this RPC instead.
+  a date range. Because the hash includes the day, this counts
+  **visitor-days**, not people: someone visiting on 3 days counts 3 times.
+  It does avoid double-counting repeat pageviews within a day, which is why
+  the dashboard card (labeled "Visitor-Days") uses it rather than summing
+  `analytics_daily_rollup`'s per-day `visitor_count`. That per-day count is
+  only meaningful as a *daily* metric (the trend chart). Real unique people
+  across days can't be computed without weakening the daily-rotation
+  privacy guarantee.
 
 RLS is enabled on both tables with **no policies** — service-role only,
 same lesson as the `blog_posts` RLS incident (see `CLAUDE.md`): never skip
@@ -227,8 +229,11 @@ Once deployed with the env vars set:
 - Removing GA / its CSP entries — deliberate, not an oversight; the two
   systems are meant to run in parallel for a transition period first.
 - Any retention/pruning job for `analytics_visitor_daily`.
-- Bot/crawler filtering — every request that reaches the beacon is
-  counted; there's no user-agent-based bot exclusion list.
+- Reliable bot filtering — `track.mts` drops requests whose User-Agent
+  matches a bot/headless/scripted-client regex or that carry a malformed
+  `path`, but a client that fakes its UA still counts. Admin browsers are
+  excluded client-side via the `meshdiff_no_track` localStorage flag
+  (set once an admin signs in), not by IP.
 - A "last N months" query for anything other than the 30-day/6-month
   presets already in the UI — the API itself takes arbitrary `from`/`to`,
   so this is a UI-only limitation, not a data-model one.

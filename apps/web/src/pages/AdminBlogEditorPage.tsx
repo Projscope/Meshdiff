@@ -275,7 +275,7 @@ export default function AdminBlogEditorPage() {
                 setTitle(event.target.value);
                 if (!slugTouched) setSlug(slugify(event.target.value));
               }}
-              className="mt-1.5 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-none"
+              className="mt-1.5 w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-hidden"
               placeholder="What the post is about"
             />
           </div>
@@ -290,7 +290,7 @@ export default function AdminBlogEditorPage() {
                 setSlugTouched(true);
                 setSlug(slugify(event.target.value));
               }}
-              className="mt-1.5 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-none"
+              className="mt-1.5 w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-hidden"
             />
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
@@ -328,7 +328,7 @@ export default function AdminBlogEditorPage() {
             type="button"
             onClick={() => void handleSave()}
             disabled={isSaving}
-            className="rounded border border-ink-700 px-3 py-1.5 text-sm text-ink-200 hover:border-ink-500 disabled:opacity-50"
+            className="rounded-sm border border-ink-700 px-3 py-1.5 text-sm text-ink-200 hover:border-ink-500 disabled:opacity-50"
           >
             Save
           </button>
@@ -337,7 +337,7 @@ export default function AdminBlogEditorPage() {
               type="button"
               onClick={() => void handleSave("draft")}
               disabled={isSaving}
-              className="rounded border border-ink-700 px-3 py-1.5 text-sm text-ink-200 hover:border-ink-500 disabled:opacity-50"
+              className="rounded-sm border border-ink-700 px-3 py-1.5 text-sm text-ink-200 hover:border-ink-500 disabled:opacity-50"
             >
               Unpublish
             </button>
@@ -366,7 +366,7 @@ export default function AdminBlogEditorPage() {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Post title"
-            className="w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-lg font-semibold text-ink-50 focus:border-accent-500 focus:outline-none"
+            className="w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-lg font-semibold text-ink-50 focus:border-accent-500 focus:outline-hidden"
           />
 
           {!showPreview && (
@@ -375,7 +375,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => wrapSelection("**", "**", "bold text")}
                 title="Bold (Ctrl/Cmd+B)"
-                className="flex h-7 w-7 items-center justify-center rounded text-sm font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-sm font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 B
               </button>
@@ -383,7 +383,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => wrapSelection("_", "_", "italic text")}
                 title="Italic (Ctrl/Cmd+I)"
-                className="flex h-7 w-7 items-center justify-center rounded text-sm italic text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-sm italic text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 I
               </button>
@@ -391,7 +391,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => wrapSelection("`", "`", "code")}
                 title="Inline code"
-                className="flex h-7 w-7 items-center justify-center rounded font-mono text-xs text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm font-mono text-xs text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 {"</>"}
               </button>
@@ -400,7 +400,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => prefixLines("## ")}
                 title="Heading"
-                className="flex h-7 w-7 items-center justify-center rounded text-xs font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-xs font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 H2
               </button>
@@ -408,7 +408,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => prefixLines("### ")}
                 title="Subheading"
-                className="flex h-7 w-7 items-center justify-center rounded text-xs font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-xs font-bold text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 H3
               </button>
@@ -416,7 +416,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => prefixLines("> ")}
                 title="Blockquote"
-                className="flex h-7 w-7 items-center justify-center rounded text-base text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-base text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 &ldquo;
               </button>
@@ -424,7 +424,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => prefixLines("- ")}
                 title="Bullet list"
-                className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 •&nbsp;—
               </button>
@@ -432,7 +432,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => prefixLines("1. ")}
                 title="Numbered list"
-                className="flex h-7 w-7 items-center justify-center rounded text-xs text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+                className="flex h-7 w-7 items-center justify-center rounded-sm text-xs text-ink-300 hover:bg-ink-800 hover:text-ink-50"
               >
                 1.
               </button>
@@ -478,7 +478,7 @@ export default function AdminBlogEditorPage() {
           </div>
 
           {showPreview ? (
-            <div className="min-h-[400px] rounded border border-ink-800 bg-ink-900 p-4">
+            <div className="min-h-[400px] rounded-sm border border-ink-800 bg-ink-900 p-4">
               <BlogMarkdown markdown={contentMarkdown} />
             </div>
           ) : (
@@ -488,7 +488,7 @@ export default function AdminBlogEditorPage() {
               onChange={(event) => setContentMarkdown(event.target.value)}
               onKeyDown={handleContentKeyDown}
               placeholder={"Write in Markdown — separate paragraphs with a blank line. Use \"+ Insert link\" for links, \"+ Image URL\" for an already-hosted image, or \"+ Upload image/video\" to upload one, or embed a YouTube/Vimeo link inline with {{video:https://youtube.com/watch?v=...}}"}
-              className="h-[400px] w-full rounded border border-ink-800 bg-ink-900 p-4 font-mono text-sm text-ink-100 focus:border-accent-500 focus:outline-none"
+              className="h-[400px] w-full rounded-sm border border-ink-800 bg-ink-900 p-4 font-mono text-sm text-ink-100 focus:border-accent-500 focus:outline-hidden"
             />
           )}
         </div>
@@ -502,7 +502,7 @@ export default function AdminBlogEditorPage() {
               type="text"
               value={slug}
               onChange={(event) => setSlug(slugify(event.target.value))}
-              className="mt-1.5 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-none"
+              className="mt-1.5 w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-hidden"
             />
           </div>
 
@@ -517,7 +517,7 @@ export default function AdminBlogEditorPage() {
               value={excerpt}
               onChange={(event) => setExcerpt(event.target.value)}
               placeholder="Shown on the blog index and used as the meta description"
-              className="mt-1.5 h-20 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-none"
+              className="mt-1.5 h-20 w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 focus:border-accent-500 focus:outline-hidden"
             />
           </div>
 
@@ -542,7 +542,7 @@ export default function AdminBlogEditorPage() {
                 type="button"
                 onClick={() => coverInputRef.current?.click()}
                 disabled={isUploading}
-                className="mt-1.5 w-full rounded border border-dashed border-ink-700 py-6 text-xs text-ink-400 hover:border-ink-500 disabled:opacity-50"
+                className="mt-1.5 w-full rounded-sm border border-dashed border-ink-700 py-6 text-xs text-ink-400 hover:border-ink-500 disabled:opacity-50"
               >
                 {isUploading ? "Uploading…" : "+ Upload cover image"}
               </button>

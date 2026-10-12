@@ -35,7 +35,7 @@ function ProjectThumbnail({ project }: { project: ProjectSummary }) {
   const showImage = project.thumbnailUrl && !failed;
 
   return (
-    <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-t-lg bg-ink-950">
+    <div className="relative flex aspect-4/3 w-full items-center justify-center overflow-hidden rounded-t-lg bg-ink-950">
       {showImage ? (
         <img
           src={project.thumbnailUrl!}
@@ -140,7 +140,7 @@ export default function ProjectsListPage() {
               aria-label="Sort projects"
               value={sort}
               onChange={(e) => handleSortChange(e.target.value as "name" | "date-newest" | "date-oldest")}
-              className="rounded border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-300 hover:border-ink-500"
+              className="rounded-sm border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-300 hover:border-ink-500"
             >
               <option value="date-newest">{t("projectsList.sortNewest")}</option>
               <option value="date-oldest">{t("projectsList.sortOldest")}</option>
@@ -164,7 +164,7 @@ export default function ProjectsListPage() {
       </div>
 
       {error && (
-        <div className="mt-6 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+        <div className="mt-6 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
           {error}
         </div>
       )}
@@ -226,7 +226,7 @@ export default function ProjectsListPage() {
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-sm border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {t("projectsList.prev")}
           </button>
@@ -235,7 +235,7 @@ export default function ProjectsListPage() {
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-sm border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {t("projectsList.next")}
           </button>

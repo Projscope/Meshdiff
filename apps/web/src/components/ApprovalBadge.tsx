@@ -36,7 +36,7 @@ const LABELS: Record<ApprovalStatus, string> = {
 
 export default function ApprovalBadge({ status }: ApprovalBadgeProps) {
   return (
-    <span className={`whitespace-nowrap rounded border px-2 py-0.5 text-[11px] font-medium ${STYLES[status]}`}>
+    <span className={`whitespace-nowrap rounded-sm border px-2 py-0.5 text-[11px] font-medium ${STYLES[status]}`}>
       {LABELS[status]}
     </span>
   );
