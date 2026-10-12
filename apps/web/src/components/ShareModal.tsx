@@ -58,12 +58,12 @@ export default function ShareModal({
                 readOnly
                 value={shareUrl}
                 onFocus={(event) => event.target.select()}
-                className="flex-1 rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100"
+                className="flex-1 rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100"
               />
               <button
                 type="button"
                 onClick={handleCopy}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-blue-500"
+                className="rounded-sm bg-blue-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-blue-500"
               >
                 {copied ? "Copied!" : "Copy link"}
               </button>
@@ -71,7 +71,7 @@ export default function ShareModal({
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 w-full rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+              className="mt-4 w-full rounded-sm border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
             >
               Done
             </button>
@@ -91,7 +91,7 @@ export default function ShareModal({
             >
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs text-ink-400">Link expires after</span>
-                <div className="flex overflow-hidden rounded border border-ink-700 text-sm">
+                <div className="flex overflow-hidden rounded-sm border border-ink-700 text-sm">
                   {EXPIRATION_OPTIONS.map(({ value, label }) => (
                     <button
                       key={value}
@@ -112,14 +112,14 @@ export default function ShareModal({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-blue-500 disabled:opacity-50"
+                  className="flex-1 rounded-sm bg-blue-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-blue-500 disabled:opacity-50"
                 >
                   {isSubmitting ? "Creating…" : "Create Link"}
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+                  className="rounded-sm border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
                 >
                   Cancel
                 </button>

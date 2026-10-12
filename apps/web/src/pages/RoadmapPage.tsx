@@ -264,7 +264,7 @@ export default function RoadmapPage() {
                       <p className="text-sm font-semibold text-ink-500">{release.version}</p>
                       <p className="text-xs text-ink-600">{release.date}</p>
                     </div>
-                    <span className={`flex-shrink-0 text-ink-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
+                    <span className={`shrink-0 text-ink-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
                       ▼
                     </span>
                   </button>
@@ -278,7 +278,7 @@ export default function RoadmapPage() {
                           <ul className="space-y-2">
                             {release.items.new.map((item) => (
                               <li key={item} className="flex gap-3 text-sm text-ink-300">
-                                <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent-500" />
+                                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-500" />
                                 {item}
                               </li>
                             ))}
@@ -292,7 +292,7 @@ export default function RoadmapPage() {
                           <ul className="space-y-2">
                             {release.items.improved.map((item) => (
                               <li key={item} className="flex gap-3 text-sm text-ink-300">
-                                <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-500" />
+                                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                                 {item}
                               </li>
                             ))}
@@ -306,7 +306,7 @@ export default function RoadmapPage() {
                           <ul className="space-y-2">
                             {release.items.fixed.map((item) => (
                               <li key={item} className="flex gap-3 text-sm text-ink-300">
-                                <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-purple-500" />
+                                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
                                 {item}
                               </li>
                             ))}
@@ -330,13 +330,13 @@ export default function RoadmapPage() {
           <div className="mt-8 flex justify-center gap-4">
             <a
               href="/live"
-              className="rounded border border-ink-700 px-6 py-3 text-sm font-medium text-ink-200 hover:border-ink-500 hover:text-ink-50 transition-colors"
+              className="rounded-sm border border-ink-700 px-6 py-3 text-sm font-medium text-ink-200 hover:border-ink-500 hover:text-ink-50 transition-colors"
             >
               Free Diff Tool
             </a>
             <Link
               to="/pricing"
-              className="rounded bg-accent-700 px-6 py-3 text-sm font-medium text-ink-50 hover:bg-accent-800 transition-colors cursor-pointer"
+              className="rounded-sm bg-accent-700 px-6 py-3 text-sm font-medium text-ink-50 hover:bg-accent-800 transition-colors cursor-pointer"
             >
               View Pricing
             </Link>

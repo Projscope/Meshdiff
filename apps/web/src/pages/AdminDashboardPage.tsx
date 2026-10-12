@@ -28,7 +28,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {error && (
-        <div className="mt-6 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+        <div className="mt-6 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
           {error}
         </div>
       )}
@@ -46,7 +46,7 @@ export default function AdminDashboardPage() {
               <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">
                 Signups
               </p>
-              <div className="flex overflow-hidden rounded border border-ink-700 text-xs">
+              <div className="flex overflow-hidden rounded-sm border border-ink-700 text-xs">
                 <button
                   type="button"
                   onClick={() => setGranularity("week")}

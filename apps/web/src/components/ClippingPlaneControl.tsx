@@ -27,7 +27,7 @@ export default function ClippingPlaneControl() {
       </button>
       {state.enabled && (
         <>
-          <div className="flex overflow-hidden rounded border border-ink-700 text-[11px]">
+          <div className="flex overflow-hidden rounded-sm border border-ink-700 text-[11px]">
             {(["x", "y", "z"] as ClippingAxis[]).map((axis) => (
               <button
                 key={axis}
@@ -56,7 +56,7 @@ export default function ClippingPlaneControl() {
             type="button"
             onClick={() => setState({ flip: !state.flip })}
             title="Flip which side is cut away"
-            className="rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
+            className="rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
           >
             ⇄
           </button>

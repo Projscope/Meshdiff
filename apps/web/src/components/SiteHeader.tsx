@@ -100,7 +100,7 @@ export default function SiteHeader() {
     <div className="sticky top-0 z-40">
       {SHOW_MONETIZATION && <AnnouncementBar />}
       <header className="bg-ink-950 px-4 py-3">
-        <div className="mx-auto flex max-w-6xl items-center justify-between rounded-full border border-ink-800 bg-ink-900/60 px-4 md:px-5 py-2.5 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between rounded-full border border-ink-800 bg-ink-900/60 px-4 md:px-5 py-2.5 backdrop-blur-sm">
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
             <LogoMark />
             <span className="font-display text-base font-semibold text-ink-50">Meshdiff</span>
@@ -157,7 +157,7 @@ export default function SiteHeader() {
 
         {/* Mobile Dropdown */}
         {mobileMenuOpen && (
-          <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-ink-800 bg-ink-900/95 p-3 backdrop-blur md:hidden">
+          <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-ink-800 bg-ink-900/95 p-3 backdrop-blur-sm md:hidden">
             <nav className="flex flex-col gap-1 text-sm text-ink-300">
               <Link
                 to="/features"

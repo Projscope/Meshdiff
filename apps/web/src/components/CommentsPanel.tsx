@@ -102,12 +102,12 @@ export default function CommentsPanel({
       )}
 
       {pendingPosition && (
-        <div className="mt-2 flex items-center justify-between gap-2 rounded border border-indigo-800 bg-indigo-950/30 px-2 py-1.5">
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-sm border border-indigo-800 bg-indigo-950/30 px-2 py-1.5">
           <p className="text-[11px] text-ink-400">{t("comments.typeInBox")}</p>
           <button
             type="button"
             onClick={onCancelPending}
-            className="shrink-0 rounded border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
+            className="shrink-0 rounded-sm border border-ink-700 px-2 py-1 text-[11px] text-ink-300 hover:border-ink-500"
           >
             {t("common.cancel")}
           </button>
@@ -148,7 +148,7 @@ export default function CommentsPanel({
                       event.stopPropagation();
                       onToggleStatus?.(comment);
                     }}
-                    className="rounded px-1 text-[10px] text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
+                    className="rounded-sm px-1 text-[10px] text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
                   >
                     {comment.status === "resolved" ? t("comments.reopen") : t("comments.resolve")}
                   </button>
@@ -161,7 +161,7 @@ export default function CommentsPanel({
                       onRequestDelete?.(comment);
                     }}
                     title={t("comments.deleteCommentTooltip")}
-                    className="rounded px-1 text-[11px] text-ink-600 hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded-sm px-1 text-[11px] text-ink-600 hover:bg-red-500/10 hover:text-red-400"
                   >
                     🗑
                   </button>

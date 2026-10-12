@@ -134,7 +134,7 @@ export default function RadiusOverlay({
         opacity={isPreview ? 0.75 : 1}
       />
       <Html position={centerPosition} center distanceFactor={40} occlude={false}>
-        <div className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow ${badgeClass}`}>
+        <div className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm ${badgeClass}`}>
           {holeChange ? (
             holeChange.kind === "added" ? (
               <>New hole · ⌀ {holeChange.diameterAfterMm!.toFixed(2)} mm</>

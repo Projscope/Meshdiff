@@ -18,7 +18,7 @@ export default function ShareErrorModal({ message, onDismiss }: ShareErrorModalP
         <button
           type="button"
           onClick={onDismiss}
-          className="mt-4 w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-blue-500"
+          className="mt-4 w-full rounded-sm bg-blue-600 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-blue-500"
         >
           Start a new diff
         </button>

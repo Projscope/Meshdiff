@@ -192,7 +192,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
           type="button"
           onClick={() => setShowControls(!showControls)}
           title={t("viewer.rotateZoomSpeedTooltip")}
-          className="rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
+          className="rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
         >
           ⚙
         </button>
@@ -206,7 +206,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         {geometry && <ClippingPlaneControl />}
       </div>
       {showControls && geometry && (
-        <div className="absolute left-3 top-8 z-20 rounded border border-ink-700 bg-ink-900 p-2 text-xs text-ink-300">
+        <div className="absolute left-3 top-8 z-20 rounded-sm border border-ink-700 bg-ink-900 p-2 text-xs text-ink-300">
           <div className="flex flex-col gap-1.5 w-32">
             <label className="flex items-center justify-between gap-2">
               <span>Rotate:</span>
@@ -235,14 +235,14 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
             <button
               type="button"
               onClick={() => zoomToFitRef.current?.()}
-              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
+              className="mt-1 w-full rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Zoom to model
             </button>
             <button
               type="button"
               onClick={() => resetViewRef.current?.()}
-              className="mt-1 w-full rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
+              className="mt-1 w-full rounded-sm border border-ink-700 px-1.5 py-0.5 text-[10px] text-ink-400 hover:border-ink-500 hover:text-ink-50"
             >
               Reset view
             </button>
@@ -251,7 +251,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
       )}
       {meshWarning && geometry && (
         <div
-          className="absolute left-3 right-3 top-9 z-10 truncate rounded bg-amber-500/10 px-2 py-1 text-[10px] text-amber-fg-300"
+          className="absolute left-3 right-3 top-9 z-10 truncate rounded-sm bg-amber-500/10 px-2 py-1 text-[10px] text-amber-fg-300"
           title={meshWarning}
         >
           ⚠ {meshWarning}
@@ -267,7 +267,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 event.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
+              className="rounded-sm border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
             >
               Browse files
             </button>
@@ -279,7 +279,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                   void handleLoadDemo();
                 }}
                 disabled={isLoadingDemo}
-                className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50 disabled:opacity-50"
+                className="rounded-sm border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50 disabled:opacity-50"
               >
                 {isLoadingDemo ? "Loading…" : "or load demo"}
               </button>

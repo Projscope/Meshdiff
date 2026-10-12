@@ -28,7 +28,7 @@ export default function ControlSchemeSelect({ showLegend = true }: ControlScheme
         value={scheme}
         onChange={(event) => setScheme(event.target.value === "cad" ? "cad" : "meshdiff")}
         title={t("viewer.controlSchemeTooltip")}
-        className="rounded border border-ink-700 bg-ink-950 px-1.5 py-0.5 text-[11px] text-ink-300 hover:border-ink-500"
+        className="rounded-sm border border-ink-700 bg-ink-950 px-1.5 py-0.5 text-[11px] text-ink-300 hover:border-ink-500"
       >
         <option value="meshdiff">{t("viewer.controlsMeshdiff")}</option>
         <option value="cad">{t("viewer.controlsCad")}</option>
@@ -38,7 +38,7 @@ export default function ControlSchemeSelect({ showLegend = true }: ControlScheme
           <span
             key={label}
             title={combo}
-            className="cursor-default rounded border border-ink-800 bg-ink-900 px-1.5 py-0.5 text-[10px] text-ink-500 hover:border-ink-600 hover:text-ink-300"
+            className="cursor-default rounded-sm border border-ink-800 bg-ink-900 px-1.5 py-0.5 text-[10px] text-ink-500 hover:border-ink-600 hover:text-ink-300"
           >
             {label}
           </span>

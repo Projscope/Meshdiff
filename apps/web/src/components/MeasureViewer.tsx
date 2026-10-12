@@ -225,7 +225,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
 
         {meshWarning && displayGeometry && (
           <div
-            className="absolute left-3 right-3 top-9 z-10 truncate rounded bg-amber-500/10 px-2 py-1 text-[10px] text-amber-fg-300"
+            className="absolute left-3 right-3 top-9 z-10 truncate rounded-sm bg-amber-500/10 px-2 py-1 text-[10px] text-amber-fg-300"
             title={meshWarning}
           >
             ⚠ {meshWarning}
@@ -242,7 +242,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                   event.stopPropagation();
                   fileInputRef.current?.click();
                 }}
-                className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
+                className="rounded-sm border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
               >
                 Browse files
               </button>
@@ -253,7 +253,7 @@ const MeasureViewer = forwardRef<MeasureViewerHandle, MeasureViewerProps>(functi
                     event.stopPropagation();
                     void handleLoadDemo();
                   }}
-                  className="rounded border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
+                  className="rounded-sm border border-ink-700 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 hover:text-ink-50"
                 >
                   or load demo
                 </button>

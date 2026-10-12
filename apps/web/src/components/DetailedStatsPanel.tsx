@@ -82,7 +82,7 @@ export default function DetailedStatsPanel({
   // former and lays sections out side by side in the latter, without a
   // viewport-width breakpoint that can't tell those two cases apart.
   return (
-    <div className="grid items-start gap-4 text-sm [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+    <div className="grid items-start gap-4 text-sm grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
       {hasComparison && (
         <SectionCard>
           <CollapsibleSection title={t("statsPanel.geometricDelta")}>

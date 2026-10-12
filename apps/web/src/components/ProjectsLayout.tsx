@@ -413,7 +413,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => setIsEditWorkspaceOpen(true)}
                 title={t("sidebar.renameWorkspace")}
-                className="shrink-0 rounded p-0.5 text-ink-600 hover:bg-ink-800 hover:text-ink-300"
+                className="shrink-0 rounded-sm p-0.5 text-ink-600 hover:bg-ink-800 hover:text-ink-300"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -441,7 +441,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       type="button"
                       onClick={() => setIsModalOpen(true)}
                       title={t("sidebar.newProject")}
-                      className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
+                      className="flex h-5 w-5 items-center justify-center rounded-sm text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                     >
                       +
                     </button>
@@ -455,7 +455,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       value={projectSearch}
                       onChange={(e) => setProjectSearch(e.target.value)}
                       placeholder={t("sidebar.searchPlaceholder")}
-                      className="w-full rounded border border-ink-800 bg-ink-900 px-2 py-1 text-xs text-ink-300 placeholder:text-ink-600 focus:border-ink-600 focus:outline-none"
+                      className="w-full rounded-sm border border-ink-800 bg-ink-900 px-2 py-1 text-xs text-ink-300 placeholder:text-ink-600 focus:border-ink-600 focus:outline-hidden"
                     />
                   </div>
                 )}
@@ -505,7 +505,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                     data-tour="newTeamButton"
                     onClick={handleCreateTeamClick}
                     title={subscription?.tier === "team" ? t("sidebar.newTeam") : t("sidebar.upgradeToCreateTeam")}
-                    className="flex h-5 w-5 items-center justify-center rounded text-ink-500 hover:bg-ink-800 hover:text-ink-50"
+                    className="flex h-5 w-5 items-center justify-center rounded-sm text-ink-500 hover:bg-ink-800 hover:text-ink-50"
                   >
                     +
                   </button>
@@ -519,10 +519,10 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       key={team.id}
                       type="button"
                       onClick={() => navigate(`/teams/${team.id}`)}
-                      className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-ink-400 hover:bg-ink-900 hover:text-ink-200"
+                      className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-ink-400 hover:bg-ink-900 hover:text-ink-200"
                     >
                       <span className="min-w-0 flex-1 truncate">{team.name}</span>
-                      <span className="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-[9px] uppercase text-ink-500">
+                      <span className="shrink-0 rounded-sm bg-ink-800 px-1.5 py-0.5 text-[9px] uppercase text-ink-500">
                         {team.myRole}
                       </span>
                     </button>
@@ -559,31 +559,31 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                   <div className="flex flex-col gap-0.5">
                     <Link
                       to="/admin"
-                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                      className="rounded-sm px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
                       Dashboard
                     </Link>
                     <Link
                       to="/admin/users"
-                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                      className="rounded-sm px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
                       Users
                     </Link>
                     <Link
                       to="/admin/analytics"
-                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                      className="rounded-sm px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
                       Analytics
                     </Link>
                     <Link
                       to="/admin/blog"
-                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                      className="rounded-sm px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
                       Blog
                     </Link>
                     <Link
                       to="/admin/feedback"
-                      className="rounded px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                      className="rounded-sm px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
                       Feedback
                     </Link>
@@ -668,7 +668,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setIsMenuOpen((open) => !open)}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-ink-900"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-ink-900"
             >
               <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">
                 {emailInitial}
@@ -729,7 +729,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setIsMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-ink-900"
+                className="flex items-center gap-2 rounded-sm px-1.5 py-1 hover:bg-ink-900"
               >
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">
                   {emailInitial}

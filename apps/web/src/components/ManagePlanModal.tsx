@@ -138,7 +138,7 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
   }
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
         className="w-full max-w-md rounded-lg border border-ink-800 bg-ink-900 p-6"
         onClick={(event) => event.stopPropagation()}
@@ -158,7 +158,7 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
             type="button"
             onClick={() => void handleResume()}
             disabled={isSubmitting}
-            className="mt-3 w-full rounded border border-accent-700 px-3 py-1.5 text-xs font-medium text-accent-fg-400 hover:border-accent-500 disabled:opacity-50"
+            className="mt-3 w-full rounded-sm border border-accent-700 px-3 py-1.5 text-xs font-medium text-accent-fg-400 hover:border-accent-500 disabled:opacity-50"
           >
             {t("managePlan.resumeButton", { plan: readableCurrent })}
           </button>
@@ -182,7 +182,7 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
                   <p className="mt-0.5 text-xs text-ink-500">{plan.blurb}</p>
                 </div>
                 {isCurrent ? (
-                  <span className="shrink-0 rounded bg-accent-500/15 px-2 py-1 text-[11px] font-semibold uppercase text-accent-fg-400">
+                  <span className="shrink-0 rounded-sm bg-accent-500/15 px-2 py-1 text-[11px] font-semibold uppercase text-accent-fg-400">
                     {t("managePlan.current")}
                   </span>
                 ) : (
@@ -207,13 +207,13 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
         </div>
 
         {error && (
-          <p className="mt-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-xs text-red-300">{error}</p>
+          <p className="mt-3 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-xs text-red-300">{error}</p>
         )}
 
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full rounded border border-ink-700 px-4 py-2 text-center text-sm text-ink-300 hover:border-ink-500"
+          className="mt-4 w-full rounded-sm border border-ink-700 px-4 py-2 text-center text-sm text-ink-300 hover:border-ink-500"
         >
           {t("managePlan.close")}
         </button>

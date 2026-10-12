@@ -16,7 +16,7 @@ export default function LanguageSelect() {
       <select
         value={language}
         onChange={(event) => setLanguage(event.target.value as LanguageCode)}
-        className="rounded border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 focus:border-accent-500 focus:outline-none"
+        className="rounded-sm border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-300 hover:border-ink-500 focus:border-accent-500 focus:outline-hidden"
       >
         {SUPPORTED_LANGUAGES.map((lang) => (
           <option key={lang.code} value={lang.code}>

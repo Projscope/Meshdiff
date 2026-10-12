@@ -110,7 +110,7 @@ export default function ApprovalGateChecklist({ projectId, versionId, canConfigu
               type="checkbox"
               checked={gate.satisfied}
               onChange={(event) => void handleToggle(gate.id, event.target.checked)}
-              className="h-3.5 w-3.5 shrink-0 rounded border-ink-600 bg-ink-950 accent-accent-500"
+              className="h-3.5 w-3.5 shrink-0 rounded-sm border-ink-600 bg-ink-950 accent-accent-500"
             />
             <span className={gate.satisfied ? "text-ink-300 line-through decoration-ink-600" : "text-ink-200"}>
               {gate.label}
@@ -140,13 +140,13 @@ export default function ApprovalGateChecklist({ projectId, versionId, canConfigu
             }}
             placeholder={t("approvalGates.addPlaceholder")}
             maxLength={200}
-            className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-200 placeholder:text-ink-600"
+            className="min-w-0 flex-1 rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-200 placeholder:text-ink-600"
           />
           <button
             type="button"
             onClick={() => void handleAdd()}
             disabled={isAdding || !newLabel.trim()}
-            className="shrink-0 rounded border border-ink-700 px-2 py-1 text-xs text-ink-200 hover:border-ink-500 disabled:opacity-50"
+            className="shrink-0 rounded-sm border border-ink-700 px-2 py-1 text-xs text-ink-200 hover:border-ink-500 disabled:opacity-50"
           >
             {t("approvalGates.add")}
           </button>

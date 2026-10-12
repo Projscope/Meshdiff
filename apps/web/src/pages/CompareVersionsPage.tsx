@@ -213,26 +213,26 @@ export default function CompareVersionsPage() {
 
         {stats && (
           <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+            <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
               <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.addedVoxels")}</div>
               <div className={`mt-0.5 text-lg font-semibold ${diffColors.addedTextClass}`}>
                 +{stats.addedCount.toLocaleString()}
               </div>
             </div>
-            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+            <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
               <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.removedVoxels")}</div>
               <div className={`mt-0.5 text-lg font-semibold ${diffColors.removedTextClass}`}>
                 -{stats.removedCount.toLocaleString()}
               </div>
             </div>
-            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+            <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
               <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.volumeDelta")}</div>
               <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.approxVolumeDeltaPercent >= 0 ? "+" : ""}
                 {stats.approxVolumeDeltaPercent.toFixed(1)}%
               </div>
             </div>
-            <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+            <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
               <div className="text-[10px] uppercase tracking-wide text-ink-500">{t("compare.tolerance")}</div>
               <div className="mt-0.5 text-lg font-semibold text-ink-100">
                 {stats.toleranceMm.toFixed(2)} mm
@@ -257,7 +257,7 @@ export default function CompareVersionsPage() {
           <button
             type="button"
             onClick={handleShareClick}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-sm bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
           >
             🔗 {t("compare.share")}
           </button>
@@ -271,7 +271,7 @@ export default function CompareVersionsPage() {
                   combined: diffViewRef.current?.captureScreenshot(),
                 })
               }
-              className="flex-1 rounded bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
+              className="flex-1 rounded-sm bg-accent-500 px-2.5 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
             >
               {t("compare.downloadReport")}
             </button>
@@ -285,7 +285,7 @@ export default function CompareVersionsPage() {
               <select
                 value={versionAId ?? ""}
                 onChange={(event) => handleChangeA(event.target.value)}
-                className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
+                className="min-w-0 flex-1 rounded-sm border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
               >
                 {allVersions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -297,7 +297,7 @@ export default function CompareVersionsPage() {
               <select
                 value={versionBId ?? ""}
                 onChange={(event) => handleChangeB(event.target.value)}
-                className="min-w-0 flex-1 rounded border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
+                className="min-w-0 flex-1 rounded-sm border border-ink-700 bg-ink-950 px-2 py-1.5 text-ink-200"
               >
                 {allVersions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -310,7 +310,7 @@ export default function CompareVersionsPage() {
         )}
 
         {error && (
-          <div className="mt-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+          <div className="mt-3 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
             {error}
           </div>
         )}

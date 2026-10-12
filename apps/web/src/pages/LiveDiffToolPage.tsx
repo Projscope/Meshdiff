@@ -363,7 +363,7 @@ export default function LiveDiffToolPage({
       <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto py-6 gap-8">
         
         {/* Community Commitment & Subscription Banner */}
-        <section className="w-full rounded-2xl border border-ink-800 bg-ink-900/50 p-6 text-center backdrop-blur-sm sm:p-8">
+        <section className="w-full rounded-2xl border border-ink-800 bg-ink-900/50 p-6 text-center backdrop-blur-xs sm:p-8">
           <div className="mx-auto flex max-w-2xl flex-col items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-500/30 bg-accent-500/10 px-3 py-1 text-[11px] font-semibold text-accent-fg-400">
               🤝 Built for the Community
@@ -389,7 +389,7 @@ export default function LiveDiffToolPage({
                     value={subscribeEmail}
                     onChange={(e) => setSubscribeEmail(e.target.value)}
                     placeholder="Enter your email for feature updates..."
-                    className="flex-1 rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-xs text-ink-50 placeholder-ink-500 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                    className="flex-1 rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-xs text-ink-50 placeholder-ink-500 focus:border-accent-500 focus:outline-hidden focus:ring-1 focus:ring-accent-500"
                   />
                   <button
                     type="submit"
@@ -420,7 +420,7 @@ export default function LiveDiffToolPage({
                 onMouseEnter={() => setHoveredTool(tool.id)}
                 onMouseLeave={() => setHoveredTool(null)}
                 aria-pressed={isActive}
-                className={`group relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500/50 ${
+                className={`group relative flex w-full max-w-sm flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 focus:outline-hidden focus:ring-2 focus:ring-accent-500/50 ${
                   isActive
                     ? "border-accent-500 bg-ink-900 shadow-lg shadow-accent-950/30 ring-1 ring-accent-500/50"
                     : "border-ink-800 bg-ink-900/60 hover:-translate-y-1 hover:border-ink-700 hover:bg-ink-900"
@@ -446,7 +446,7 @@ export default function LiveDiffToolPage({
                 </div>
 
                 {/* Image Preview Container */}
-                <div className="relative aspect-[16/9] w-full overflow-hidden border-b border-ink-800/80 bg-ink-950">
+                <div className="relative aspect-video w-full overflow-hidden border-b border-ink-800/80 bg-ink-950">
                   <img
                     src={tool.image}
                     alt={tool.label}
@@ -454,7 +454,7 @@ export default function LiveDiffToolPage({
                       isActive ? "scale-105 opacity-100" : "opacity-70 group-hover:scale-105 group-hover:opacity-90"
                     }`}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-ink-900/90 via-transparent to-transparent" />
                 </div>
 
                 {/* Card Content */}
@@ -490,7 +490,7 @@ export default function LiveDiffToolPage({
           <div className="mx-auto mt-6 grid max-w-4xl gap-4 sm:grid-cols-3">
             {howItWorksContent.steps.map((step) => (
               <div key={step.num} className="rounded-lg border border-ink-800 bg-ink-900/60 p-4 transition-all">
-                <div className="flex h-5 w-5 items-center justify-center rounded bg-accent-500/15 text-[9px] font-semibold text-accent-fg-400">
+                <div className="flex h-5 w-5 items-center justify-center rounded-sm bg-accent-500/15 text-[9px] font-semibold text-accent-fg-400">
                   {step.num}
                 </div>
                 <h4 className="mt-2 text-xs font-semibold text-ink-50">{step.title}</h4>
@@ -505,7 +505,7 @@ export default function LiveDiffToolPage({
         {/* Pro Benefits CTA Section */}
         <section className="border-t border-ink-900 px-6 py-16">
           <div className="mx-auto max-w-3xl">
-            <div className="rounded-lg border border-accent-500/20 bg-gradient-to-br from-accent-500/5 to-accent-500/0 p-8 md:p-12">
+            <div className="rounded-lg border border-accent-500/20 bg-linear-to-br from-accent-500/5 to-accent-500/0 p-8 md:p-12">
               <span className="inline-block rounded-full bg-accent-500/10 px-3 py-1 text-xs font-semibold text-accent-fg-400">
                 PRO PLAN
               </span>
@@ -518,7 +518,7 @@ export default function LiveDiffToolPage({
 
               <div className="mt-8 grid gap-6 sm:grid-cols-2">
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-accent-500/10">
                     <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
@@ -528,7 +528,7 @@ export default function LiveDiffToolPage({
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-accent-500/10">
                     <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
@@ -538,7 +538,7 @@ export default function LiveDiffToolPage({
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-accent-500/10">
                     <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
@@ -548,7 +548,7 @@ export default function LiveDiffToolPage({
                 </div>
 
                 <div className="flex gap-3">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-accent-500/10">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-accent-500/10">
                     <Check size={16} weight="bold" className="text-accent-fg-400" />
                   </div>
                   <div>
@@ -586,7 +586,7 @@ export default function LiveDiffToolPage({
                     onClick={() => setActiveTool(tool.id)}
                     className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                       isSelected
-                        ? "bg-accent-500 text-chrome-950 shadow-sm"
+                        ? "bg-accent-500 text-chrome-950 shadow-xs"
                         : "text-ink-400 hover:text-ink-50"
                     }`}
                   >
@@ -633,21 +633,21 @@ export default function LiveDiffToolPage({
                     <button
                       type="button"
                       onClick={() => viewerARef.current?.openFileDialog()}
-                      className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
+                      className="rounded-sm border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
                     >
                       + Version A
                     </button>
                     <button
                       type="button"
                       onClick={() => viewerBRef.current?.openFileDialog()}
-                      className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
+                      className="rounded-sm border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
                     >
                       + Version B
                     </button>
                     <select
                       value={selectedDemo}
                       onChange={(e) => setSelectedDemo(e.target.value as "simple" | "bracket" | "gear")}
-                      className="rounded border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
+                      className="rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-xs text-ink-300"
                     >
                       <option value="simple">Simple Bracket</option>
                       <option value="bracket">Complex Bracket</option>
@@ -659,7 +659,7 @@ export default function LiveDiffToolPage({
                         viewerARef.current?.loadDemo();
                         viewerBRef.current?.loadDemo();
                       }}
-                      className="rounded border border-accent-500/40 bg-accent-500/10 px-2 py-1 text-accent-fg-300 hover:border-accent-400"
+                      className="rounded-sm border border-accent-500/40 bg-accent-500/10 px-2 py-1 text-accent-fg-300 hover:border-accent-400"
                     >
                       Load Demo
                     </button>
@@ -668,7 +668,7 @@ export default function LiveDiffToolPage({
                   <button
                     type="button"
                     onClick={() => measureViewerRef.current?.openFileDialog()}
-                    className="rounded border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
+                    className="rounded-sm border border-ink-700 px-2 py-1 text-ink-300 hover:border-ink-500 hover:text-ink-50"
                   >
                     + Load Model
                   </button>
@@ -685,7 +685,7 @@ export default function LiveDiffToolPage({
                         setShareError(null);
                         setIsShareModalOpen(true);
                       }}
-                      className="rounded border border-ink-700 px-3 py-1.5 text-ink-200 hover:border-ink-500 disabled:cursor-not-allowed disabled:text-ink-600"
+                      className="rounded-sm border border-ink-700 px-3 py-1.5 text-ink-200 hover:border-ink-500 disabled:cursor-not-allowed disabled:text-ink-600"
                     >
                       Share This Diff
                     </button>
@@ -693,7 +693,7 @@ export default function LiveDiffToolPage({
                       type="button"
                       disabled={!stats}
                       onClick={handleDownloadReport}
-                      className="rounded bg-accent-500 px-3 py-1.5 font-medium text-chrome-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-ink-800 disabled:text-ink-600"
+                      className="rounded-sm bg-accent-500 px-3 py-1.5 font-medium text-chrome-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:bg-ink-800 disabled:text-ink-600"
                     >
                       Download Report
                     </button>
@@ -702,7 +702,7 @@ export default function LiveDiffToolPage({
                 <button
                   type="button"
                   onClick={() => setIsFeedbackModalOpen(true)}
-                  className="relative rounded border border-accent-500/40 bg-accent-500/10 px-3 py-1.5 text-accent-fg-300 hover:border-accent-400"
+                  className="relative rounded-sm border border-accent-500/40 bg-accent-500/10 px-3 py-1.5 text-accent-fg-300 hover:border-accent-400"
                 >
                   <span className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full bg-accent-400" />
                   💬 Add Feedback
@@ -730,7 +730,7 @@ export default function LiveDiffToolPage({
                 </div>
               )}
               {activeTool === "compare" && sameFileWarning && (
-                <div className="rounded border border-amber-800 bg-amber-500/10 px-3 py-2 text-sm text-amber-fg-300">
+                <div className="rounded-sm border border-amber-800 bg-amber-500/10 px-3 py-2 text-sm text-amber-fg-300">
                   ⚠ {sameFileWarning}
                 </div>
               )}
@@ -790,7 +790,7 @@ export default function LiveDiffToolPage({
                   {stats ? (
                     <>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                        <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
                           <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Added voxels
                           </div>
@@ -798,7 +798,7 @@ export default function LiveDiffToolPage({
                             +{stats.addedCount.toLocaleString()}
                           </div>
                         </div>
-                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                        <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
                           <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Removed voxels
                           </div>
@@ -806,7 +806,7 @@ export default function LiveDiffToolPage({
                             -{stats.removedCount.toLocaleString()}
                           </div>
                         </div>
-                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                        <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
                           <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Volume delta
                           </div>
@@ -815,7 +815,7 @@ export default function LiveDiffToolPage({
                             {stats.approxVolumeDeltaPercent.toFixed(1)}%
                           </div>
                         </div>
-                        <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2">
+                        <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2">
                           <div className="text-[10px] uppercase tracking-wide text-ink-500">
                             Tolerance
                           </div>
@@ -827,19 +827,19 @@ export default function LiveDiffToolPage({
                       <button
                         type="button"
                         onClick={() => setShowDetailedStats(!showDetailedStats)}
-                        className="rounded border border-ink-700 bg-ink-900 px-3 py-2 text-center text-xs text-ink-400 hover:border-ink-500 hover:text-ink-200"
+                        className="rounded-sm border border-ink-700 bg-ink-900 px-3 py-2 text-center text-xs text-ink-400 hover:border-ink-500 hover:text-ink-200"
                       >
                         {showDetailedStats ? "Hide" : "Show"} Detailed Stats
                       </button>
                     </>
                   ) : (
-                    <div className="rounded border border-ink-800 bg-ink-900 px-3 py-2 text-center text-xs text-ink-500">
+                    <div className="rounded-sm border border-ink-800 bg-ink-900 px-3 py-2 text-center text-xs text-ink-500">
                       Load both versions to see diff stats
                     </div>
                   )}
 
                   {showDetailedStats && stats && (
-                    <div className="rounded border border-ink-800 bg-ink-900 p-3">
+                    <div className="rounded-sm border border-ink-800 bg-ink-900 p-3">
                       <DetailedStatsPanel stats={stats} hasComparison boundingBoxB={boundingBoxB} />
                     </div>
                   )}

@@ -19,13 +19,13 @@ export default function PrintabilityBadge({ status }: PrintabilityBadgeProps) {
   };
   if (!status) {
     return (
-      <span className="rounded border border-ink-700 bg-ink-800 px-2 py-0.5 text-[11px] text-ink-400">
+      <span className="rounded-sm border border-ink-700 bg-ink-800 px-2 py-0.5 text-[11px] text-ink-400">
         {t("printabilityBadge.pending")}
       </span>
     );
   }
   return (
-    <span className={`rounded border px-2 py-0.5 text-[11px] font-medium ${STYLES[status]}`}>
+    <span className={`rounded-sm border px-2 py-0.5 text-[11px] font-medium ${STYLES[status]}`}>
       {labels[status]}
     </span>
   );

@@ -92,7 +92,7 @@ export default function AdminUsersPage() {
       </div>
 
       {error && (
-        <div className="mt-6 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+        <div className="mt-6 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
           {error}
         </div>
       )}
@@ -153,7 +153,7 @@ export default function AdminUsersPage() {
                     </span>
                     <span className={`flex items-center gap-1.5 px-4 py-3 text-sm ${rowBorder}`}>
                       {user.isAdmin ? (
-                        <span className="rounded bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-400">
+                        <span className="rounded-sm bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-400">
                           team
                         </span>
                       ) : (
@@ -270,7 +270,7 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-sm border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 ← Prev
               </button>
@@ -281,7 +281,7 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="rounded border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-sm border border-ink-700 px-3 py-1.5 text-ink-300 hover:border-ink-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next →
               </button>

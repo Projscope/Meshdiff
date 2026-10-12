@@ -77,7 +77,7 @@ export default function NotificationBell() {
         type="button"
         onClick={() => void handleToggle()}
         aria-label="Notifications"
-        className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+        className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />

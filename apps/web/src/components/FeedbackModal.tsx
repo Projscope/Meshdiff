@@ -54,7 +54,7 @@ export default function FeedbackModal({ onClose }: FeedbackModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 w-full rounded bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400"
+              className="mt-4 w-full rounded-sm bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400"
             >
               Close
             </button>
@@ -97,7 +97,7 @@ export default function FeedbackModal({ onClose }: FeedbackModalProps) {
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               maxLength={4000}
-              className="mt-3 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
+              className="mt-3 w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
             />
 
             <input
@@ -105,21 +105,21 @@ export default function FeedbackModal({ onClose }: FeedbackModalProps) {
               placeholder="Email (optional, if you'd like a reply)"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
+              className="mt-2 w-full rounded-sm border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-600"
             />
 
             <div className="mt-4 flex gap-2">
               <button
                 type="submit"
                 disabled={isSubmitting || !message.trim()}
-                className="flex-1 rounded bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
+                className="flex-1 rounded-sm bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
               >
                 {isSubmitting ? "Sending…" : "Send Feedback"}
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
+                className="rounded-sm border border-ink-700 px-4 py-2 text-sm text-ink-300 hover:border-ink-500"
               >
                 Cancel
               </button>

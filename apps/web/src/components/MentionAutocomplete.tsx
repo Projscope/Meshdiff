@@ -21,7 +21,7 @@ export default function MentionAutocomplete({ members, query, onSelect }: Mentio
   if (matches.length === 0) return null;
 
   return (
-    <div className="mt-1 overflow-hidden rounded border border-ink-700 bg-ink-950 shadow-lg">
+    <div className="mt-1 overflow-hidden rounded-sm border border-ink-700 bg-ink-950 shadow-lg">
       {matches.map((member) => (
         <button
           key={member.userId}

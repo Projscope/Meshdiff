@@ -92,7 +92,7 @@ export default function EmbedBadgePage() {
             value={shareUrlInput}
             onChange={(event) => setShareUrlInput(event.target.value)}
             placeholder="https://meshdiff.com/live?share=your-id"
-            className="mt-2 w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-50 placeholder:text-ink-600 focus:border-accent-500 focus:outline-none"
+            className="mt-2 w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-50 placeholder:text-ink-600 focus:border-accent-500 focus:outline-hidden"
           />
           <p className="mt-1.5 text-[11px] text-ink-500">
             Leave blank to link to meshdiff.com — paste your own share link so the badge points
@@ -102,7 +102,7 @@ export default function EmbedBadgePage() {
 
         <div className="mt-6">
           <div className="flex items-center justify-between">
-            <div className="flex overflow-hidden rounded border border-ink-700 text-xs">
+            <div className="flex overflow-hidden rounded-sm border border-ink-700 text-xs">
               <button
                 type="button"
                 onClick={() => setFormat("html")}
@@ -125,7 +125,7 @@ export default function EmbedBadgePage() {
             <button
               type="button"
               onClick={() => void handleCopy()}
-              className="rounded bg-accent-500 px-3 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
+              className="rounded-sm bg-accent-500 px-3 py-1.5 text-xs font-medium text-chrome-950 hover:bg-accent-400"
             >
               {copied ? "Copied!" : "Copy snippet"}
             </button>
@@ -164,8 +164,8 @@ export default function EmbedBadgePage() {
                 <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
                   Reinforced ankle joints, tighter tail tolerance…
                 </p>
-                <div className="mt-2 inline-flex items-center gap-1 rounded border border-neutral-300 bg-neutral-950 px-1.5 py-0.5">
-                  <span className="flex h-3 w-3 items-center justify-center rounded-sm bg-accent-500 text-[6px] font-bold text-chrome-950">
+                <div className="mt-2 inline-flex items-center gap-1 rounded-sm border border-neutral-300 bg-neutral-950 px-1.5 py-0.5">
+                  <span className="flex h-3 w-3 items-center justify-center rounded-xs bg-accent-500 text-[6px] font-bold text-chrome-950">
                     ^
                   </span>
                   <span className="text-[8px] font-semibold text-neutral-100">View Diff on Meshdiff</span>
@@ -186,8 +186,8 @@ export default function EmbedBadgePage() {
                 <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
                   Wall thickness increased to 2.4mm for FDM…
                 </p>
-                <div className="mt-2 inline-flex items-center gap-1 rounded border border-neutral-300 bg-neutral-950 px-1.5 py-0.5">
-                  <span className="flex h-3 w-3 items-center justify-center rounded-sm bg-accent-500 text-[6px] font-bold text-chrome-950">
+                <div className="mt-2 inline-flex items-center gap-1 rounded-sm border border-neutral-300 bg-neutral-950 px-1.5 py-0.5">
+                  <span className="flex h-3 w-3 items-center justify-center rounded-xs bg-accent-500 text-[6px] font-bold text-chrome-950">
                     ^
                   </span>
                   <span className="text-[8px] font-semibold text-neutral-100">View Diff on Meshdiff</span>
@@ -208,8 +208,8 @@ export default function EmbedBadgePage() {
                 <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
                   Moved mounting bosses 3mm inboard…
                 </p>
-                <div className="mt-2 inline-flex items-center gap-1 rounded border border-neutral-300 bg-neutral-950 px-1.5 py-0.5">
-                  <span className="flex h-3 w-3 items-center justify-center rounded-sm bg-accent-500 text-[6px] font-bold text-chrome-950">
+                <div className="mt-2 inline-flex items-center gap-1 rounded-sm border border-neutral-300 bg-neutral-950 px-1.5 py-0.5">
+                  <span className="flex h-3 w-3 items-center justify-center rounded-xs bg-accent-500 text-[6px] font-bold text-chrome-950">
                     ^
                   </span>
                   <span className="text-[8px] font-semibold text-neutral-100">View Diff on Meshdiff</span>

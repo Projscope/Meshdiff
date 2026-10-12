@@ -99,7 +99,7 @@ export default function SampleCompareTour() {
     <>
       {rect && (
         <div
-          className="pointer-events-none fixed z-[70] rounded transition-all duration-200"
+          className="pointer-events-none fixed z-70 rounded-sm transition-all duration-200"
           style={{
             top: rect.top - 4,
             left: rect.left - 4,
@@ -110,7 +110,7 @@ export default function SampleCompareTour() {
         />
       )}
       <div
-        className="fixed z-[71] rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm shadow-2xl transition-all duration-200"
+        className="fixed z-71 rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm shadow-2xl transition-all duration-200"
         style={popoverStyle}
       >
         <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-500">
@@ -127,7 +127,7 @@ export default function SampleCompareTour() {
               <button
                 type="button"
                 onClick={goBack}
-                className="rounded border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
+                className="rounded-sm border border-ink-700 px-2.5 py-1 text-xs text-ink-200 hover:border-ink-500"
               >
                 {t("sampleTour.back")}
               </button>
@@ -135,7 +135,7 @@ export default function SampleCompareTour() {
             <button
               type="button"
               onClick={goNext}
-              className="rounded bg-accent-500 px-2.5 py-1 text-xs font-medium text-chrome-950 hover:bg-accent-400"
+              className="rounded-sm bg-accent-500 px-2.5 py-1 text-xs font-medium text-chrome-950 hover:bg-accent-400"
             >
               {stepIndex === STEPS.length - 1 ? t("sampleTour.done") : t("sampleTour.next")}
             </button>

@@ -853,7 +853,7 @@ export default function VersionDetailPage() {
               type="button"
               onClick={() => zoomToFitRef.current?.()}
               title={t("viewer.zoomToFit")}
-              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              className="flex h-7 w-7 items-center justify-center rounded-sm text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⛶
             </button>
@@ -861,7 +861,7 @@ export default function VersionDetailPage() {
               type="button"
               onClick={() => resetViewRef.current?.()}
               title={t("viewer.resetViewTooltip")}
-              className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              className="flex h-7 w-7 items-center justify-center rounded-sm text-sm text-ink-300 hover:bg-ink-800 hover:text-ink-50"
             >
               ⟲
             </button>
@@ -1045,7 +1045,7 @@ export default function VersionDetailPage() {
         </Link>
 
         {error && (
-          <div className="mt-3 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+          <div className="mt-3 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
             {error}
           </div>
         )}
@@ -1053,14 +1053,14 @@ export default function VersionDetailPage() {
         {version && (
           <>
             <div className="mt-2 flex items-center gap-2">
-              <span className="rounded border border-ink-700 bg-ink-800 px-2 py-0.5 text-xs font-semibold text-ink-300">
+              <span className="rounded-sm border border-ink-700 bg-ink-800 px-2 py-0.5 text-xs font-semibold text-ink-300">
                 v{version.versionNumber}
               </span>
               <h1 className="truncate text-sm font-semibold text-ink-50">{version.fileName}</h1>
             </div>
 
             {isPro && (
-              <div className="mt-3 flex overflow-hidden rounded border border-ink-700 text-xs">
+              <div className="mt-3 flex overflow-hidden rounded-sm border border-ink-700 text-xs">
                 <button
                   type="button"
                   onClick={() => setRightPanelTab("general")}

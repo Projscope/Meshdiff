@@ -59,7 +59,7 @@ export default function AdminAnalyticsPage() {
             Visitors, pages, countries, languages, referrers, devices, and browsers
           </p>
         </div>
-        <div className="flex overflow-hidden rounded border border-ink-700 text-xs">
+        <div className="flex overflow-hidden rounded-sm border border-ink-700 text-xs">
           <button
             type="button"
             onClick={() => setPreset("30d")}
@@ -78,7 +78,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {error && (
-        <div className="mt-6 rounded border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
+        <div className="mt-6 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
       {data === null && !error && <div className="mt-6 text-sm text-ink-500">Loading…</div>}
@@ -93,7 +93,7 @@ export default function AdminAnalyticsPage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-500">Traffic</p>
-                <div className="flex overflow-hidden rounded border border-ink-700 text-[10px]">
+                <div className="flex overflow-hidden rounded-sm border border-ink-700 text-[10px]">
                   {GRANULARITIES.map((option) => (
                     <button
                       key={option.id}
@@ -110,7 +110,7 @@ export default function AdminAnalyticsPage() {
               </div>
               <div className="flex items-center gap-3 text-[10px] text-ink-500">
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded-sm bg-accent-500/70" />
+                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-accent-500/70" />
                   Pageviews
                 </span>
                 <span className="flex items-center gap-1.5">
