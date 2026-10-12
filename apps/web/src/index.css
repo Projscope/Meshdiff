@@ -195,7 +195,7 @@ body {
 .prose-blog a {
   color: theme("colors.accent-fg.400");
   text-decoration: underline;
-  text-decoration-color: theme("colors.accent-fg.400" / 40%);
+  text-decoration-color: rgb(var(--accent-fg-400) / 40%);
   text-underline-offset: 2px;
 }
 .prose-blog a:hover {
