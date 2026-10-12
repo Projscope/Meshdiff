@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { trackPageview } from "../lib/analytics";
+import { trackPageview, markBrowserAsOwner } from "../lib/analytics";
+import { useAuth } from "../lib/AuthProvider";
+import { isAdminEmail } from "../lib/isAdmin";
 
 /** Fires the self-hosted pageview beacon on initial mount AND on every
  * client-side route change — unlike the existing GA setup (initAnalytics()
@@ -9,6 +11,12 @@ import { trackPageview } from "../lib/analytics";
  * into. Mount this once near the router root (see RootLayout.tsx). */
 export function useTrackPageview(): void {
   const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = isAdminEmail(user?.email);
+
+  useEffect(() => {
+    if (isAdmin) markBrowserAsOwner();
+  }, [isAdmin]);
 
   useEffect(() => {
     // Admin's own navigation around /admin/* isn't real site traffic — it'd
