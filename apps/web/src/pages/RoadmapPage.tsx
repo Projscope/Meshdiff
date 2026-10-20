@@ -8,9 +8,23 @@ export const META_DESCRIPTION =
 
 export default function RoadmapPage() {
   useDocumentMeta(META_TITLE, META_DESCRIPTION);
-  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.7.0");
+  const [expandedVersion, setExpandedVersion] = useState<string | null>("v1.8.0");
 
   const changelog = [
+    {
+      version: "v1.8.0",
+      date: "2026-10-20",
+      title: "A trial that starts when you do",
+      items: {
+        new: [
+          "One-click sample model on an empty project — adds a two-version gear so you can see a real diff without having a file handy",
+        ],
+        improved: [
+          "The 14-day free trial now starts when you upload your first model instead of the moment you sign up, so it isn't used up before you have something to compare",
+          "Empty projects now show a clear \"Upload a model\" button instead of a plain text hint",
+        ],
+      },
+    },
     {
       version: "v1.7.0",
       date: "2026-09-27",

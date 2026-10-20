@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isAdminEmail } from "./requireAdmin.js";
 import { getTrialExtension } from "./trialExtensions.js";
+import { getFirstUploadAt } from "./firstUpload.js";
 import { getTrialTierChoice } from "./trialTierChoice.js";
 
 export interface SubscriptionRow {
@@ -33,6 +34,7 @@ export const INACTIVE_SUBSCRIPTION_STATUSES = ["canceled", "past_due"];
 export interface TrialContext {
   createdAt: string | null | undefined;
   overrideEndsAt?: string | null;
+  firstUploadAt?: string | null;
 }
 
 // Single source of truth for "what tier is this user" — used by GET
@@ -78,9 +80,13 @@ export async function getUserTier(supabase: SupabaseClient, userId: string, tria
   let trialContext = trial;
   if (!trialContext) {
     const { data: userResult } = await supabase.auth.admin.getUserById(userId);
-    trialContext = { createdAt: userResult?.user?.created_at, overrideEndsAt: await getTrialExtension(supabase, userId) };
+    const [overrideEndsAt, firstUploadAt] = await Promise.all([
+      getTrialExtension(supabase, userId),
+      getFirstUploadAt(supabase, userId),
+    ]);
+    trialContext = { createdAt: userResult?.user?.created_at, overrideEndsAt, firstUploadAt };
   }
-  if (computeTrialStatus(trialContext.createdAt, trialContext.overrideEndsAt).isTrialing) {
+  if (computeTrialStatus(trialContext.createdAt, trialContext.overrideEndsAt, trialContext.firstUploadAt).isTrialing) {
     const choice = await getTrialTierChoice(supabase, userId);
     if (choice === "team") {
       return { tier: "team", row: null, viaTrialChoice: true };
@@ -93,28 +99,57 @@ export async function getUserTier(supabase: SupabaseClient, userId: string, tria
 export type AccountStatus = "pro" | "restricted";
 
 export const TRIAL_DAYS = 14;
+/** How long a signup can sit before their first upload with the trial clock
+ * not yet started. Bounded so an account that never uploads anything can't
+ * hold trial-level access forever. */
+export const PRE_UPLOAD_TRIAL_DAYS = 30;
 
 export interface TrialStatus {
   isTrialing: boolean;
   trialDaysRemaining: number | null;
 }
 
-/** Pure day-math, factored out so getAccountAccess() and the admin users
- * list (which already has each row's auth.users.created_at from
- * listUsers(), no extra lookup needed) can't drift on the trial window.
+const DAY_MS = 86_400_000;
+
+/** When the trial window closes, in epoch ms.
  *
  * `overrideEndsAt` — an admin-set trial_extensions row (see
- * trialExtensions.ts) — replaces the default created_at + 14 days end date
- * verbatim when present, in either direction (it can extend or shorten).
- * Omitted/null falls back to the original default-only behavior. */
-export function computeTrialStatus(createdAt: string | null | undefined, overrideEndsAt?: string | null): TrialStatus {
-  const defaultEndsAtMs = createdAt ? new Date(createdAt).getTime() + TRIAL_DAYS * 86_400_000 : -Infinity;
-  const endsAtMs = overrideEndsAt ? new Date(overrideEndsAt).getTime() : defaultEndsAtMs;
-  const msRemaining = endsAtMs - Date.now();
-  if (msRemaining > 0) {
-    return { isTrialing: true, trialDaysRemaining: Math.ceil(msRemaining / 86_400_000) };
-  }
-  return { isTrialing: false, trialDaysRemaining: null };
+ * trialExtensions.ts) — wins verbatim when present, in either direction
+ * (it can extend or shorten).
+ *
+ * Otherwise the TRIAL_DAYS clock starts at `firstUploadAt` (the user's first
+ * model in a non-sample project — see firstUpload.ts), so someone who
+ * signs up without a file handy doesn't burn their trial before they have
+ * anything to compare. Until that first upload the clock hasn't started and
+ * the window is PRE_UPLOAD_TRIAL_DAYS from signup. */
+export function trialEndsAtMs(
+  createdAt: string | null | undefined,
+  overrideEndsAt?: string | null,
+  firstUploadAt?: string | null,
+): number {
+  if (overrideEndsAt) return new Date(overrideEndsAt).getTime();
+  if (firstUploadAt) return new Date(firstUploadAt).getTime() + TRIAL_DAYS * DAY_MS;
+  return createdAt ? new Date(createdAt).getTime() + PRE_UPLOAD_TRIAL_DAYS * DAY_MS : -Infinity;
+}
+
+/** Pure day-math, factored out so getAccountAccess() and the admin users
+ * list/stats (which already have each row's auth.users.created_at from
+ * listUsers(), and fetch first uploads in one bulk query) can't drift on
+ * the trial window. While the clock hasn't started (no override, no first
+ * upload) `trialDaysRemaining` is the full TRIAL_DAYS rather than the
+ * time left in the pre-upload window, so the UI shows what they'll get. */
+export function computeTrialStatus(
+  createdAt: string | null | undefined,
+  overrideEndsAt?: string | null,
+  firstUploadAt?: string | null,
+): TrialStatus {
+  const msRemaining = trialEndsAtMs(createdAt, overrideEndsAt, firstUploadAt) - Date.now();
+  if (msRemaining <= 0) return { isTrialing: false, trialDaysRemaining: null };
+  const clockStarted = !!overrideEndsAt || !!firstUploadAt;
+  return {
+    isTrialing: true,
+    trialDaysRemaining: clockStarted ? Math.ceil(msRemaining / DAY_MS) : TRIAL_DAYS,
+  };
 }
 
 export interface AccountAccess {
@@ -161,8 +196,11 @@ export async function getAccountAccess(supabase: SupabaseClient, userId: string)
     return { status: "pro", tier: "team", viaTeamMembership: false, isTrialing: false, trialDaysRemaining: null };
   }
 
-  const trialOverride = await getTrialExtension(supabase, userId);
-  const trial = computeTrialStatus(userResult?.user?.created_at, trialOverride);
+  const [trialOverride, firstUploadAt] = await Promise.all([
+    getTrialExtension(supabase, userId),
+    getFirstUploadAt(supabase, userId),
+  ]);
+  const trial = computeTrialStatus(userResult?.user?.created_at, trialOverride, firstUploadAt);
   if (trial.isTrialing) {
     return { status: "pro", tier, viaTeamMembership: false, ...trial };
   }

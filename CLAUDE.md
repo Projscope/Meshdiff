@@ -230,9 +230,12 @@ toolbar's 💬 button, the 3D-scene comment pins/popovers, and the
 `CommentsPanel` side panel).
 
 **14-day free trial (no card, no new table)** — a free-tier signup gets full
-Pro-level access (`status: 'pro'`) for their first 14 days, computed on the
-fly from `auth.users.created_at` via `computeTrialStatus()` in
-`apps/api/src/lib/subscription.ts` — there's no `trial_ends_at` column or
+Pro-level access (`status: 'pro'`) for 14 days starting at their **first real
+upload** (a version in a non-sample project; before that the clock hasn't
+started and they're trialing for up to 30 days after signup), computed on the
+fly via `computeTrialStatus()` in `apps/api/src/lib/subscription.ts` from
+`auth.users.created_at` plus the `first_user_uploads` view (migration 0040) —
+there's no `trial_ends_at` column or
 trigger (a prior attempt at this, `20260101000013_user_trials.sql`, was
 built and removed in `20260101000014_remove_trial.sql`; this version avoids
 reintroducing that table). Once the window closes, the account falls
