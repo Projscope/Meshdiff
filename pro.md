@@ -91,21 +91,34 @@ everywhere in the product, instead of needing a parallel set of Team-aware check
 
 ## The 14-day trial
 
-A free-tier signup gets full Pro-level access for their first 14 days, no
-credit card required — implemented entirely as day-math, no new table:
+A free-tier signup gets full Pro-level access for 14 days, no credit card
+required — and the 14 days start at the user's **first real upload** (a
+version in a non-sample project), not at signup. Comparing versions is
+episodic, so a signup without a file handy shouldn't burn their trial
+before they have anything to compare. Implemented as day-math over one
+derived view (`first_user_uploads`, migration 0040 — min `versions.created_at`
+per user, excluding `is_sample` projects), no new table:
 
 ```ts
 // apps/api/src/lib/subscription.ts
 const TRIAL_DAYS = 14;
-function computeTrialStatus(createdAt) {
-  const daysSinceSignup = (Date.now() - new Date(createdAt).getTime()) / 86_400_000;
-  if (daysSinceSignup < TRIAL_DAYS) return { isTrialing: true, trialDaysRemaining: ceil(TRIAL_DAYS - daysSinceSignup) };
-  return { isTrialing: false, trialDaysRemaining: null };
+const PRE_UPLOAD_TRIAL_DAYS = 30;
+function trialEndsAtMs(createdAt, overrideEndsAt, firstUploadAt) {
+  if (overrideEndsAt) return ms(overrideEndsAt);                       // admin override wins verbatim
+  if (firstUploadAt) return ms(firstUploadAt) + TRIAL_DAYS * DAY;      // clock started
+  return ms(createdAt) + PRE_UPLOAD_TRIAL_DAYS * DAY;                  // clock not started yet
 }
 ```
 
+Until that first upload the clock hasn't started: the account is trialing
+for up to `PRE_UPLOAD_TRIAL_DAYS` after signup (bounded so an account that
+never uploads can't hold trial access forever), and `trialDaysRemaining`
+reports the full `TRIAL_DAYS` rather than the pre-upload window.
+
 `getAccountAccess()` calls this for any free-tier user (i.e. no active
 subscription row) and returns `status: 'pro'` while `isTrialing` is true.
+The admin users list, admin stats, and the "+days" extension endpoint all
+use the same helpers (`computeTrialStatus`/`trialEndsAtMs`).
 Both `GET /billing/subscription` and the Admin Users list expose
 `isTrialing`/`trialDaysRemaining` from the same helper, so the sidebar
 billing card, the pricing page copy, and the admin trial badge can't drift
@@ -114,10 +127,11 @@ on the day count.
 **Why no new table.** A prior attempt at a trial (`20260101000013_user_trials.sql`,
 a `user_trials` table + an `on_auth_user_created` trigger) was built and
 then removed (`20260101000014_remove_trial.sql`) when Pro billing first
-shipped. Computing the window from `auth.users.created_at` instead means:
-no backfill needed (an existing free user's `created_at` is already >14
-days old, so they're immediately `restricted` exactly as before this
-feature shipped), and no trigger to keep in sync with anything.
+shipped. Computing the window from existing data (`auth.users.created_at`
+and the `first_user_uploads` view over `versions`) instead means: no
+backfill needed and no trigger to keep in sync with anything. Note the
+first-upload change reopened a trial for lapsed accounts that never
+uploaded anything and signed up within the last `PRE_UPLOAD_TRIAL_DAYS`.
 
 **What happens after the trial ends.** The account falls through to the
 same `restricted` status a canceled Pro subscription gets — read-only

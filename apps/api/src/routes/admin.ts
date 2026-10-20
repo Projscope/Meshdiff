@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
-import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus, TRIAL_DAYS } from "../lib/subscription.js";
+import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus, trialEndsAtMs } from "../lib/subscription.js";
+import { getFirstUploadAt, getFirstUploadsByUser } from "../lib/firstUpload.js";
 import { isAdminEmail } from "../lib/requireAdmin.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 import { getDemoUserIds, setDemoAccount } from "../lib/demoAccounts.js";
@@ -122,6 +123,10 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           supabase,
           pageResult.error ? [] : pageResult.data.users.map((u) => u.id),
         );
+        const firstUploadsResult = await getFirstUploadsByUser(
+          supabase,
+          pageResult.error ? [] : pageResult.data.users.map((u) => u.id),
+        );
 
         if (pageResult.error) {
           app.log.error(pageResult.error, "Failed to list users");
@@ -148,9 +153,15 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           reply.code(502);
           return { success: false, error: "Failed to load users" };
         }
+        if (!firstUploadsResult.success) {
+          app.log.error("Failed to load first uploads: " + firstUploadsResult.error);
+          reply.code(502);
+          return { success: false, error: "Failed to load users" };
+        }
         const demoIds = demoIdsResult.data;
         const grantsByUser = grantsResult.data;
         const trialExtensionsByUser = trialExtensionsResult.data;
+        const firstUploadsByUser = firstUploadsResult.data;
 
         // totalProbe.error's fallback shape ({ users: [] }) has no `total`
         // field — only take it when the probe actually succeeded.
@@ -229,7 +240,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           // trialExtensions.ts) overrides the default end date when set.
           const trial = isActive
             ? { isTrialing: false, trialDaysRemaining: null }
-            : computeTrialStatus(u.created_at, trialExtendedTo);
+            : computeTrialStatus(u.created_at, trialExtendedTo, firstUploadsByUser.get(u.id) ?? null);
           return {
             id: u.id,
             email: u.email ?? null,
@@ -354,9 +365,11 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
         return { success: false, error: "User not found" };
       }
 
-      const currentExtension = await getTrialExtension(supabase, userId);
-      const defaultEndsAtMs = new Date(userResult.user.created_at).getTime() + TRIAL_DAYS * 86_400_000;
-      const currentEndsAtMs = currentExtension ? new Date(currentExtension).getTime() : defaultEndsAtMs;
+      const [currentExtension, firstUploadAt] = await Promise.all([
+        getTrialExtension(supabase, userId),
+        getFirstUploadAt(supabase, userId),
+      ]);
+      const currentEndsAtMs = trialEndsAtMs(userResult.user.created_at, currentExtension, firstUploadAt);
       const baseMs = Math.max(Date.now(), currentEndsAtMs);
       const newEndsAt = new Date(baseMs + days * 86_400_000).toISOString();
 

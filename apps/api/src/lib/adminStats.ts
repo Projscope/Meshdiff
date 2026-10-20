@@ -3,6 +3,7 @@ import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus } from "./subscripti
 import { isAdminEmail } from "./requireAdmin.js";
 import { getDemoUserIds } from "./demoAccounts.js";
 import { getTrialExtensionsByUser } from "./trialExtensions.js";
+import { getFirstUploadsByUser } from "./firstUpload.js";
 
 export interface AdminStats {
   totalUsers: number;
@@ -89,6 +90,15 @@ export async function getAdminStats(
   }
   const trialExtensionByUserId = trialExtensionsResult.data;
 
+  const firstUploadsResult = await getFirstUploadsByUser(
+    supabase,
+    usersResult.data.users.map((u) => u.id),
+  );
+  if (!firstUploadsResult.success) {
+    return { success: false, error: "Failed to load first uploads" };
+  }
+  const firstUploadByUserId = firstUploadsResult.data;
+
   let freeUsers = 0;
   let trialingUsers = 0;
   let proSubscribers = 0;
@@ -99,7 +109,14 @@ export async function getAdminStats(
     if (isAdminEmail(u.email)) teamSubscribers++;
     else if (activeTier === "pro") proSubscribers++;
     else if (activeTier === "team") teamSubscribers++;
-    else if (computeTrialStatus(u.created_at, trialExtensionByUserId.get(u.id) ?? null).isTrialing) trialingUsers++;
+    else if (
+      computeTrialStatus(
+        u.created_at,
+        trialExtensionByUserId.get(u.id) ?? null,
+        firstUploadByUserId.get(u.id) ?? null,
+      ).isTrialing
+    )
+      trialingUsers++;
     else freeUsers++;
   }
   // "pro" here means "paying" for the stat card — includes Team
