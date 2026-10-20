@@ -40,6 +40,7 @@ import { useTeamTourStage, isTeamTourActive } from "../lib/teamTour";
 // — all three formats are safe again now that diffing runs client-side
 // (see uploadVersion() in lib/uploadVersion.ts) rather than on the shared server.
 const ALLOWED_EXTENSIONS = [".stl", ".3mf", ".obj"];
+const SAMPLE_FILES = ["gear-v1.stl", "gear-v2.stl"];
 // Kept in sync with the server-side limit (apps/api/src/lib/fileSizeLimit.ts)
 // — this is just an early UI check so an oversized file is rejected before
 // spending time on a signed-upload-URL round trip; the server enforces the
@@ -239,6 +240,40 @@ export default function ProjectDetailPage() {
       return;
     }
     void refreshProjectThumbnail(projectId, file);
+    await refresh();
+  }
+
+  // Uploads the bundled gear pair as two real versions so a user with no
+  // model file handy still reaches a real diff. Tracks the previous version
+  // id locally — handleFile reads `versions` from its render closure, which
+  // is still empty on the second upload.
+  async function handleAddSample() {
+    if (!projectId || !isPro) return;
+    setIsUploading(true);
+    setError(null);
+    let previousVersionId: string | null = null;
+    let lastFile: File | null = null;
+    for (const fileName of SAMPLE_FILES) {
+      setUploadingFileName(fileName);
+      let file: File;
+      try {
+        const response = await fetch(`/demo/${fileName}`);
+        if (!response.ok) throw new Error();
+        file = new File([await response.blob()], fileName);
+      } catch {
+        setError(t("projectDetail.sampleLoadFailed"));
+        break;
+      }
+      const result = await uploadVersion(projectId, file, previousVersionId);
+      if (!result.success) {
+        setError(result.error);
+        break;
+      }
+      previousVersionId = result.data.versionId;
+      lastFile = file;
+    }
+    setIsUploading(false);
+    if (lastFile) void refreshProjectThumbnail(projectId, lastFile);
     await refresh();
   }
 
@@ -593,8 +628,30 @@ export default function ProjectDetailPage() {
       </div>
 
       {versions.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-ink-800 bg-ink-900 px-4 py-10 text-center text-sm text-ink-500">
-          {t("projectDetail.noModelsYet")}
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-lg border border-dashed border-ink-700 bg-ink-900 px-4 py-12 text-center">
+          <p className="text-sm text-ink-300">{t("projectDetail.noModelsYet")}</p>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading || !isPro}
+            title={!isPro ? t("projectDetail.uploadUpgradeTooltip") : ""}
+            className="rounded-sm bg-accent-500 px-4 py-2 text-sm font-medium text-chrome-950 hover:bg-accent-400 disabled:opacity-50"
+          >
+            {t("projectDetail.uploadFirstModel")}
+          </button>
+          {isPro && (
+            <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={() => void handleAddSample()}
+                disabled={isUploading}
+                className="text-xs font-medium text-accent-fg-400 hover:text-accent-fg-300 disabled:opacity-50"
+              >
+                {t("projectDetail.addSampleModel")}
+              </button>
+              <span className="text-[11px] text-ink-500">{t("projectDetail.addSampleHint")}</span>
+            </div>
+          )}
         </div>
       ) : (
         <div data-tour="history" className="mt-6 overflow-hidden rounded-lg border border-ink-800">
