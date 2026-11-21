@@ -202,6 +202,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
               currentPeriodEnd: null,
               isTrialing: false,
               trialDaysRemaining: null,
+              trialClockStarted: false,
               isDemo,
               isAdmin,
               adminGrantedTier,
@@ -224,6 +225,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
               currentPeriodEnd: null,
               isTrialing: false,
               trialDaysRemaining: null,
+              trialClockStarted: false,
               isDemo,
               isAdmin,
               adminGrantedTier,
@@ -239,7 +241,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           // used on the actual access-gating path). trialExtendedTo (see
           // trialExtensions.ts) overrides the default end date when set.
           const trial = isActive
-            ? { isTrialing: false, trialDaysRemaining: null }
+            ? { isTrialing: false, trialDaysRemaining: null, trialClockStarted: false }
             : computeTrialStatus(u.created_at, trialExtendedTo, firstUploadsByUser.get(u.id) ?? null);
           return {
             id: u.id,
@@ -251,6 +253,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
             currentPeriodEnd: isActive ? sub!.current_period_end : null,
             isTrialing: trial.isTrialing,
             trialDaysRemaining: trial.trialDaysRemaining,
+            trialClockStarted: trial.trialClockStarted,
             isDemo,
             isAdmin,
             adminGrantedTier,

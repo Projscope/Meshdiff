@@ -112,8 +112,11 @@ function trialEndsAtMs(createdAt, overrideEndsAt, firstUploadAt) {
 
 Until that first upload the clock hasn't started: the account is trialing
 for up to `PRE_UPLOAD_TRIAL_DAYS` after signup (bounded so an account that
-never uploads can't hold trial access forever), and `trialDaysRemaining`
-reports the full `TRIAL_DAYS` rather than the pre-upload window.
+never uploads can't hold trial access forever). `trialDaysRemaining` is
+always the real time until access ends; the separate `trialClockStarted`
+flag says whether that end date came from a first upload (or an admin
+override) or from the pre-upload window, so the UI can say "your 14-day
+trial starts at your first upload" instead of implying 14 days are left.
 
 `getAccountAccess()` calls this for any free-tier user (i.e. no active
 subscription row) and returns `status: 'pro'` while `isTrialing` is true.

@@ -147,7 +147,10 @@ export default function ManagePlanModal({ subscription, onClose, onSubscriptionC
         <p className="mt-1 text-xs text-ink-500">
           {t("managePlan.currentPlanLabel")} <span className="font-medium text-ink-300">{readableCurrent}</span>
           {subscription.isTrialing &&
-            ` — ${t("managePlan.trialDaysLeft", { count: subscription.trialDaysRemaining })}`}
+            ` — ${t(
+              subscription.trialClockStarted === false ? "managePlan.trialNotStarted" : "managePlan.trialDaysLeft",
+              { count: subscription.trialDaysRemaining },
+            )}`}
           {subscription.cancelAtPeriodEnd &&
             subscription.currentPeriodEnd &&
             ` — ${t("managePlan.endsThenReadOnly", { date: formatDate(subscription.currentPeriodEnd) })}`}
