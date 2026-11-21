@@ -1,7 +1,7 @@
 {
   "name": "@meshdiff/desktop",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Meshdiff Desktop: a free local client for comparing 3D model versions",
   "author": "Projscope",
   "main": "dist/main.cjs",
