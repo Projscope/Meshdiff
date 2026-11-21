@@ -6,6 +6,7 @@ import type {
   LocalAnalysis,
   LocalComment,
   LocalCommentStatus,
+  LibraryInfo,
   LocalFormat,
   LocalProject,
   LocalProjectDetail,
@@ -96,6 +97,37 @@ export class LibraryStore {
     const run = this.lock.then(task, task);
     this.lock = run.catch(() => undefined);
     return run;
+  }
+
+  // ---- info ---------------------------------------------------------------
+
+  async getInfo(): Promise<LibraryInfo> {
+    const info: LibraryInfo = {
+      path: this.root,
+      projectCount: 0,
+      versionCount: 0,
+      commentCount: 0,
+      modelBytes: 0,
+      unreadableProjects: 0,
+    };
+    for (const id of await this.projectIds()) {
+      try {
+        const data = await this.read(id);
+        info.projectCount++;
+        info.versionCount += data.versions.length;
+        info.commentCount += data.comments.filter((c) => c.deletedAt === null).length;
+      } catch {
+        info.unreadableProjects++;
+      }
+    }
+    for (const prefix of await fs.promises.readdir(this.blobsDir).catch(() => [])) {
+      const dir = path.join(this.blobsDir, prefix);
+      for (const name of await fs.promises.readdir(dir).catch(() => [])) {
+        if (name.endsWith(".tmp")) continue;
+        info.modelBytes += (await fs.promises.stat(path.join(dir, name)).catch(() => null))?.size ?? 0;
+      }
+    }
+    return info;
   }
 
   // ---- projects -----------------------------------------------------------

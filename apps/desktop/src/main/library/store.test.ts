@@ -180,6 +180,21 @@ describe("versions", () => {
     expect(blobFiles()).toHaveLength(1); // unique removed
   });
 
+  it("deletes no model file while any project is unreadable, since it can't prove the file is unused", async () => {
+    const a = await store.createProject("A");
+    const broken = await store.createProject("Broken");
+    const brokenFile = path.join(root, "projects", broken.id, "project.json");
+    const version = await store.addVersion(a.id, "x.stl", bytes("keep me"));
+    fs.writeFileSync(brokenFile, "{ broken");
+    await store.deleteVersion(a.id, version.id);
+    expect(blobFiles()).toHaveLength(1); // the broken project might still use it
+    expect(fs.readFileSync(brokenFile, "utf8")).toBe("{ broken");
+    // Once the problem is gone, the next cleanup removes what nothing references.
+    fs.rmSync(path.join(root, "projects", broken.id), { recursive: true });
+    await store.deleteProject(a.id);
+    expect(blobFiles()).toHaveLength(0);
+  });
+
   it("deleting a project removes it and its unshared files only", async () => {
     const a = await store.createProject("A");
     const b = await store.createProject("B");
@@ -271,5 +286,39 @@ describe("comments", () => {
     const comments = (await new LibraryStore(root).getProject(project.id))?.comments ?? [];
     expect(comments).toHaveLength(25);
     expect(new Set(comments.map((c) => c.body)).size).toBe(25);
+  });
+});
+
+describe("getInfo", () => {
+  it("describes an empty library", async () => {
+    expect(await store.getInfo()).toEqual({ path: root, projectCount: 0, versionCount: 0, commentCount: 0, modelBytes: 0, unreadableProjects: 0 });
+  });
+
+  it("counts projects, versions, live comments and stored bytes (shared files counted once)", async () => {
+    const a = await store.createProject("A");
+    const b = await store.createProject("B");
+    const shared = bytes("0123456789"); // 10 bytes, stored once
+    const v1 = await store.addVersion(a.id, "a.stl", shared);
+    await store.addVersion(b.id, "b.stl", shared);
+    await store.addVersion(b.id, "c.stl", bytes("abcde")); // 5 bytes
+    const keep = await store.addComment(a.id, { versionId: v1.id, body: "keep", position: [0, 0, 0] });
+    const drop = await store.addComment(a.id, { versionId: v1.id, body: "drop", position: [0, 0, 0] });
+    await store.deleteComment(a.id, drop.id);
+    const info = await store.getInfo();
+    expect(info).toMatchObject({ projectCount: 2, versionCount: 3, commentCount: 1, modelBytes: 15, unreadableProjects: 0 });
+    expect(keep.id).toBeTruthy();
+  });
+
+  it("reports damaged projects without counting or touching them, and ignores temp files", async () => {
+    const good = await store.createProject("Good");
+    const bad = await store.createProject("Bad");
+    await store.addVersion(good.id, "g.stl", bytes("12345"));
+    const badFile = path.join(root, "projects", bad.id, "project.json");
+    fs.writeFileSync(badFile, "{ broken");
+    const blobDir = fs.readdirSync(path.join(root, "blobs"))[0]!;
+    fs.writeFileSync(path.join(root, "blobs", blobDir, "leftover.tmp"), "x".repeat(1000));
+    const info = await store.getInfo();
+    expect(info).toMatchObject({ projectCount: 1, versionCount: 1, unreadableProjects: 1, modelBytes: 5 });
+    expect(fs.readFileSync(badFile, "utf8")).toBe("{ broken");
   });
 });

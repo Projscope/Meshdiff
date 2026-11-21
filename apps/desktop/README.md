@@ -26,6 +26,16 @@ worker as the website (`apps/web/src/desktop/lib/analyzeVersion.ts`) and saves t
 (ULID versions, UUID comments) and comment coordinates match the cloud's, so a later sync can
 reuse them. Set `MESHDIFF_LIBRARY_DIR` to point the app at a throwaway library (tests do).
 
+### Staying safe with damaged data
+
+- A project file the app can't read is hidden from the list but never changed or deleted, and
+  Settings says how many there are.
+- While any project is unreadable, no model file is deleted (the app can't prove a file is unused).
+- A saved analysis with missing or malformed numbers is recomputed from the model file
+  (`apps/web/src/desktop/lib/analysisValidity.ts`); a page that still fails to render shows a
+  recovery screen instead of a blank window (`ErrorBoundary.tsx`).
+- Fonts (IBM Plex Sans, Space Grotesk) are bundled with `@fontsource`, so nothing is fetched from a CDN.
+
 ## Develop
 
 ```bash

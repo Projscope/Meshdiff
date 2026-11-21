@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { HashRouter, NavLink, Route, Routes } from "react-router-dom";
+import { HashRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import type { DesktopInfo, UpdateStatus } from "@meshdiff/shared/desktopBridge";
+import ErrorBoundary from "./ErrorBoundary";
 import ComparePage from "./pages/ComparePage";
 import LibraryPage from "./pages/LibraryPage";
 import ProjectPage from "./pages/ProjectPage";
 import QuickViewPage from "./pages/QuickViewPage";
+import SettingsPage from "./pages/SettingsPage";
 import VersionPage from "./pages/VersionPage";
 
 function updateLabel(status: UpdateStatus | null): string {
@@ -30,6 +32,24 @@ function updateLabel(status: UpdateStatus | null): string {
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `rounded px-2 py-1 text-xs ${isActive ? "bg-ink-800 text-ink-50" : "text-ink-400 hover:text-ink-200"}`;
 
+/** The routed pages, wrapped so a page that fails to render shows a recovery screen instead of a blank window. */
+function Pages() {
+  const { pathname } = useLocation();
+  return (
+    <ErrorBoundary resetKey={pathname}>
+      <Routes>
+        <Route path="/" element={<LibraryPage />} />
+        <Route path="/quick" element={<QuickViewPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/p/:projectId" element={<ProjectPage />} />
+        <Route path="/p/:projectId/v/:versionId" element={<VersionPage />} />
+        <Route path="/p/:projectId/compare/:aId/:bId" element={<ComparePage />} />
+        <Route path="*" element={<LibraryPage />} />
+      </Routes>
+    </ErrorBoundary>
+  );
+}
+
 /** The desktop shell: a local-first client. Projects live on this computer; the
  * renderer has no network access (see the CSP in apps/desktop/src/main/index.ts). */
 export default function DesktopApp() {
@@ -53,6 +73,7 @@ export default function DesktopApp() {
             <nav className="flex gap-1">
               <NavLink to="/" end className={navClass}>Projects</NavLink>
               <NavLink to="/quick" className={navClass}>Quick view</NavLink>
+              <NavLink to="/settings" className={navClass}>Settings</NavLink>
             </nav>
             {info && (
               <span data-testid="app-info" className="text-xs text-ink-500">
@@ -74,14 +95,7 @@ export default function DesktopApp() {
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<LibraryPage />} />
-            <Route path="/quick" element={<QuickViewPage />} />
-            <Route path="/p/:projectId" element={<ProjectPage />} />
-            <Route path="/p/:projectId/v/:versionId" element={<VersionPage />} />
-            <Route path="/p/:projectId/compare/:aId/:bId" element={<ComparePage />} />
-            <Route path="*" element={<LibraryPage />} />
-          </Routes>
+          <Pages />
         </main>
       </div>
     </HashRouter>

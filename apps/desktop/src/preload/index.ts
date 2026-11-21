@@ -14,6 +14,8 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const library: LibraryBridge = {
+  getInfo: () => call("library:getInfo"),
+  openFolder: () => call("library:openFolder"),
   listProjects: () => call("library:listProjects"),
   createProject: (name) => call("library:createProject", name),
   renameProject: (projectId, name) => call("library:renameProject", projectId, name),

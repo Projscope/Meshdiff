@@ -27,6 +27,8 @@ interface ReadOnlyMeshViewerProps {
   onMeshClick?: (event: ThreeEvent<MouseEvent>) => void;
   /** Extra toolbar content next to the measure tools. */
   toolbarExtras?: ReactNode;
+  /** Hides the measure/cross-section toolbar, for small viewers where it would cover the model. */
+  hideToolbar?: boolean;
 }
 
 export interface ReadOnlyMeshViewerHandle {
@@ -39,7 +41,7 @@ export interface ReadOnlyMeshViewerHandle {
 }
 
 const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshViewerProps>(function ReadOnlyMeshViewer(
-  { label, fallbackLabel, geometry, color = "#4f8ff7", children, onMeshClick, toolbarExtras },
+  { label, fallbackLabel, geometry, color = "#4f8ff7", children, onMeshClick, toolbarExtras, hideToolbar },
   ref,
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
@@ -80,9 +82,9 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
         <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
           {geometry ? label : fallbackLabel}
         </span>
-        {geometry && <MeasureToolbar measure={measure} onZoomToFit={() => zoomToFitRef.current?.()} onResetView={() => resetViewRef.current?.()} />}
-        {geometry && <ClippingPlaneControl />}
-        {geometry && toolbarExtras}
+        {geometry && !hideToolbar && <MeasureToolbar measure={measure} onZoomToFit={() => zoomToFitRef.current?.()} onResetView={() => resetViewRef.current?.()} />}
+        {geometry && !hideToolbar && <ClippingPlaneControl />}
+        {geometry && !hideToolbar && toolbarExtras}
       </div>
       {!geometry && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-ink-600">

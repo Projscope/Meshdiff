@@ -52,6 +52,7 @@ export default function VersionPage() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CommentSummary | null>(null);
+  const [tab, setTab] = useState<"details" | "comments">("details");
 
   const version = detail?.versions.find((v) => v.id === versionId) ?? null;
 
@@ -109,6 +110,22 @@ export default function VersionPage() {
     setIsPlacing(false);
   }
 
+  // Starting to comment (or picking a comment) switches to the Comments tab,
+  // so the panel you need is never hidden behind the stats.
+  function togglePlacing() {
+    if (isPlacing) {
+      cancelPending();
+    } else {
+      setIsPlacing(true);
+      setTab("comments");
+    }
+  }
+
+  function selectComment(commentId: string) {
+    setSelectedId(commentId);
+    setTab("comments");
+  }
+
   async function submitComment(body: string) {
     if (!pendingPosition) return;
     const position = pendingPosition;
@@ -142,6 +159,20 @@ export default function VersionPage() {
           fallbackLabel={`v${version.number}`}
           geometry={geometry}
           onMeshClick={isPlacing ? handleMeshClick : undefined}
+          toolbarExtras={
+            <button
+              type="button"
+              data-testid="toolbar-comment"
+              onClick={togglePlacing}
+              aria-label={isPlacing ? "Cancel adding a comment" : "Add a comment"}
+              title={isPlacing ? "Cancel adding a comment" : "Click a spot on the model to add a comment"}
+              className={`flex h-7 w-7 items-center justify-center rounded text-sm ${
+                isPlacing ? "bg-indigo-500/20 text-indigo-400" : "text-ink-300 hover:bg-ink-800 hover:text-ink-50"
+              }`}
+            >
+              💬
+            </button>
+          }
         >
           {topLevel.map((comment) => (
             <CommentPin
@@ -150,7 +181,7 @@ export default function VersionPage() {
               label={comment.body}
               highlighted={hoveredId === comment.id || selectedId === comment.id}
               onHoverChange={(hovering) => setHoveredId(hovering ? comment.id : null)}
-              onSelect={() => setSelectedId(comment.id)}
+              onSelect={() => selectComment(comment.id)}
               messageCount={1 + repliesOf(comment.id).length}
             />
           ))}
@@ -211,29 +242,50 @@ export default function VersionPage() {
               <PrintabilityBadge status={analysis.printabilityStatus} />
             </div>
             <p className="mt-2 text-xs text-ink-300">{analysis.changeSummary}</p>
-            <div className="mt-4">
-              <DetailedStatsPanel stats={analysis.stats} hasComparison={analysis.comparedToVersionId !== null} boundingBoxB={boundingBox} />
-            </div>
           </>
         ) : (
           <p className="mt-4 text-xs text-ink-500">Analyzing this version…</p>
         )}
 
-        <div className="mt-5">
-          <CommentsPanel
-            comments={comments}
-            isPlacingComment={isPlacing}
-            onTogglePlacing={() => (isPlacing ? cancelPending() : setIsPlacing(true))}
-            pendingPosition={pendingPosition}
-            onCancelPending={cancelPending}
-            highlightedCommentId={hoveredId ?? selectedId}
-            onHoverComment={setHoveredId}
-            onSelectComment={setSelectedId}
-            canDeleteComment={() => true}
-            onRequestDelete={setPendingDelete}
-            canChangeStatus={() => true}
-            onToggleStatus={toggleStatus}
-          />
+        <div role="tablist" className="mt-4 flex border-b border-ink-800 text-xs">
+          {(["details", "comments"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              data-testid={`tab-${id}`}
+              onClick={() => setTab(id)}
+              className={`-mb-px border-b-2 px-3 py-2 font-medium ${
+                tab === id ? "border-accent-500 text-ink-50" : "border-transparent text-ink-500 hover:text-ink-300"
+              }`}
+            >
+              {id === "details" ? "Details" : `Comments (${comments.length})`}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4">
+          {tab === "details" ? (
+            analysis && (
+              <DetailedStatsPanel stats={analysis.stats} hasComparison={analysis.comparedToVersionId !== null} boundingBoxB={boundingBox} />
+            )
+          ) : (
+            <CommentsPanel
+              comments={comments}
+              isPlacingComment={isPlacing}
+              onTogglePlacing={togglePlacing}
+              pendingPosition={pendingPosition}
+              onCancelPending={cancelPending}
+              highlightedCommentId={hoveredId ?? selectedId}
+              onHoverComment={setHoveredId}
+              onSelectComment={selectComment}
+              canDeleteComment={() => true}
+              onRequestDelete={setPendingDelete}
+              canChangeStatus={() => true}
+              onToggleStatus={toggleStatus}
+            />
+          )}
         </div>
       </aside>
 

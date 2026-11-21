@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent, type OpenDialogOptions } from "electron";
+import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent, type OpenDialogOptions } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { types } from "node:util";
@@ -60,6 +60,12 @@ export function registerLibraryIpc(store: LibraryStore, appOrigin: string): void
   const h = <T>(channel: string, run: (event: IpcMainInvokeEvent, args: unknown[]) => Promise<T>) =>
     handle(channel, appOrigin, run);
 
+  h("library:getInfo", () => store.getInfo());
+  h("library:openFolder", async () => {
+    await fs.promises.mkdir(store.root, { recursive: true });
+    const failure = await shell.openPath(store.root);
+    if (failure) throw new LibraryError("Couldn't open the library folder.");
+  });
   h("library:listProjects", () => store.listProjects());
   h("library:createProject", (_e, [name]) => store.createProject(name as string));
   h("library:renameProject", (_e, [id, name]) => store.renameProject(id as string, name as string));

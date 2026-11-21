@@ -74,8 +74,8 @@ export default function ComparePage() {
         </div>
         {error && <div role="alert" className="rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">{error}</div>}
         <div className="grid h-[240px] shrink-0 grid-cols-2 gap-2">
-          <ReadOnlyMeshViewer label={`v${versionA.number}`} fallbackLabel="Version A" geometry={geometryA} />
-          <ReadOnlyMeshViewer label={`v${versionB.number}`} fallbackLabel="Version B" geometry={geometryB} />
+          <ReadOnlyMeshViewer label={`v${versionA.number}`} fallbackLabel="Version A" geometry={geometryA} hideToolbar />
+          <ReadOnlyMeshViewer label={`v${versionB.number}`} fallbackLabel="Version B" geometry={geometryB} hideToolbar />
         </div>
         <div className="min-h-[300px] flex-1">
           <DiffView

@@ -81,7 +81,23 @@ export interface NewLocalComment {
   parentCommentId?: string | null;
 }
 
+/** What the library holds and where, for the Settings page. */
+export interface LibraryInfo {
+  /** Absolute path of the library folder on disk. */
+  path: string;
+  projectCount: number;
+  versionCount: number;
+  commentCount: number;
+  /** Total size of the stored model files. */
+  modelBytes: number;
+  /** Project folders that couldn't be read (damaged data files). They are left untouched. */
+  unreadableProjects: number;
+}
+
 export interface LibraryBridge {
+  getInfo(): Promise<LibraryInfo>;
+  /** Opens the library folder in the system file manager. */
+  openFolder(): Promise<void>;
   listProjects(): Promise<LocalProjectSummary[]>;
   createProject(name: string): Promise<LocalProject>;
   renameProject(projectId: string, name: string): Promise<LocalProject>;
