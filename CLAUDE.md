@@ -193,6 +193,8 @@ Meshdiff/
   src/types/diff.ts    # GeometricDeltaReport schema — shared source of truth
   apps/web/             # React + TS + Tailwind + R3F frontend
   apps/api/              # Node.js (Fastify) backend
+  apps/desktop/          # Electron local-first client (see apps/desktop/README.md)
+  apps/shared/           # diff engine + types shared by web, api and desktop
 ```
 
 ---
