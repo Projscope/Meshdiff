@@ -36,6 +36,30 @@ reuse them. Set `MESHDIFF_LIBRARY_DIR` to point the app at a throwaway library (
   recovery screen instead of a blank window (`ErrorBoundary.tsx`).
 - Fonts (IBM Plex Sans, Space Grotesk) are bundled with `@fontsource`, so nothing is fetched from a CDN.
 
+## Large models
+
+The website caps analysis at 50,000 triangles per mesh, a limit set to protect the shared server
+(`MAX_TRIANGLES_PER_MESH` in `apps/shared/src/engine/diffVoxels.ts`). The desktop app analyses on the
+user's own computer, so it uses a higher limit sized to that computer instead of a fixed one:
+
+- **How the limit is set** (`apps/shared/src/analysisLimits.ts`): from the memory that is free right
+  now (never counting on more than half the installed memory), at 3 KB per triangle, kept between
+  50,000 and 1,000,000. The cost was measured with `node tests/bench-analysis.mjs`: about 1.4 KB and
+  8 microseconds per triangle, scaling linearly to at least 2 million (2M triangles = 2.7 GB, 18 s on
+  a fast desktop CPU); the budget assumes twice that for parsing and the 3D view.
+- **Checked early:** a binary STL states its triangle count in its header, so an oversized one is
+  refused before any parsing. 3MF/OBJ are checked right after parsing, before the step that copies
+  every vertex.
+- **Safe if the estimate is wrong:** analysis runs in a worker, and a worker that dies (e.g. out of
+  memory) now fails its pending requests with a message instead of hanging, and the next request starts
+  a fresh one (`apps/web/src/lib/createWorkerClient.ts`, which the website benefits from too). A running
+  analysis can be cancelled, and is stopped after 5 minutes.
+- **What the user sees:** a large model says so and offers Cancel; one over the limit is refused with its
+  size, the limit on this computer and what to do (simplify the mesh). The file stays in the library.
+  A refused version can't be synced (the cloud needs its stats), and because versions are diffed against
+  the one before, a refused version also blocks the analysis of the next one.
+- **For testing/support:** `MESHDIFF_ANALYSIS_MAX_TRIANGLES=<n>` forces the limit.
+
 ## Team sync (optional, Team plan)
 
 The app is fully usable without an account. Signing in (Settings) and connecting a
@@ -81,6 +105,8 @@ npm run test --workspace @meshdiff/desktop # unit tests for the library store
 npm run smoke --workspace apps/desktop     # launches the real app and checks it
 node tests/library-e2e.mjs                 # drives the real UI: projects, versions, comments, restart
 node tests/sync-e2e.mjs                    # two app instances syncing through a local stand-in cloud
+node tests/large-model-e2e.mjs             # big generated models: analyse, refuse with an explanation, cancel, retry
+node tests/bench-analysis.mjs              # measures analysis time/memory at 50k-2M triangles (on demand)
 ```
 
 `npm run pack` builds an unpacked app and `npm run dist` builds the installer into

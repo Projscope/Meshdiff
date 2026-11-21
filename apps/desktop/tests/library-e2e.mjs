@@ -26,12 +26,15 @@ function check(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` (${detail})` : ""}`);
 }
 
+// Its own profile (kept across the restart below), so it never collides with an installed Meshdiff that is
+// open: the app allows one instance per profile.
+const userArg = `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), "meshdiff-library-userdata-"))}`;
 function launch() {
   const env = { ...process.env, MESHDIFF_LIBRARY_DIR: libraryDir };
   return electron.launch(
     packagedExe
-      ? { executablePath: packagedExe, env }
-      : { executablePath: require("electron"), args: [appDir], cwd: appDir, env },
+      ? { executablePath: packagedExe, args: [userArg], env }
+      : { executablePath: require("electron"), args: [appDir, userArg], cwd: appDir, env },
   );
 }
 

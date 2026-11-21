@@ -10,6 +10,8 @@ import { toIndexArray } from "./geometryTransfer";
 // the computation it's offloading.
 const client = createWorkerClient<DiffWorkerRequest, DiffWorkerResponse>(
   () => new Worker(new URL("../workers/diffWorker.ts", import.meta.url), { type: "module" }),
+  // A new worker has nothing voxelized, so the "only the tolerance changed" shortcut below must not be taken.
+  { onReset: () => resetCachedBase() },
 );
 
 // Mirrors the worker's cachedBase: which geometry pair (+ base options) the
@@ -21,6 +23,17 @@ const client = createWorkerClient<DiffWorkerRequest, DiffWorkerResponse>(
 let cachedGeometryA: THREE.BufferGeometry | null = null;
 let cachedGeometryB: THREE.BufferGeometry | null = null;
 let cachedBaseOptionsKey: string | null = null;
+
+function resetCachedBase(): void {
+  cachedGeometryA = null;
+  cachedGeometryB = null;
+  cachedBaseOptionsKey = null;
+}
+
+/** Stops a diff that is running (e.g. the user cancelled, or it is taking too long). */
+export function cancelVoxelDiff(message?: string): void {
+  client.cancel(message);
+}
 
 /**
  * Off-main-thread version of computeVoxelDiff (see CLAUDE.md "3D Performance

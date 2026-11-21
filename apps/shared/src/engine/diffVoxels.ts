@@ -541,6 +541,9 @@ export function computeVoxelDiffBase(
     targetVoxelsPerAxis?: number;
     fileFormatA?: string;
     fileFormatB?: string;
+    /** Largest mesh to accept, in triangles. Defaults to MAX_TRIANGLES_PER_MESH, which is
+     * sized for the shared server; the desktop app passes a higher one sized to the user's own computer. */
+    maxTriangles?: number;
   },
 ): Result<VoxelDiffBase> {
   // Checked before any heavy allocation (voxelization, BVH construction) —
@@ -550,10 +553,11 @@ export function computeVoxelDiffBase(
   const indexB = geometryB.getIndex();
   const triangleCountA = indexA ? indexA.count / 3 : (geometryA.getAttribute("position")?.count ?? 0) / 3;
   const triangleCountB = indexB ? indexB.count / 3 : (geometryB.getAttribute("position")?.count ?? 0) / 3;
-  if (triangleCountA > MAX_TRIANGLES_PER_MESH || triangleCountB > MAX_TRIANGLES_PER_MESH) {
+  const maxTriangles = options?.maxTriangles ?? MAX_TRIANGLES_PER_MESH;
+  if (triangleCountA > maxTriangles || triangleCountB > maxTriangles) {
     return {
       success: false,
-      error: `Mesh has ${Math.max(triangleCountA, triangleCountB).toLocaleString()} triangles, exceeding the ${MAX_TRIANGLES_PER_MESH.toLocaleString()} limit for diffing`,
+      error: `Mesh has ${Math.max(triangleCountA, triangleCountB).toLocaleString()} triangles, exceeding the ${maxTriangles.toLocaleString()} limit for diffing`,
     };
   }
 
@@ -803,6 +807,7 @@ export function computeVoxelDiff(
     toleranceMm?: number;
     fileFormatA?: string;
     fileFormatB?: string;
+    maxTriangles?: number;
   },
 ): Result<VoxelDiffResult> {
   const baseResult = computeVoxelDiffBase(geometryA, geometryB, options);

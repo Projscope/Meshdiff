@@ -78,6 +78,11 @@ jobs:
       - run: node tests/sync-e2e.mjs
         working-directory: apps/desktop
 
+      # Large generated models: one that fits is analysed, one over the limit is refused with
+      # an explanation, a running analysis can be cancelled and retried.
+      - run: node tests/large-model-e2e.mjs
+        working-directory: apps/desktop
+
       # electron-builder starts two publishers at once, and when the release doesn't
       # exist yet both try to create it: one wins, the other gets "422 Published
       # releases must have a valid tag" and aborts the whole upload (this broke the

@@ -2,6 +2,7 @@
 // renderer as `window.meshdiffDesktop`. Lives in shared so the main process,
 // the preload script and the web renderer all agree on one contract.
 
+import type { AnalysisLimits } from "./analysisLimits.js";
 import type { LibraryBridge, LocalProject } from "./localLibrary.js";
 
 export interface DesktopInfo {
@@ -94,6 +95,8 @@ export interface MeshdiffDesktopBridge {
   /** Optional cloud account and Team sync; the local app never depends on it. */
   sync: SyncBridge;
   getInfo(): Promise<DesktopInfo>;
+  /** The largest model this computer can comfortably analyse, from its current free memory. */
+  getAnalysisLimits(): Promise<AnalysisLimits>;
   getUpdateStatus(): Promise<UpdateStatus>;
   checkForUpdates(): Promise<UpdateStatus>;
   /** Quits and installs a downloaded update. */

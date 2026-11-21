@@ -29,12 +29,12 @@ import type { Result } from "@meshdiff/shared/types/diff";
 // whatever the stock loader needs — real fix for a real regression: a
 // user's actual 7.8MB multi-plate 3MF measured at ~11s to parse through
 // linkedom's full DOM tree, almost entirely in this one call.
-function parseProductionThreeMF(buffer: ArrayBuffer) {
+function parseProductionThreeMF(buffer: ArrayBuffer, maxTriangles?: number) {
   const ctx = self as unknown as { DOMParser?: unknown };
   const previous = ctx.DOMParser;
   ctx.DOMParser = FastXmlDOMParser;
   try {
-    return parseProductionThreeMFImpl(buffer);
+    return parseProductionThreeMFImpl(buffer, { maxTriangles });
   } finally {
     ctx.DOMParser = previous;
   }
@@ -76,7 +76,7 @@ function looksLikeProductionExtension(buffer: ArrayBuffer): boolean {
 // needs the worker-safe DOMParser installed above before ThreeMFLoader
 // (used by both) ever runs, and because a worker can't import a module that
 // itself isn't worker-safe (loadMesh.ts has no such constraint to satisfy).
-async function parseMeshGeometry(file: File): Promise<Result<THREE.BufferGeometry>> {
+async function parseMeshGeometry(file: File, maxTriangles?: number): Promise<Result<THREE.BufferGeometry>> {
   const extension = extensionOf(file.name);
 
   try {
@@ -121,7 +121,7 @@ async function parseMeshGeometry(file: File): Promise<Result<THREE.BufferGeometr
       const buffer = await file.arrayBuffer();
 
       if (looksLikeProductionExtension(buffer)) {
-        const fallback = parseProductionThreeMF(buffer);
+        const fallback = parseProductionThreeMF(buffer, maxTriangles);
         if (!fallback.success) return fallback;
         fallback.data.computeVertexNormals();
         return { success: true, data: fallback.data };
@@ -136,7 +136,7 @@ async function parseMeshGeometry(file: File): Promise<Result<THREE.BufferGeometr
         // p:path-aware parser before giving up. Reached only when the
         // cheap zip-entry check above didn't already catch it (e.g. a
         // single-.model file using p:path in some other way).
-        const fallback = parseProductionThreeMF(buffer);
+        const fallback = parseProductionThreeMF(buffer, maxTriangles);
         if (!fallback.success) return fallback;
         fallback.data.computeVertexNormals();
         return { success: true, data: fallback.data };
@@ -180,6 +180,8 @@ async function parseMeshGeometry(file: File): Promise<Result<THREE.BufferGeometr
 export interface MeshParseWorkerRequest {
   id: number;
   file: File;
+  /** Overrides the 3MF triangle cap (desktop only; unset means the shared default). */
+  maxTriangles?: number;
 }
 
 export interface ParsedMeshGeometry {
@@ -200,8 +202,8 @@ const ctx = self as unknown as {
 };
 
 ctx.onmessage = (event: MessageEvent<MeshParseWorkerRequest>) => {
-  const { id, file } = event.data;
-  parseMeshGeometry(file).then((result) => {
+  const { id, file, maxTriangles } = event.data;
+  parseMeshGeometry(file, maxTriangles).then((result) => {
     if (!result.success) {
       ctx.postMessage({ id, result }, []);
       return;

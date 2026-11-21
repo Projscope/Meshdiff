@@ -57,6 +57,7 @@ const bridge: MeshdiffDesktopBridge = {
   library,
   sync,
   getInfo: () => ipcRenderer.invoke("desktop:getInfo"),
+  getAnalysisLimits: () => ipcRenderer.invoke("desktop:getAnalysisLimits"),
   getUpdateStatus: () => ipcRenderer.invoke("desktop:getUpdateStatus"),
   checkForUpdates: () => ipcRenderer.invoke("desktop:checkForUpdates"),
   installUpdate: () => ipcRenderer.invoke("desktop:installUpdate"),

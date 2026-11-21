@@ -79,6 +79,8 @@ interface DiffViewProps {
    * Radius tool show a hole's before/after diameter instead of just its
    * current one, in Overlay mode. */
   holeChanges?: HoleChange[];
+  /** Overrides the diff engine's triangle cap (the desktop app sizes it to the user's computer). Unset means the default. */
+  maxTriangles?: number;
 }
 
 export interface DiffViewHandle {
@@ -164,6 +166,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
     onCameraChange,
     isSyncEnabled = false,
     holeChanges = [],
+    maxTriangles,
   },
   ref,
 ) {
@@ -335,6 +338,7 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         const coarse = await computeVoxelDiffOffThread(geometryA!, alignedGeometryB!, {
           toleranceMm,
           targetVoxelsPerAxis: COARSE_TARGET_VOXELS_PER_AXIS,
+          maxTriangles,
         });
         if (requestIdRef.current !== requestId) return; // superseded before the coarse pass even landed
         setDiff(coarse.success ? coarse.data : { error: coarse.error });
@@ -345,14 +349,14 @@ const DiffView = forwardRef<DiffViewHandle, DiffViewProps>(function DiffView(
         }
       }
 
-      const fine = await computeVoxelDiffOffThread(geometryA!, alignedGeometryB!, { toleranceMm });
+      const fine = await computeVoxelDiffOffThread(geometryA!, alignedGeometryB!, { toleranceMm, maxTriangles });
       if (requestIdRef.current !== requestId) return; // superseded by a newer request
       setDiff(fine.success ? fine.data : { error: fine.error });
       setDiffQuality("fine");
       setIsComputing(false);
     }
     void run();
-  }, [geometryA, alignedGeometryB, toleranceMm]);
+  }, [geometryA, alignedGeometryB, toleranceMm, maxTriangles]);
 
   const isPending = !geometryA || !geometryB;
   const hasError = diff && "error" in diff;

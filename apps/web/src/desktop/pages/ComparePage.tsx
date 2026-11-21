@@ -7,6 +7,7 @@ import DiffView, { type DiffAlignment, type DiffMode } from "../../components/Di
 import ReadOnlyMeshViewer from "../../components/ReadOnlyMeshViewer";
 import { useDiffColors } from "../../lib/diffPalette";
 import { loadVersionGeometry } from "../lib/analyzeVersion";
+import { getAnalysisLimits } from "../lib/analysisLimits";
 import { errorMessage } from "../lib/library";
 import { useProject } from "../lib/useProject";
 
@@ -22,6 +23,7 @@ export default function ComparePage() {
   const [toleranceMm, setToleranceMm] = useState(0.15);
   const [alignment, setAlignment] = useState<DiffAlignment>("none");
   const [stats, setStats] = useState<(VoxelDiffStats & { toleranceMm: number }) | null>(null);
+  const [maxTriangles, setMaxTriangles] = useState<number | undefined>(undefined);
 
   const versionA = detail?.versions.find((v) => v.id === aId) ?? null;
   const versionB = detail?.versions.find((v) => v.id === bId) ?? null;
@@ -33,8 +35,15 @@ export default function ComparePage() {
     setGeometryB(null);
     setStats(null);
     setError(null);
-    Promise.all([loadVersionGeometry(projectId, versionA), loadVersionGeometry(projectId, versionB)])
-      .then(([a, b]) => {
+    // The same limit analysis uses: it decides which models this computer will load and diff.
+    getAnalysisLimits()
+      .then(async (limits) => {
+        if (cancelled) return;
+        setMaxTriangles(limits.maxTriangles);
+        const [a, b] = await Promise.all([
+          loadVersionGeometry(projectId, versionA, limits),
+          loadVersionGeometry(projectId, versionB, limits),
+        ]);
         if (cancelled) return;
         setGeometryA(a);
         setGeometryB(b);
@@ -90,6 +99,7 @@ export default function ComparePage() {
             onAlignmentChange={setAlignment}
             onStatsChange={setStats}
             holeChanges={stats?.holeChanges}
+            maxTriangles={maxTriangles}
           />
         </div>
       </div>

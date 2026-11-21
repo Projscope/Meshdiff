@@ -459,4 +459,52 @@ describe.each(DOM_PARSER_IMPLEMENTATIONS)("parseProductionThreeMF (DOMParser: %s
 
     expect(result.success).toBe(false);
   });
+
+  describe("triangle cap", () => {
+    // A slicer-style multi-part 3MF with 60,000 triangles: over the default cap (50,000, sized for
+    // the shared server), well under what a desktop computer can take.
+    function bigFixture(triangles: number): ArrayBuffer {
+      const rootModel = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06">
+  <resources/>
+  <build><item objectid="1" p:path="/3D/Objects/object_1.model"/></build>
+</model>`;
+      const triangleXml = `<triangle v1="0" v2="1" v3="2"/>`.repeat(triangles);
+      const objectModel = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+  <resources><object id="1" type="model"><mesh>
+    <vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices>
+    <triangles>${triangleXml}</triangles>
+  </mesh></object></resources>
+</model>`;
+      return buildFixture(rootModel, { "3D/Objects/object_1.model": objectModel });
+    }
+
+    it("refuses a model over the default cap, naming the cap", () => {
+      const result = parseProductionThreeMF(bigFixture(60_000));
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.error).toContain("50,000");
+    });
+
+    it("accepts the same model when the caller allows more", () => {
+      const result = parseProductionThreeMF(bigFixture(60_000), { maxTriangles: 100_000 });
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.getAttribute("position").count).toBe(180_000); // 60,000 triangles, non-indexed
+    });
+
+    it("refuses a model over a lower cap, naming that cap", () => {
+      const result = parseProductionThreeMF(bigFixture(60_000), { maxTriangles: 10_000 });
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.error).toContain("10,000");
+      expect(result.error).not.toContain("50,000");
+    });
+
+    it("accepts a model exactly at the cap", () => {
+      expect(parseProductionThreeMF(bigFixture(1_000), { maxTriangles: 1_000 }).success).toBe(true);
+      expect(parseProductionThreeMF(bigFixture(1_001), { maxTriangles: 1_000 }).success).toBe(false);
+    });
+  });
 });

@@ -12,6 +12,7 @@ export interface DiffWorkerBaseOptions {
   targetVoxelsPerAxis?: number;
   fileFormatA?: string;
   fileFormatB?: string;
+  maxTriangles?: number;
 }
 
 // A "full" request re-voxelizes both meshes and re-derives every
