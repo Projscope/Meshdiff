@@ -107,6 +107,7 @@ node tests/library-e2e.mjs                 # drives the real UI: projects, versi
 node tests/sync-e2e.mjs                    # two app instances syncing through a local stand-in cloud
 node tests/large-model-e2e.mjs             # big generated models: analyse, refuse with an explanation, cancel, retry
 node tests/bench-analysis.mjs              # measures analysis time/memory at 50k-2M triangles (on demand)
+node tests/screenshots.mjs <folder>        # captures the README screenshots from a demo workspace (no personal data)
 ```
 
 `npm run pack` builds an unpacked app and `npm run dist` builds the installer into
