@@ -48,6 +48,12 @@ export interface VersionSummary {
   fileName: string;
   fileFormat: string;
   fileSizeBytes: number;
+  /** "local": the model is kept on the uploader's computer (synced from the
+   * desktop app) and there is nothing to download. */
+  storageMode: "cloud" | "local";
+  /** Lowercase hex SHA-256 of the model (set for local versions): lets a
+   * reviewer confirm their own copy is the same file. */
+  contentSha256: string | null;
   triangleCount: number | null;
   changeSummary: string | null;
   printabilityStatus: "pass" | "warn" | "fail" | null;
@@ -89,7 +95,8 @@ export interface PrintPhotoAttachment {
 }
 
 export interface VersionDetail extends VersionSummary {
-  downloadUrl: string;
+  /** null for a local version (see VersionSummary.storageMode). */
+  downloadUrl: string | null;
   previousVersionId: string | null;
   slicerProfile: SlicerProfileAttachment | null;
   printPhoto: PrintPhotoAttachment | null;
@@ -133,7 +140,10 @@ export interface StableVersion {
   versionNumber: number;
   fileName: string;
   approvalStatus: ApprovalStatus;
-  downloadUrl: string;
+  storageMode: "cloud" | "local";
+  contentSha256: string | null;
+  /** null for a local version. */
+  downloadUrl: string | null;
 }
 
 export type CommentStatus = "open" | "resolved" | "reopened";
@@ -662,6 +672,9 @@ export async function downloadAllVersionsZip(projectId: string): Promise<Result<
 export async function downloadVersionFile(projectId: string, versionId: string): Promise<Result<true>> {
   const result = await getVersion(projectId, versionId);
   if (!result.success) return result;
+  if (!result.data.downloadUrl) {
+    return { success: false, error: "This model is kept on its owner's computer, so there is no file to download here." };
+  }
 
   try {
     const response = await fetch(result.data.downloadUrl);

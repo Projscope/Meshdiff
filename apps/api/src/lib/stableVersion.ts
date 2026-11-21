@@ -4,7 +4,10 @@ export interface StableVersionRow {
   id: string;
   version_number: number;
   file_name: string;
-  file_path: string;
+  /** null for a local version (kept on the owner's computer). */
+  file_path: string | null;
+  storage_mode?: "cloud" | "local";
+  content_sha256?: string | null;
   approval_status: string;
 }
 
@@ -22,7 +25,7 @@ export async function getStableVersion(
 ): Promise<StableVersionRow | null> {
   const { data: approved } = await supabase
     .from("versions")
-    .select("id, version_number, file_name, file_path, approval_status")
+    .select("id, version_number, file_name, file_path, storage_mode, content_sha256, approval_status")
     .eq("project_id", projectId)
     .eq("approval_status", "approved")
     .order("version_number", { ascending: false })
@@ -32,7 +35,7 @@ export async function getStableVersion(
 
   const { data: latest } = await supabase
     .from("versions")
-    .select("id, version_number, file_name, file_path, approval_status")
+    .select("id, version_number, file_name, file_path, storage_mode, content_sha256, approval_status")
     .eq("project_id", projectId)
     .order("version_number", { ascending: false })
     .limit(1)

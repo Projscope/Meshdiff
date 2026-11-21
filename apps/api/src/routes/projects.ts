@@ -400,7 +400,11 @@ export default async function projectsRoute(app: FastifyInstance): Promise<void>
           .select("file_path")
           .eq("project_id", projectId);
 
-        const paths = [...(versions ?? []).map((v) => v.file_path as string), thumbnailPath(projectId)];
+        // Local versions have no stored file (file_path is null).
+        const paths = [
+          ...(versions ?? []).map((v) => v.file_path as string | null).filter((p): p is string => !!p),
+          thumbnailPath(projectId),
+        ];
         if (paths.length > 0) {
           const { error: removeError } = await supabase.storage.from(BUCKET).remove(paths);
           if (removeError) {

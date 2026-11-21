@@ -193,6 +193,8 @@ Meshdiff/
   src/types/diff.ts    # GeometricDeltaReport schema — shared source of truth
   apps/web/             # React + TS + Tailwind + R3F frontend
   apps/api/              # Node.js (Fastify) backend
+  apps/desktop/          # Electron local-first client (see apps/desktop/README.md)
+  apps/shared/           # diff engine + types shared by web, api and desktop
 ```
 
 ---
@@ -503,6 +505,12 @@ genuinely becomes `'team'`; see pro.md's "Trial tier choice"). Concretely:
 | PATCH  | `/admin/users/:userId/subscription`            | Required, admin | Body `{ tier: 'free'\|'pro'\|'team' }` — manual tier grant, see pro.md's "Admin overrides" |
 | PATCH  | `/admin/users/:userId/trial`                   | Required, admin | Body `{ days: number\|null }` — extends/shortens/clears a trial, see pro.md's "Admin overrides" |
 | POST   | `/events`                                      | Required | Body `{ event: 'paywall_viewed', surface }` — the only client-originated product event; all others are recorded server-side |
+| POST   | `/projects/:projectId/versions`                | Required | With `storageMode: "local"` + `contentSha256` + client `versionId` (ULID): desktop sync, **no file is uploaded**, idempotent, gated by `requireSyncAccess()` (Team owner, member of a paid team, or trial-Team → else `403 {code:"team_required"}`); returns `finalized` so a retry can skip finalize |
+| GET    | `/projects/:projectId/comments/changes`        | Required, sync-gated | `?cursor=&limit=` — comment changes across the project incl. soft-delete tombstones, keyset-paged by `updatedAt|id` (migration 0042) |
+
+`GET /billing/subscription` also returns `syncEnabled` (same rule as `requireSyncAccess()`).
+
+**Local versions (desktop sync, migration 0042):** `versions.storage_mode = 'local'` ⇔ `file_path is null`; `content_sha256` identifies the model. Every route that reads a version's file must tolerate this: version detail / stable-version return `downloadUrl: null`, zip skips them, `/diff` answers `409 file_not_in_cloud` unless the synced diff is cached, share links refuse them. Web reviewers see stats + comments and can choose their own copy, checked against the hash in-browser (`LocalCopyPrompt.tsx`, `lib/verifyLocalCopy.ts`); comparing local versions is stats-only. Comments are **soft-deleted** (`deleted_at`) — every comment read must filter `deleted_at is null`.
 
 Frontend callers: `apps/web/src/lib/projectsApi.ts`
 (`startProCheckout`/`startTeamCheckout`/`getSubscription`/etc.) and

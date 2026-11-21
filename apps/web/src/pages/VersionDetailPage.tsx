@@ -25,6 +25,8 @@ import type { VoxelDiffStats } from "@meshdiff/shared/engine/diffVoxels";
 import { extensionOf, loadMeshGeometry } from "../engine/loadMesh";
 import { extractThreeMFProperties, loadMeshForDisplay, type ThreeMFProperties } from "../engine/load3mfDisplayExtras";
 import PrintabilityBadge from "../components/PrintabilityBadge";
+import LocalCopyPrompt, { type LocalCopyProblem } from "../components/LocalCopyPrompt";
+import { verifyLocalCopy } from "../lib/verifyLocalCopy";
 import PrintabilityRulesTooltip from "../components/PrintabilityRulesTooltip";
 import DetailedStatsPanel, { PrintabilityDetailsCard } from "../components/DetailedStatsPanel";
 import CommentsPanel from "../components/CommentsPanel";
@@ -233,6 +235,105 @@ export default function VersionDetailPage() {
   const [radiusPreviewLoopPoints, setRadiusPreviewLoopPoints] = useState<Array<[number, number, number]> | null>(null);
   const [radiusCommittedLoopPoints, setRadiusCommittedLoopPoints] = useState<Array<[number, number, number]> | null>(null);
 
+  // Parses a model file and puts everything derived from it into state (the
+  // geometry, its size, the grid/axes placement, the snap vertices). Shared by
+  // the normal path (the file fetched from storage) and a reviewer dropping in
+  // their own copy of a version kept on its owner's computer. Resolves "cancelled"
+  // when the page moved on (isCancelled) before it finished.
+  async function applyModelFile(file: File, fileName: string, isCancelled: () => boolean): Promise<"loaded" | "failed" | "cancelled"> {
+    const meshResult = await loadMeshGeometry(file);
+    if (isCancelled()) return "cancelled";
+    if (meshResult.success) {
+      let displayGeometry = meshResult.data;
+
+      if (extensionOf(fileName) === "3mf") {
+        const [colored, properties] = await Promise.all([
+          loadMeshForDisplay(file),
+          extractThreeMFProperties(file),
+        ]);
+        if (!isCancelled()) {
+          if (colored.success && colored.data.hasColor) {
+            displayGeometry = colored.data.geometry;
+            setHasVertexColors(true);
+          }
+          if (properties && Object.keys(properties.metadata).length > 0) {
+            setThreeMFProperties(properties);
+          }
+        }
+      }
+
+      setGeometry(displayGeometry);
+      uniqueVerticesRef.current = computeUniqueVertices(displayGeometry);
+      uniqueEdgesRef.current = computeUniqueEdges(displayGeometry);
+      setBoundaryLoops(findCircularFeatureLoops(displayGeometry));
+      displayGeometry.computeBoundingBox();
+      const box = displayGeometry.boundingBox;
+      if (box) {
+        const size = box.getSize(new THREE.Vector3());
+        setBoundingBox([size.x, size.y, size.z]);
+
+        // Slicer-exported files (e.g. BambuStudio) often place the model
+        // at its print-bed position rather than local origin — the grid
+        // stays at world origin by default, so a model sitting at, say,
+        // (128, 130) on its bed renders far from the visible grid patch.
+        // Ground the grid under the model's actual footprint instead:
+        // same rotation the model itself gets (-90° about X, see the
+        // <group> below) applied to the model's own local floor-center
+        // point, so the two line up regardless of where the file placed
+        // the model.
+        const center = box.getCenter(new THREE.Vector3());
+        const floorCenterWorld = new THREE.Vector3(center.x, center.y, box.min.z).applyMatrix4(
+          new THREE.Matrix4().makeRotationX(-Math.PI / 2),
+        );
+        setGridPosition([floorCenterWorld.x, floorCenterWorld.y, floorCenterWorld.z]);
+
+        // drei's Grid fades out with distance from the camera's
+        // projection onto the grid plane, using a fixed 100-unit default
+        // — fine for a small part, but a model whose footprint is wider
+        // than that fades out well before reaching its edges. Scale the
+        // fade radius to the model's own diagonal so the visible patch
+        // always reaches past every corner, with a floor so a tiny part
+        // doesn't end up with an oddly cropped-looking grid either.
+        setGridFadeDistance(Math.max(size.length() * 1.5, 50));
+
+        // Same problem as the grid: the axes gizmo sits at local origin by
+        // default, which can be far from where the model itself actually
+        // is (see the grid-positioning comment above). Anchor it to the
+        // model's own bounding-box corner instead — it's a sibling of the
+        // mesh inside the same rotated group, so no extra transform is
+        // needed here, just the model's own local coordinates.
+        setAxisOrigin([box.min.x, box.min.y, box.min.z]);
+      }
+    } else {
+      setError(meshResult.error);
+    }
+    return meshResult.success ? "loaded" : "failed";
+  }
+
+  // A version whose model is kept on its owner's computer: the reviewer drops in
+  // their own copy. It is checked against the stored hash and parsed here in the
+  // tab; nothing is uploaded.
+  const [isCheckingCopy, setIsCheckingCopy] = useState(false);
+  const [copyProblem, setCopyProblem] = useState<LocalCopyProblem | null>(null);
+
+  async function handleLocalCopy(picked: File) {
+    if (!version) return;
+    setIsCheckingCopy(true);
+    setCopyProblem(null);
+    const verified = await verifyLocalCopy(picked, { sha256: version.contentSha256, sizeBytes: version.fileSizeBytes });
+    if (!verified.success) {
+      setCopyProblem(verified.reason);
+      setIsCheckingCopy(false);
+      return;
+    }
+    setIsMeshLoading(true);
+    // Named like the version so the loader reads the format from its extension.
+    const result = await applyModelFile(new File([picked], version.fileName), version.fileName, () => false);
+    if (result === "failed") setCopyProblem("load_failed");
+    setIsMeshLoading(false);
+    setIsCheckingCopy(false);
+  }
+
   useEffect(() => {
     if (!projectId || !versionId) return;
     let cancelled = false;
@@ -258,76 +359,18 @@ export default function VersionDetailPage() {
         if (!cancelled && diffResult.success) setDiffStats(diffResult.data);
       });
 
+      // A version kept on its owner's computer has no file here: stay on its stats
+      // and comments until the reviewer drops in their own copy (see handleLocalCopy).
+      if (!versionResult.data.downloadUrl) {
+        setIsMeshLoading(false);
+        return;
+      }
       const response = await fetch(versionResult.data.downloadUrl);
       const blob = await response.blob();
       const file = new File([blob], versionResult.data.fileName);
-      const meshResult = await loadMeshGeometry(file);
-      if (cancelled) return;
-      if (meshResult.success) {
-        let displayGeometry = meshResult.data;
-
-        if (extensionOf(versionResult.data.fileName) === "3mf") {
-          const [colored, properties] = await Promise.all([
-            loadMeshForDisplay(file),
-            extractThreeMFProperties(file),
-          ]);
-          if (!cancelled) {
-            if (colored.success && colored.data.hasColor) {
-              displayGeometry = colored.data.geometry;
-              setHasVertexColors(true);
-            }
-            if (properties && Object.keys(properties.metadata).length > 0) {
-              setThreeMFProperties(properties);
-            }
-          }
-        }
-
-        setGeometry(displayGeometry);
-        uniqueVerticesRef.current = computeUniqueVertices(displayGeometry);
-        uniqueEdgesRef.current = computeUniqueEdges(displayGeometry);
-        setBoundaryLoops(findCircularFeatureLoops(displayGeometry));
-        displayGeometry.computeBoundingBox();
-        const box = displayGeometry.boundingBox;
-        if (box) {
-          const size = box.getSize(new THREE.Vector3());
-          setBoundingBox([size.x, size.y, size.z]);
-
-          // Slicer-exported files (e.g. BambuStudio) often place the model
-          // at its print-bed position rather than local origin — the grid
-          // stays at world origin by default, so a model sitting at, say,
-          // (128, 130) on its bed renders far from the visible grid patch.
-          // Ground the grid under the model's actual footprint instead:
-          // same rotation the model itself gets (-90° about X, see the
-          // <group> below) applied to the model's own local floor-center
-          // point, so the two line up regardless of where the file placed
-          // the model.
-          const center = box.getCenter(new THREE.Vector3());
-          const floorCenterWorld = new THREE.Vector3(center.x, center.y, box.min.z).applyMatrix4(
-            new THREE.Matrix4().makeRotationX(-Math.PI / 2),
-          );
-          setGridPosition([floorCenterWorld.x, floorCenterWorld.y, floorCenterWorld.z]);
-
-          // drei's Grid fades out with distance from the camera's
-          // projection onto the grid plane, using a fixed 100-unit default
-          // — fine for a small part, but a model whose footprint is wider
-          // than that fades out well before reaching its edges. Scale the
-          // fade radius to the model's own diagonal so the visible patch
-          // always reaches past every corner, with a floor so a tiny part
-          // doesn't end up with an oddly cropped-looking grid either.
-          setGridFadeDistance(Math.max(size.length() * 1.5, 50));
-
-          // Same problem as the grid: the axes gizmo sits at local origin by
-          // default, which can be far from where the model itself actually
-          // is (see the grid-positioning comment above). Anchor it to the
-          // model's own bounding-box corner instead — it's a sibling of the
-          // mesh inside the same rotated group, so no extra transform is
-          // needed here, just the model's own local coordinates.
-          setAxisOrigin([box.min.x, box.min.y, box.min.z]);
-        }
-      } else {
-        setError(meshResult.error);
+      if ((await applyModelFile(file, versionResult.data.fileName, () => cancelled)) !== "cancelled") {
+        setIsMeshLoading(false);
       }
-      setIsMeshLoading(false);
     });
 
     listComments(projectId, versionId).then((result) => {
@@ -1037,6 +1080,15 @@ export default function VersionDetailPage() {
             <p className="text-xs text-ink-400">{t("viewer.loadingModel")}</p>
           </div>
         )}
+
+        {version && !version.downloadUrl && !geometry && !isMeshLoading && (
+          <LocalCopyPrompt
+            fileName={version.fileName}
+            isChecking={isCheckingCopy}
+            problem={copyProblem}
+            onFile={handleLocalCopy}
+          />
+        )}
       </div>
 
       <div className="w-80 shrink-0 overflow-y-auto pr-3">
@@ -1131,7 +1183,7 @@ export default function VersionDetailPage() {
                   <DetailedStatsPanel
                     stats={diffStats}
                     hasComparison={hasComparison}
-                    boundingBoxB={boundingBox}
+                    boundingBoxB={version && !version.downloadUrl && !geometry ? null : boundingBox}
                     hidePrintabilityDetails
                   />
                 </div>

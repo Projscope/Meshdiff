@@ -1,0 +1,55 @@
+appId: com.projscope.meshdiff
+productName: Meshdiff
+copyright: Copyright (c) Projscope
+
+directories:
+  output: release
+  buildResources: build
+
+# Everything the app needs is bundled into dist/main.cjs + dist/preload.cjs
+# (see scripts/build.mjs), so no node_modules ship in the installer.
+files:
+  - dist/main.cjs
+  - dist/preload.cjs
+  - package.json
+
+# The web renderer bundle, served over app:// by the main process.
+extraResources:
+  - from: ../web/dist-desktop
+    to: renderer
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.png
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  deleteAppDataOnUninstall: false
+  artifactName: Meshdiff-Setup-${version}.${ext}
+
+# Installers and update manifests are published to a separate PUBLIC repo that
+# holds releases only; this (private) repo's source is never published.
+publish:
+  provider: github
+  owner: Projscope
+  repo: meshdiff-releases
+  releaseType: release
+
+# Switch off Electron features this app never uses, at build time, so a stolen or
+# tampered copy can't be repurposed: no running the exe as a plain Node interpreter,
+# no NODE_OPTIONS injection, app code only from the signed-integrity asar, encrypted
+# cookies. (The Node inspector fuse stays on: the end-to-end tests drive the app through it.)
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false

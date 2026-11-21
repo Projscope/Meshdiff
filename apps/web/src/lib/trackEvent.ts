@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { request } from "./projectsApi";
+import { IS_DESKTOP } from "./runtime";
 
 // Module-level, so a prompt that mounts/unmounts repeatedly in one visit is
 // reported once. The server also caps it at one per user per surface per hour.
@@ -10,7 +11,7 @@ const reported = new Set<string>();
  * failures are ignored so tracking never affects the page. */
 export function usePaywallViewed(surface: string, active = true): void {
   useEffect(() => {
-    if (!active || reported.has(surface)) return;
+    if (IS_DESKTOP || !active || reported.has(surface)) return;
     reported.add(surface);
     void request("/events", { method: "POST", body: JSON.stringify({ event: "paywall_viewed", surface }) });
   }, [surface, active]);

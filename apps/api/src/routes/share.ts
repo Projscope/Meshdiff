@@ -252,14 +252,27 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
         const versionA = versionAResult.data;
         const versionB = versionBResult.data;
 
+        // A share link copies the two model files, so it can't be made from a
+        // local version (its model never left the owner's computer).
+        const pathA = versionA.file_path as string | null;
+        const pathB = versionB.file_path as string | null;
+        if (!pathA || !pathB) {
+          reply.code(409);
+          return {
+            success: false,
+            error: "A model kept on its owner's computer can't be shared as a link",
+            code: "file_not_in_cloud",
+          };
+        }
+
         const id = crypto.randomUUID();
         const expiresAt = new Date(Date.now() + expiresInDays! * 24 * 60 * 60 * 1000).toISOString();
         const fileAPath = `${id}/a-${sanitizeFilename(versionA.file_name)}`;
         const fileBPath = `${id}/b-${sanitizeFilename(versionB.file_name)}`;
 
         const [copyAResult, copyBResult] = await Promise.all([
-          supabase.storage.from("project-meshes").download(versionA.file_path),
-          supabase.storage.from("project-meshes").download(versionB.file_path),
+          supabase.storage.from("project-meshes").download(pathA),
+          supabase.storage.from("project-meshes").download(pathB),
         ]);
 
         if (copyAResult.error || !copyAResult.data) {

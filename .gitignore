@@ -20,3 +20,7 @@ build/
 test-results/
 playwright-report/
 apps/web/tests/visual/__screenshots__/
+
+# Electron desktop client (apps/desktop): installer output and the web renderer bundle
+apps/desktop/release/
+apps/web/dist-desktop/

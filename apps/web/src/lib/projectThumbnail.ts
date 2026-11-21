@@ -14,6 +14,8 @@ import { renderMeshThumbnail } from "../engine/renderThumbnail";
 export async function generateThumbnailFromVersion(projectId: string, versionId: string): Promise<string | null> {
   const detailResult = await getVersion(projectId, versionId);
   if (!detailResult.success) return null;
+  // A version kept on its owner's computer has no file to render from.
+  if (!detailResult.data.downloadUrl) return null;
   const response = await fetch(detailResult.data.downloadUrl);
   if (!response.ok) return null;
   const blob = await response.blob();

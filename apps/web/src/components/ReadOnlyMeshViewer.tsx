@@ -1,6 +1,6 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, type ReactNode } from "react";
 import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { Bounds, OrbitControls } from "@react-three/drei";
 import AxisLegend from "./AxisLegend";
 import ModelScene from "./ModelScene";
@@ -21,6 +21,14 @@ interface ReadOnlyMeshViewerProps {
   fallbackLabel: string;
   geometry: THREE.BufferGeometry | null;
   color?: string;
+  /** Extra scene content (e.g. comment pins), drawn in the same model space as the mesh. */
+  children?: ReactNode;
+  /** While set, clicks on the mesh go here instead of to the measure tool (e.g. while placing a comment). */
+  onMeshClick?: (event: ThreeEvent<MouseEvent>) => void;
+  /** Extra toolbar content next to the measure tools. */
+  toolbarExtras?: ReactNode;
+  /** Hides the measure/cross-section toolbar, for small viewers where it would cover the model. */
+  hideToolbar?: boolean;
 }
 
 export interface ReadOnlyMeshViewerHandle {
@@ -33,7 +41,7 @@ export interface ReadOnlyMeshViewerHandle {
 }
 
 const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshViewerProps>(function ReadOnlyMeshViewer(
-  { label, fallbackLabel, geometry, color = "#4f8ff7" },
+  { label, fallbackLabel, geometry, color = "#4f8ff7", children, onMeshClick, toolbarExtras, hideToolbar },
   ref,
 ) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
@@ -74,8 +82,9 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
         <span className="text-xs font-medium uppercase tracking-wide text-ink-400">
           {geometry ? label : fallbackLabel}
         </span>
-        {geometry && <MeasureToolbar measure={measure} onZoomToFit={() => zoomToFitRef.current?.()} onResetView={() => resetViewRef.current?.()} />}
-        {geometry && <ClippingPlaneControl />}
+        {geometry && !hideToolbar && <MeasureToolbar measure={measure} onZoomToFit={() => zoomToFitRef.current?.()} onResetView={() => resetViewRef.current?.()} />}
+        {geometry && !hideToolbar && <ClippingPlaneControl />}
+        {geometry && !hideToolbar && toolbarExtras}
       </div>
       {!geometry && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-ink-600">
@@ -100,7 +109,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
               <ZoomToFitBridge zoomRef={zoomToFitRef} />
               <mesh
                 geometry={geometry}
-                onClick={(event) => measure.onClick(event)}
+                onClick={(event) => (onMeshClick ? onMeshClick(event) : measure.onClick(event))}
                 onPointerMove={measure.onPointerMove}
                 onPointerOut={measure.onPointerOut}
               >
@@ -122,6 +131,7 @@ const ReadOnlyMeshViewer = forwardRef<ReadOnlyMeshViewerHandle, ReadOnlyMeshView
               {shadingMode === "transparent" && <EdgeOverlay geometry={geometry} />}
             </Bounds>
           )}
+          {children}
           <MeasureSceneOverlay measure={measure} />
         </ModelScene>
         <OrbitControls makeDefault enableZoom enablePan enableRotate mouseButtons={mouseButtons} />

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { getProjectAccess } from "../lib/ownership.js";
-import { requireProjectWriteAccess } from "../lib/requireProjectTierAccess.js";
+import { requireProjectWriteAccess, requireSyncAccess } from "../lib/requireProjectTierAccess.js";
 import { notifyMention, notifyCommentAssigned, notifyCommentStatusChanged } from "../lib/notify.js";
 
 export type CommentStatus = "open" | "resolved" | "reopened";
@@ -27,9 +27,18 @@ interface CommentRow {
   status_changed_by_user_id: string | null;
   status_changed_at: string | null;
   created_at: string;
+  /** Bumped by a trigger on every update (migration 0042); drives the sync feed. */
+  updated_at: string;
+  /** Set instead of deleting the row, so the sync feed can report the deletion. */
+  deleted_at: string | null;
 }
 
 interface CreateCommentBody {
+  /** The desktop app's own comment id (a UUID). Makes a retried create return
+   * the comment it already made instead of a duplicate. */
+  id?: string;
+  /** When the comment was written, for one made offline (ISO 8601). */
+  createdAt?: string;
   body?: string;
   position?: [number, number, number];
   normal?: [number, number, number];
@@ -62,7 +71,45 @@ function toCommentSummary(row: CommentRow, emailByUserId: Map<string, string>) {
     priority: row.priority,
     statusChangedAt: row.status_changed_at,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at ?? null,
   };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Only the "Z" form is accepted in a cursor: it is what the feed emits, and a
+ * strict pattern keeps the value safe to place inside a PostgREST filter. */
+const CURSOR_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/;
+const EARLIEST_CLIENT_TIMESTAMP_MS = Date.UTC(2020, 0, 1);
+const CLIENT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const DEFAULT_CHANGES_LIMIT = 200;
+const MAX_CHANGES_LIMIT = 500;
+
+/** A comment written offline keeps the time it was written. Returns an ISO
+ * string, or null when the value isn't usable. A time a little ahead of the
+ * server (clock skew) is clamped to now rather than rejected. */
+export function parseClientTimestamp(value: unknown, now = Date.now()): string | null {
+  if (typeof value !== "string") return null;
+  const ms = Date.parse(value);
+  if (!Number.isFinite(ms) || ms < EARLIEST_CLIENT_TIMESTAMP_MS) return null;
+  if (ms > now + CLIENT_CLOCK_SKEW_MS) return null;
+  return new Date(Math.min(ms, now)).toISOString();
+}
+
+/** PostgREST renders UTC as "+00:00"; the feed's cursor always uses "Z". Keeps
+ * the original microseconds when the value is already UTC. */
+export function toCursorTimestamp(value: string): string {
+  const utc = value.replace(/\+00:00$/, "Z");
+  return CURSOR_TIMESTAMP_PATTERN.test(utc) ? utc : new Date(value).toISOString();
+}
+
+export function parseChangesCursor(raw: string): { updatedAt: string; id: string } | null {
+  const separator = raw.indexOf("|");
+  if (separator < 0) return null;
+  const updatedAt = raw.slice(0, separator);
+  const id = raw.slice(separator + 1);
+  if (!CURSOR_TIMESTAMP_PATTERN.test(updatedAt) || !UUID_PATTERN.test(id)) return null;
+  return { updatedAt, id };
 }
 
 async function resolveEmails(
@@ -166,6 +213,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           .from("comments")
           .select("*")
           .eq("version_id", versionId)
+          .is("deleted_at", null)
           .order("created_at", { ascending: true });
         if (error) {
           app.log.error(error, "Failed to list comments");
@@ -188,13 +236,124 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
     },
   );
 
+  // What changed since the desktop client last looked, across a whole project:
+  // new, edited and (as tombstones) deleted comments, oldest first, paged by an
+  // opaque cursor. Part of desktop sync, so it is a Team feature.
+  //
+  // The cursor is (updated_at, id) and the next page starts strictly after it,
+  // so a page can never stall on many rows sharing one timestamp. A comment
+  // edited while paging can reappear on a later page; clients apply changes by
+  // id, so that is harmless.
+  app.get<{ Params: { projectId: string }; Querystring: { cursor?: string; limit?: string } }>(
+    "/projects/:projectId/comments/changes",
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { projectId } = request.params;
+      const supabase = request.supabase!;
+
+      let cursor: { updatedAt: string; id: string } | null = null;
+      if (request.query.cursor !== undefined) {
+        cursor = parseChangesCursor(request.query.cursor);
+        if (!cursor) {
+          reply.code(400);
+          return { success: false, error: "cursor is not valid" };
+        }
+      }
+      const requestedLimit = request.query.limit === undefined ? DEFAULT_CHANGES_LIMIT : Number(request.query.limit);
+      if (!Number.isInteger(requestedLimit) || requestedLimit < 1) {
+        reply.code(400);
+        return { success: false, error: "limit must be a positive integer" };
+      }
+      const limit = Math.min(requestedLimit, MAX_CHANGES_LIMIT);
+
+      try {
+        const access = await getProjectAccess(supabase, projectId, request.userId!);
+        if (!access.role) {
+          reply.code(404);
+          return { success: false, error: "Project not found" };
+        }
+        if (!(await requireSyncAccess(supabase, request.userId!, reply))) return;
+
+        let query = supabase
+          .from("comments")
+          .select("*, versions!inner(project_id)")
+          .eq("versions.project_id", projectId)
+          .order("updated_at", { ascending: true })
+          .order("id", { ascending: true })
+          .limit(limit + 1);
+        if (cursor) {
+          // Both values were validated against strict patterns above, so they
+          // are safe to place in the filter.
+          query = query.or(
+            `updated_at.gt."${cursor.updatedAt}",and(updated_at.eq."${cursor.updatedAt}",id.gt."${cursor.id}")`,
+          );
+        }
+        const { data, error } = await query;
+        if (error) {
+          app.log.error(error, "Failed to load comment changes");
+          reply.code(502);
+          return { success: false, error: "Failed to load comment changes" };
+        }
+
+        const fetched = (data ?? []) as Array<CommentRow & { versions?: unknown }>;
+        const hasMore = fetched.length > limit;
+        const page = fetched.slice(0, limit).map(({ versions: _joined, ...row }) => row as CommentRow);
+
+        const live = page.filter((r) => !r.deleted_at);
+        const emailByUserId = await resolveEmails(supabase, app.log, [
+          ...live.map((r) => r.author_user_id),
+          ...live.map((r) => r.assignee_user_id),
+        ]);
+
+        const last = page[page.length - 1];
+        return {
+          success: true,
+          data: {
+            changes: page.map((row) =>
+              row.deleted_at
+                ? // A tombstone says only "this is gone": nothing of the content.
+                  {
+                    id: row.id,
+                    versionId: row.version_id,
+                    deletedAt: row.deleted_at,
+                    updatedAt: row.updated_at,
+                  }
+                : { ...toCommentSummary(row, emailByUserId), versionId: row.version_id },
+            ),
+            // With nothing new, hand the same cursor back so the client keeps its place.
+            nextCursor: last
+              ? `${toCursorTimestamp(last.updated_at)}|${last.id}`
+              : (request.query.cursor ?? null),
+            hasMore,
+          },
+        };
+      } catch (err) {
+        app.log.error(err, "Comment changes threw");
+        reply.code(502);
+        return { success: false, error: "Failed to load comment changes" };
+      }
+    },
+  );
+
   app.post<{ Params: { projectId: string; versionId: string }; Body: CreateCommentBody }>(
     "/projects/:projectId/versions/:versionId/comments",
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const { body, position, normal, parentCommentId, assigneeUserId, priority } = request.body ?? {};
+      const { id: clientId, createdAt, body, position, normal, parentCommentId, assigneeUserId, priority } = request.body ?? {};
 
+      if (clientId !== undefined && (typeof clientId !== "string" || !UUID_PATTERN.test(clientId))) {
+        reply.code(400);
+        return { success: false, error: "id must be a UUID when provided" };
+      }
+      let clientCreatedAt: string | null = null;
+      if (createdAt !== undefined) {
+        clientCreatedAt = parseClientTimestamp(createdAt);
+        if (!clientCreatedAt) {
+          reply.code(400);
+          return { success: false, error: "createdAt must be a recent ISO 8601 time that is not in the future" };
+        }
+      }
       if (typeof body !== "string" || body.trim().length === 0) {
         reply.code(400);
         return { success: false, error: "body is required" };
@@ -227,6 +386,25 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
 
       const supabase = request.supabase!;
 
+      /** Looks the comment up by its client id, deleted or not: a tombstone
+       * still owns its id. */
+      async function findExistingComment(id: string): Promise<{ row: CommentRow | null; error: unknown }> {
+        const { data, error: lookupError } = await supabase.from("comments").select("*").eq("id", id).maybeSingle();
+        return { row: (data as CommentRow | null) ?? null, error: lookupError };
+      }
+
+      /** The same author re-sending the same create gets the comment back
+       * (including its deletedAt, so a client can tell it was removed since).
+       * Anyone else, or another version, is using an id that isn't theirs. */
+      async function replayOrConflict(existing: CommentRow) {
+        if (existing.version_id === versionId && existing.author_user_id === request.userId) {
+          const emails = await resolveEmails(supabase, app.log, [existing.author_user_id, existing.assignee_user_id]);
+          return { success: true, data: toCommentSummary(existing, emails) };
+        }
+        reply.code(409);
+        return { success: false, error: "That comment id is already in use", code: "comment_id_conflict" };
+      }
+
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
         if (!access.role) {
@@ -251,6 +429,20 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Version not found" };
         }
 
+        // A retried create (the response was lost) must hand back the comment it
+        // already made, before anything below can fail on state that has since
+        // moved on (a deleted parent, a changed assignee). It also sends no
+        // second notification.
+        if (clientId) {
+          const replay = await findExistingComment(clientId);
+          if (replay.error) {
+            app.log.error(replay.error, "Failed to look up comment by id");
+            reply.code(502);
+            return { success: false, error: "Failed to create comment, please try again" };
+          }
+          if (replay.row) return replayOrConflict(replay.row);
+        }
+
         if (parentCommentId) {
           // Replies are one level deep — a reply's own parent must itself
           // be a top-level comment (parent_comment_id null), so a chain
@@ -260,6 +452,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
             .select("id, parent_comment_id")
             .eq("id", parentCommentId)
             .eq("version_id", versionId)
+            .is("deleted_at", null)
             .maybeSingle();
           if (parentError) {
             app.log.error(parentError, "Failed to look up parent comment");
@@ -287,6 +480,8 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
         const { data: row, error } = await supabase
           .from("comments")
           .insert({
+            ...(clientId ? { id: clientId } : {}),
+            ...(clientCreatedAt ? { created_at: clientCreatedAt } : {}),
             version_id: versionId,
             author_user_id: request.userId,
             parent_comment_id: parentCommentId ?? null,
@@ -303,6 +498,12 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           .select("*")
           .single();
         if (error) {
+          // Two requests with the same client id raced and the other won the
+          // insert; answer from the row that now exists.
+          if (clientId && error.code === "23505") {
+            const raced = await findExistingComment(clientId);
+            if (raced.row) return replayOrConflict(raced.row);
+          }
           app.log.error(error, "Failed to insert comment");
           reply.code(502);
           return { success: false, error: "Failed to create comment, please try again" };
@@ -378,6 +579,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           .select("*")
           .eq("id", commentId)
           .eq("version_id", versionId)
+          .is("deleted_at", null)
           .maybeSingle();
         if (fetchError) {
           app.log.error(fetchError, "Failed to look up comment");
@@ -517,6 +719,7 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           .select("id, author_user_id")
           .eq("id", commentId)
           .eq("version_id", versionId)
+          .is("deleted_at", null)
           .maybeSingle();
         if (fetchError) {
           app.log.error(fetchError, "Failed to look up comment");
@@ -533,11 +736,39 @@ export default async function commentsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "You can only delete your own comments" };
         }
 
-        const { error: deleteError } = await supabase.from("comments").delete().eq("id", commentId);
+        // A soft delete: the row stays as a tombstone so the desktop sync feed
+        // can tell other copies of this comment to remove it (a hard delete
+        // leaves nothing to report). The replies go with it, as they did when
+        // the foreign key cascaded.
+        const { data: replies, error: repliesError } = await supabase
+          .from("comments")
+          .select("id")
+          .eq("parent_comment_id", commentId)
+          .is("deleted_at", null);
+        if (repliesError) {
+          app.log.error(repliesError, "Failed to look up replies");
+          reply.code(502);
+          return { success: false, error: "Failed to delete comment" };
+        }
+        const idsToDelete = [commentId, ...((replies ?? []) as Array<{ id: string }>).map((r) => r.id)];
+
+        const { error: deleteError } = await supabase
+          .from("comments")
+          .update({ deleted_at: new Date().toISOString() })
+          .in("id", idsToDelete)
+          .is("deleted_at", null);
         if (deleteError) {
           app.log.error(deleteError, "Failed to delete comment");
           reply.code(502);
           return { success: false, error: "Failed to delete comment" };
+        }
+
+        // Notifications pointed at the comment used to vanish with it (the
+        // foreign key cascaded); with the row kept they'd otherwise link to
+        // something that no longer shows anywhere.
+        const { error: notificationError } = await supabase.from("notifications").delete().in("comment_id", idsToDelete);
+        if (notificationError) {
+          app.log.warn(notificationError, "Failed to remove notifications for a deleted comment");
         }
 
         return { success: true, data: true };

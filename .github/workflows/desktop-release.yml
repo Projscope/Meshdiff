@@ -1,0 +1,88 @@
+name: Desktop Release
+
+# Builds the Windows installer for apps/desktop and publishes it, plus the
+# auto-update manifest (latest.yml), to the PUBLIC releases-only repo. This
+# repo's source stays private; installed apps read updates from that public repo.
+#
+# Release by tagging the commit:  git tag desktop-v1.0.0 && git push origin desktop-v1.0.0
+# The tag must match the version in apps/desktop/package.json.
+#
+# One-time setup (see apps/desktop/README.md):
+#   - create the public repo Projscope/meshdiff-releases
+#   - add secret RELEASES_REPO_TOKEN: a fine-grained token with "Contents: read and
+#     write" on that one repo only
+
+on:
+  push:
+    tags:
+      - "desktop-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # npm skips Electron's own binary download for workspace packages in some
+      # setups; this is a no-op when it is already there.
+      - run: node node_modules/electron/install.js
+
+      - name: Tag matches the app version
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "desktop-v${version}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match apps/desktop/package.json version ${version}"
+            exit 1
+          fi
+
+      - run: npm run typecheck --workspace apps/desktop
+
+      # Builds the web renderer bundle (typechecks the web app) and bundles main/preload.
+      # The cloud addresses are baked into the app here. Set them as repository
+      # *variables* (not secrets: the Supabase anon key is public by design):
+      # MESHDIFF_SUPABASE_URL and MESHDIFF_SUPABASE_ANON_KEY. Without them the
+      # installer still works, fully locally, and says syncing isn't set up.
+      - run: npm run build --workspace apps/desktop
+        env:
+          MESHDIFF_API_URL: ${{ vars.MESHDIFF_API_URL || 'https://meshdiff-api.onrender.com' }}
+          MESHDIFF_SUPABASE_URL: ${{ vars.MESHDIFF_SUPABASE_URL }}
+          MESHDIFF_SUPABASE_ANON_KEY: ${{ vars.MESHDIFF_SUPABASE_ANON_KEY }}
+
+      - run: npm run test --workspace @meshdiff/desktop
+
+      # Launches the real app and checks protocol, CSP, blocked network and a
+      # model load through the web workers.
+      - run: npm run smoke --workspace apps/desktop
+
+      # Drives the real UI: create a project, add versions, comment on the model,
+      # compare, restart and confirm everything persisted.
+      - run: node tests/library-e2e.mjs
+        working-directory: apps/desktop
+
+      # Two real app instances (two users, two libraries) syncing through a local
+      # stand-in for the cloud: sign-in, connect, push/pull, attach a file,
+      # comments both ways, offline, plan checks, restart.
+      - run: node tests/sync-e2e.mjs
+        working-directory: apps/desktop
+
+      - name: Build installer and publish release
+        working-directory: apps/desktop
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+          # Code signing is not configured yet, so installers are unsigned and
+          # Windows SmartScreen will warn. Before a public 1.0, add signing
+          # (a certificate via CSC_LINK / CSC_KEY_PASSWORD, or Azure Trusted Signing).

@@ -208,12 +208,13 @@ async function fetchAll<T>(
   table: string,
   columns: string,
   orderBy: string,
+  /** Skip soft-deleted rows (tables with a deleted_at tombstone, e.g. comments). */
+  liveOnly = false,
 ): Promise<Result<T[]>> {
   const out: T[] = [];
   for (let page = 0; page < 50; page++) {
-    const { data, error } = await supabase
-      .from(table)
-      .select(columns)
+    const base = supabase.from(table).select(columns);
+    const { data, error } = await (liveOnly ? base.is("deleted_at", null) : base)
       .order(orderBy)
       .range(page * PAGE, page * PAGE + PAGE - 1);
     if (error) return { success: false, error: `${table}: ${error.message}` };
@@ -234,7 +235,7 @@ export async function getAdminFunnel(supabase: SupabaseClient): Promise<Result<A
     fetchAll<{ id: string; project_id: string; file_name: string; created_at: string; uploaded_by_user_id: string | null }>(
       supabase, "versions", "id, project_id, file_name, created_at, uploaded_by_user_id", "id"),
     fetchAll<{ version_id: string; author_user_id: string | null; created_at: string }>(
-      supabase, "comments", "version_id, author_user_id, created_at", "id"),
+      supabase, "comments", "version_id, author_user_id, created_at", "id", true),
     fetchAll<{ user_id: string; first_upload_at: string }>(supabase, "first_user_uploads", "user_id, first_upload_at", "user_id"),
     fetchAll<{ user_id: string; trial_ends_at: string }>(supabase, "trial_extensions", "user_id, trial_ends_at", "user_id"),
     fetchAll<{ user_id: string; status: string }>(supabase, "subscriptions", "user_id, status", "user_id"),

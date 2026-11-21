@@ -4,7 +4,7 @@ import { getSupabase } from "../lib/supabase.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { getStripe, getFrontendUrl } from "../lib/stripe.js";
-import { getUserTier, getAccountAccess } from "../lib/subscription.js";
+import { getUserTier, getAccountAccess, hasSyncAccess } from "../lib/subscription.js";
 import { priceIdForTier, tierForPriceId } from "../lib/priceCatalog.js";
 import { setTrialTierChoice } from "../lib/trialTierChoice.js";
 
@@ -114,6 +114,7 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
           isTrialing: access.isTrialing,
           trialDaysRemaining: access.trialDaysRemaining,
           trialClockStarted: access.trialClockStarted,
+          syncEnabled: await hasSyncAccess(supabase, request.userId!, access),
           seats,
         },
       };

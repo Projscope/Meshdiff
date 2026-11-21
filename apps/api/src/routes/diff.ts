@@ -13,7 +13,8 @@ const BUCKET = "project-meshes";
 interface VersionRow {
   id: string;
   project_id: string;
-  file_path: string;
+  /** null for a local version: its model is not in the cloud. */
+  file_path: string | null;
   file_format: string;
 }
 
@@ -75,6 +76,20 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           return { success: true, data: cached.stats };
         }
 
+        // The cache is the only source for a local version's diff (its stats
+        // were computed on the owner's computer); with no cached result and no
+        // file to read, there is nothing the server can compute from.
+        const pathA = versionA.file_path;
+        const pathB = versionB.file_path;
+        if (!pathA || !pathB) {
+          reply.code(409);
+          return {
+            success: false,
+            error: "This comparison needs a model that is kept on its owner's computer",
+            code: "file_not_in_cloud",
+          };
+        }
+
         // Everything from here through computeVoxelDiff is the expensive
         // part — a project page fires one of these requests per consecutive
         // version pair, all at once (see computeLock.ts), so this all runs
@@ -89,8 +104,8 @@ export default async function diffRoute(app: FastifyInstance): Promise<void> {
           }
 
           const [blobA, blobB] = await Promise.all([
-            supabase.storage.from(BUCKET).download(versionA.file_path),
-            supabase.storage.from(BUCKET).download(versionB.file_path),
+            supabase.storage.from(BUCKET).download(pathA),
+            supabase.storage.from(BUCKET).download(pathB),
           ]);
           if (blobA.error || !blobA.data || blobB.error || !blobB.data) {
             app.log.error({ a: blobA.error, b: blobB.error }, "Failed to download version files");

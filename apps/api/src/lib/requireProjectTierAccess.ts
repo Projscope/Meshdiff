@@ -1,7 +1,7 @@
 import type { FastifyReply } from "fastify";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectAccess } from "./ownership.js";
-import { getAccountAccess } from "./subscription.js";
+import { getAccountAccess, hasSyncAccess } from "./subscription.js";
 import { recordEvent } from "./productEvents.js";
 
 /**
@@ -73,6 +73,27 @@ export async function requireProUploadAccess(
     success: false,
     error: "Subscribe to Pro to upload new versions.",
     code: "subscription_required",
+  });
+  return false;
+}
+
+/**
+ * Desktop sync (local-mode versions, the comment change feed) is a Team
+ * feature. Everyone else gets a 403 with a stable `team_required` code the
+ * client can turn into an upgrade prompt rather than a generic failure.
+ */
+export async function requireSyncAccess(
+  supabase: SupabaseClient,
+  userId: string,
+  reply: FastifyReply,
+): Promise<boolean> {
+  const access = await getAccountAccess(supabase, userId);
+  if (await hasSyncAccess(supabase, userId, access)) return true;
+
+  reply.code(403).send({
+    success: false,
+    error: "Syncing from the desktop app is part of the Team plan.",
+    code: "team_required",
   });
   return false;
 }

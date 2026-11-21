@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import * as THREE from "three";
-import { getVersion, listVersions, getProject, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
+import { getVersion, getDiff, listVersions, getProject, getSubscription, createComparisonShare, type VersionDetail, type VersionSummary } from "../lib/projectsApi";
 import SampleCompareTour from "../components/SampleCompareTour";
 import { loadMeshGeometry } from "../engine/loadMesh";
 import DiffView, { type DiffMode, type DiffViewHandle, type DiffAlignment } from "../components/DiffView";
@@ -32,6 +32,14 @@ export default function CompareVersionsPage() {
   const [alignment, setAlignment] = useState<DiffAlignment>("none");
   const [stats, setStats] = useState<(VoxelDiffStats & { toleranceMm: number }) | null>(null);
   const [boundingBoxB, setBoundingBoxB] = useState<[number, number, number]>([0, 0, 0]);
+  // Stats-only mode: at least one of the two versions keeps its model on its
+  // owner's computer (synced from the desktop app), so there is nothing to
+  // render or re-diff here. The stats the desktop computed and synced are
+  // shown instead, and each version's own page lets a reviewer load a copy.
+  const [isStatsOnly, setIsStatsOnly] = useState(false);
+  const [syncedStats, setSyncedStats] = useState<VoxelDiffStats | null>(null);
+  const [syncedStatsError, setSyncedStatsError] = useState<string | null>(null);
+  const [syncedStatsLoaded, setSyncedStatsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [allVersions, setAllVersions] = useState<VersionSummary[]>([]);
   const [isSampleProject, setIsSampleProject] = useState(false);
@@ -90,13 +98,19 @@ export default function CompareVersionsPage() {
     setGeometryB(null);
     setStats(null);
     setError(null);
+    setIsStatsOnly(false);
+    setSyncedStats(null);
+    setSyncedStatsError(null);
+    setSyncedStatsLoaded(false);
 
-    async function loadVersion(id: string): Promise<{ detail: VersionDetail; geometry: THREE.BufferGeometry } | null> {
+    async function loadVersion(id: string): Promise<{ detail: VersionDetail; geometry: THREE.BufferGeometry | null } | null> {
       const result = await getVersion(projectId!, id);
       if (!result.success) {
         if (!cancelled) setError(result.error);
         return null;
       }
+      // A version kept on its owner's computer has no file to load.
+      if (!result.data.downloadUrl) return { detail: result.data, geometry: null };
       const response = await fetch(result.data.downloadUrl);
       const blob = await response.blob();
       const meshResult = await loadMeshGeometry(new File([blob], result.data.fileName));
@@ -107,7 +121,7 @@ export default function CompareVersionsPage() {
       return { detail: result.data, geometry: meshResult.data };
     }
 
-    Promise.all([loadVersion(versionAId), loadVersion(versionBId)]).then(([a, b]) => {
+    Promise.all([loadVersion(versionAId), loadVersion(versionBId)]).then(async ([a, b]) => {
       if (cancelled) return;
       if (a) {
         setVersionA(a.detail);
@@ -116,12 +130,22 @@ export default function CompareVersionsPage() {
       if (b) {
         setVersionB(b.detail);
         setGeometryB(b.geometry);
-        b.geometry.computeBoundingBox();
-        const box = b.geometry.boundingBox;
-        if (box) {
-          const size = box.getSize(new THREE.Vector3());
-          setBoundingBoxB([size.x, size.y, size.z]);
+        if (b.geometry) {
+          b.geometry.computeBoundingBox();
+          const box = b.geometry.boundingBox;
+          if (box) {
+            const size = box.getSize(new THREE.Vector3());
+            setBoundingBoxB([size.x, size.y, size.z]);
+          }
         }
+      }
+      if (a && b && (!a.geometry || !b.geometry)) {
+        setIsStatsOnly(true);
+        const synced = await getDiff(a.detail.id, b.detail.id);
+        if (cancelled) return;
+        if (synced.success) setSyncedStats(synced.data);
+        else setSyncedStatsError(synced.error);
+        setSyncedStatsLoaded(true);
       }
     });
 
@@ -166,7 +190,7 @@ export default function CompareVersionsPage() {
   // has finished computing the diff between them (stats only lands once
   // that's done) — not just the two side viewers, so the combined view
   // isn't left half-rendered under the modal.
-  const isFullyLoaded = geometryA !== null && geometryB !== null && stats !== null;
+  const isFullyLoaded = isStatsOnly ? syncedStatsLoaded : geometryA !== null && geometryB !== null && stats !== null;
 
   return (
     // Stacks in DOM order on narrow screens (V1, V2, Combined, then the
@@ -178,6 +202,33 @@ export default function CompareVersionsPage() {
     // one viewport-height row.
     <div className="flex w-full flex-col gap-4 px-4 py-4 lg:h-[calc(100vh-2rem)] lg:flex-row">
       <div className="flex flex-1 flex-col gap-2 lg:overflow-hidden">
+        {isStatsOnly && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-ink-700 bg-ink-900/60 px-6 py-10 text-center">
+            <h2 className="text-sm font-semibold text-ink-50">{t("compare.localModelsTitle")}</h2>
+            <p className="max-w-md text-xs leading-relaxed text-ink-400">{t("compare.localModelsBody")}</p>
+            {syncedStatsError && (
+              <p role="alert" className="max-w-md text-xs text-amber-fg-300">
+                {syncedStatsError}
+              </p>
+            )}
+            <div className="flex flex-wrap justify-center gap-2">
+              {[versionA, versionB].map(
+                (v) =>
+                  v && (
+                    <Link
+                      key={v.id}
+                      to={`/projects/${projectId}/versions/${v.id}`}
+                      className="rounded-sm border border-ink-700 bg-ink-800 px-3 py-1.5 text-xs font-medium text-ink-100 hover:bg-ink-700"
+                    >
+                      {t("compare.openVersion", { number: v.versionNumber })}
+                    </Link>
+                  ),
+              )}
+            </div>
+          </div>
+        )}
+        {!isStatsOnly && (
+          <>
         <div className="grid h-[520px] grid-cols-1 gap-2 sm:h-[260px] sm:grid-cols-2 lg:h-auto lg:min-h-0 lg:flex-1">
           <ReadOnlyMeshViewer
             ref={viewerARef}
@@ -240,6 +291,8 @@ export default function CompareVersionsPage() {
             </div>
           </div>
         )}
+          </>
+        )}
       </div>
 
       {/* w-96 (not w-80) so the widest rows (e.g. "Bounding Box") never
@@ -253,7 +306,9 @@ export default function CompareVersionsPage() {
         >
           ← {t("compare.backToProject")}
         </Link>
-        <div className="mt-2 flex items-center gap-2">
+        {/* A share link copies both model files, and the PDF report embeds
+            screenshots of them, so neither exists for models that aren't here. */}
+        <div className={`mt-2 flex items-center gap-2 ${isStatsOnly ? "hidden" : ""}`}>
           <button
             type="button"
             onClick={handleShareClick}
@@ -325,7 +380,11 @@ export default function CompareVersionsPage() {
             </p>
 
             <div data-tour="deltaPanel" className="mt-5">
-              <DetailedStatsPanel stats={stats} hasComparison boundingBoxB={boundingBoxB} />
+              <DetailedStatsPanel
+                stats={isStatsOnly ? syncedStats : stats}
+                hasComparison
+                boundingBoxB={isStatsOnly ? null : boundingBoxB}
+              />
             </div>
           </>
         )}

@@ -5,10 +5,10 @@ import archiver from "archiver";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { extensionOf, sanitizeFilename } from "../lib/filename.js";
 import { generateChangeSummary } from "../lib/generateSummary.js";
-import type { VoxelDiffStats } from "../../../shared/dist/engine/diffVoxels.js";
+import { validateStats } from "../../../shared/dist/validateStats.js";
 import { requireAuth } from "../lib/requireAuth.js";
 import { getProjectAccess } from "../lib/ownership.js";
-import { requireProjectWriteAccess, requireProUploadAccess } from "../lib/requireProjectTierAccess.js";
+import { requireProjectWriteAccess, requireProUploadAccess, requireSyncAccess } from "../lib/requireProjectTierAccess.js";
 import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES } from "../lib/fileSizeLimit.js";
 import { logTeamAudit } from "../lib/teamAuditLog.js";
@@ -36,18 +36,39 @@ const PRINT_PHOTO_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "h
 interface CreateVersionBody {
   fileName?: string;
   fileSize?: number;
+  /** "local" = the model stays on the uploader's computer (desktop sync): no
+   * file is uploaded, only its hash and the diff results are stored. */
+  storageMode?: string;
+  /** Local mode: lowercase hex SHA-256 of the model file. */
+  contentSha256?: string;
+  /** Local mode: the desktop app's own version id (a ULID), which makes a
+   * retried request return the version it already created. */
+  versionId?: string;
 }
 
 interface FinalizeVersionBody {
-  stats?: VoxelDiffStats;
+  stats?: unknown;
+  /** Local mode: the version the client diffed against. The diff is only cached
+   * as "previous -> this" when that is still the previous version in the cloud
+   * numbering (a teammate may have synced one in between). */
+  comparedToVersionId?: string;
 }
+
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const ULID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+/** Local versions upload no bytes, so the 50MB cap doesn't apply; this only
+ * rejects nonsense sizes. */
+const MAX_LOCAL_FILE_BYTES = 10 * 1024 * 1024 * 1024;
 
 export interface VersionRow {
   id: string;
   project_id: string;
   version_number: number;
   file_name: string;
-  file_path: string;
+  /** null for a local version (storage_mode 'local'): the file is not in the cloud. */
+  file_path: string | null;
+  storage_mode: "cloud" | "local";
+  content_sha256: string | null;
   file_format: string;
   file_size_bytes: number;
   triangle_count: number | null;
@@ -88,6 +109,11 @@ export function toVersionSummary(
     fileName: row.file_name,
     fileFormat: row.file_format,
     fileSizeBytes: row.file_size_bytes,
+    // "local": the model stays on the uploader's computer; reviewers see the
+    // stats and comments here and can load their own copy, checked against
+    // contentSha256.
+    storageMode: row.storage_mode ?? "cloud",
+    contentSha256: row.content_sha256 ?? null,
     triangleCount: row.triangle_count,
     changeSummary: row.change_summary,
     printabilityStatus: row.printability_status,
@@ -115,6 +141,7 @@ async function getUnresolvedCommentCounts(
     .from("comments")
     .select("version_id")
     .in("version_id", versionIds)
+    .is("deleted_at", null)
     .in("status", ["open", "reopened"]);
   if (error) return counts;
 
@@ -171,8 +198,14 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     "/projects/:projectId/versions",
     { preHandler: requireAuth },
     async (request, reply) => {
-      const { fileName, fileSize } = request.body ?? {};
+      const { fileName, fileSize, storageMode, contentSha256, versionId: clientVersionId } = request.body ?? {};
       const { projectId } = request.params;
+
+      if (storageMode !== undefined && storageMode !== "cloud" && storageMode !== "local") {
+        reply.code(400);
+        return { success: false, error: "storageMode must be cloud or local" };
+      }
+      const isLocal = storageMode === "local";
 
       if (typeof fileName !== "string" || !fileName) {
         reply.code(400);
@@ -181,11 +214,22 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       const extension = extensionOf(fileName);
       if (!ALLOWED_EXTENSIONS.has(extension)) {
         reply.code(400);
-        return { success: false, error: "File must be an STL file" };
+        return { success: false, error: "File must be an STL, OBJ or 3MF file" };
       }
-      if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_FILE_BYTES) {
+      const maxBytes = isLocal ? MAX_LOCAL_FILE_BYTES : MAX_FILE_BYTES;
+      if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maxBytes) {
         reply.code(400);
-        return { success: false, error: "File must be under 50MB" };
+        return { success: false, error: isLocal ? "fileSize is not valid" : "File must be under 50MB" };
+      }
+      if (isLocal) {
+        if (typeof contentSha256 !== "string" || !SHA256_PATTERN.test(contentSha256)) {
+          reply.code(400);
+          return { success: false, error: "contentSha256 must be a lowercase hex SHA-256" };
+        }
+        if (typeof clientVersionId !== "string" || !ULID_PATTERN.test(clientVersionId)) {
+          reply.code(400);
+          return { success: false, error: "versionId must be a ULID" };
+        }
       }
 
       const supabase = request.supabase!;
@@ -196,6 +240,53 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           reply.code(404);
           return { success: false, error: "Project not found" };
         }
+
+        if (isLocal) {
+          // Syncing without the file is the Team feature the desktop client
+          // sells; it must not be reachable by posting storageMode "local"
+          // from any other account.
+          if (!(await requireSyncAccess(supabase, request.userId!, reply))) return;
+
+          const { data: localRow, error: localError } = await supabase
+            .rpc("create_local_version", {
+              p_id: clientVersionId,
+              p_project_id: projectId,
+              // Display-only (there is no storage path to protect), so keep the
+              // user's real name like the cloud flow does.
+              p_file_name: fileName.slice(0, 255),
+              p_file_format: extension,
+              p_file_size_bytes: fileSize,
+              p_content_sha256: contentSha256,
+              p_uploaded_by_user_id: request.userId,
+            })
+            .single();
+
+          if (localError) {
+            // The id belongs to another project or to different content:
+            // a client bug or a collision, never fixed by retrying.
+            if (localError.code === "23505" || localError.message?.includes("version_id_conflict")) {
+              reply.code(409);
+              return { success: false, error: "That version id is already in use", code: "version_id_conflict" };
+            }
+            app.log.error(localError, "Failed to allocate local version");
+            reply.code(502);
+            return { success: false, error: "Failed to create version, please try again" };
+          }
+
+          const created = localRow as VersionRow;
+          return {
+            success: true,
+            data: {
+              versionId: created.id,
+              versionNumber: created.version_number,
+              storageMode: "local" as const,
+              // A retry after a dropped finalize lands here again; the client
+              // skips finalize when this is already true.
+              finalized: created.printability_status !== null,
+            },
+          };
+        }
+
         if (!(await requireProUploadAccess(supabase, request.userId!, reply))) return;
 
         const versionId = ulid();
@@ -249,7 +340,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
     { preHandler: requireAuth },
     async (request, reply) => {
       const { projectId, versionId } = request.params;
-      const { stats } = request.body ?? {};
+      const { stats: rawStats, comparedToVersionId } = request.body ?? {};
       const supabase = request.supabase!;
       // The client computes the diff itself now — parsing/voxelizing/BVH
       // work happens in the uploader's own browser (off-main-thread, same
@@ -259,10 +350,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
       // server computing it itself was the actual driver behind a series
       // of out-of-memory crashes, since one process's memory was shared
       // across every concurrent upload/comparison.
-      if (!stats || typeof stats !== "object") {
+      const validated = validateStats(rawStats);
+      if (!validated.success) {
         reply.code(400);
-        return { success: false, error: "stats is required" };
+        return { success: false, error: validated.error };
       }
+      const stats = validated.data;
 
       try {
         const access = await getProjectAccess(supabase, projectId, request.userId!);
@@ -289,6 +382,31 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         }
 
         const currentRow = current as VersionRow;
+        const isLocal = currentRow.storage_mode === "local";
+
+        if (isLocal) {
+          if (!(await requireSyncAccess(supabase, request.userId!, reply))) return;
+          // The stats are the uploader's own claim about their file, so only the
+          // uploader may supply them.
+          if (currentRow.uploaded_by_user_id !== request.userId) {
+            reply.code(403);
+            return { success: false, error: "Only the person who synced this version can finalize it" };
+          }
+          // A retried sync after a lost response: the version is already
+          // finalized. Answer from what is stored rather than re-running side
+          // effects (the first_upload event, the approval-gate rows).
+          if (currentRow.printability_status !== null) {
+            return {
+              success: true,
+              data: {
+                versionId,
+                triangleCount: currentRow.triangle_count,
+                changeSummary: currentRow.change_summary,
+                printabilityStatus: currentRow.printability_status,
+              },
+            };
+          }
+        }
 
         let previousRow: VersionRow | null = null;
         if (currentRow.version_number > 1) {
@@ -336,7 +454,10 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           });
         }
 
-        if (previousRow) {
+        // Cache "previous -> this" only when that is what the stats describe. A
+        // desktop diff was computed against whatever version the client had
+        // locally, which is not necessarily this project's previous version.
+        if (previousRow && (!isLocal || comparedToVersionId === previousRow.id)) {
           const { error: diffCacheError } = await supabase
             .from("version_diffs")
             .upsert(
@@ -955,13 +1076,19 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         }
 
         const versionRow = row as VersionRow;
-        const { data: download, error: downloadError } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(versionRow.file_path, DOWNLOAD_URL_TTL_SECONDS);
-        if (downloadError) {
-          app.log.error(downloadError, "Failed to create signed download URL");
-          reply.code(502);
-          return { success: false, error: "This version's file is unavailable" };
+        // A local version has no file in the cloud: reviewers get the stats and
+        // comments, and drop in their own copy (checked against contentSha256).
+        let downloadUrl: string | null = null;
+        if (versionRow.file_path) {
+          const { data: download, error: downloadError } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(versionRow.file_path, DOWNLOAD_URL_TTL_SECONDS);
+          if (downloadError || !download) {
+            app.log.error(downloadError, "Failed to create signed download URL");
+            reply.code(502);
+            return { success: false, error: "This version's file is unavailable" };
+          }
+          downloadUrl = download.signedUrl;
         }
 
         let previousVersionId: string | null = null;
@@ -1004,7 +1131,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           success: true,
           data: {
             ...toVersionSummary(versionRow, null, gateStatus, unresolvedCommentCounts.get(versionRow.id) ?? 0),
-            downloadUrl: download.signedUrl,
+            downloadUrl,
             previousVersionId,
             slicerProfile,
             printPhoto,
@@ -1049,7 +1176,7 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "Version not found" };
         }
         const versionRow = row as {
-          file_path: string;
+          file_path: string | null;
           uploaded_by_user_id: string | null;
           triangle_count: number | null;
           slicer_profile_path: string | null;
@@ -1088,9 +1215,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           versionRow.slicer_profile_path,
           versionRow.print_photo_path,
         ].filter((p): p is string => !!p);
-        const { error: storageError } = await supabase.storage.from(BUCKET).remove(pathsToRemove);
-        if (storageError) {
-          app.log.warn(storageError, "Failed to remove version file from storage");
+        // A local version stores nothing, so there may be nothing to remove.
+        if (pathsToRemove.length > 0) {
+          const { error: storageError } = await supabase.storage.from(BUCKET).remove(pathsToRemove);
+          if (storageError) {
+            app.log.warn(storageError, "Failed to remove version file from storage");
+          }
         }
 
         return { success: true, data: true };
@@ -1421,12 +1551,14 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
         reply.code(502);
         return { success: false, error: "Failed to build archive" };
       }
-      const versionRows = (rows ?? []) as Array<{
+      // Local versions keep their model on the owner's computer, so there is
+      // nothing in the cloud to put in the archive.
+      const versionRows = ((rows ?? []) as Array<{
         id: string;
         version_number: number;
         file_name: string;
-        file_path: string;
-      }>;
+        file_path: string | null;
+      }>).filter((v): v is typeof v & { file_path: string } => !!v.file_path);
       if (versionRows.length === 0) {
         reply.code(404);
         return { success: false, error: "No versions to download" };
@@ -1484,13 +1616,19 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           return { success: false, error: "No versions yet" };
         }
 
-        const { data: download, error: downloadError } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(stable.file_path, DOWNLOAD_URL_TTL_SECONDS);
-        if (downloadError) {
-          app.log.error(downloadError, "Failed to create signed download URL for stable version");
-          reply.code(502);
-          return { success: false, error: "The stable version's file is unavailable" };
+        // A local version has no file here; the caller gets storageMode and the
+        // hash instead of a link.
+        let downloadUrl: string | null = null;
+        if (stable.file_path) {
+          const { data: download, error: downloadError } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(stable.file_path, DOWNLOAD_URL_TTL_SECONDS);
+          if (downloadError || !download) {
+            app.log.error(downloadError, "Failed to create signed download URL for stable version");
+            reply.code(502);
+            return { success: false, error: "The stable version's file is unavailable" };
+          }
+          downloadUrl = download.signedUrl;
         }
 
         return {
@@ -1500,7 +1638,9 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
             versionNumber: stable.version_number,
             fileName: stable.file_name,
             approvalStatus: stable.approval_status,
-            downloadUrl: download.signedUrl,
+            storageMode: stable.storage_mode ?? "cloud",
+            contentSha256: stable.content_sha256 ?? null,
+            downloadUrl,
           },
         };
       } catch (err) {
