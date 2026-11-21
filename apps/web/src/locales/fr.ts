@@ -212,6 +212,18 @@ const fr: TranslationResource = {
     colorsContrast: "Couleurs : Contraste",
   },
   versionDetail: {
+    localModelTitle: "This model is kept on its owner's computer",
+    localModelBody: "Meshdiff only has the stats and comments for {{fileName}}. Choose your own copy of the file to see it in 3D and place comment pins. It is checked against the original and never uploaded.",
+    localModelChoose: "Choose your copy",
+    localModelChecking: "Checking your copy…",
+    localModelDropHint: "or drop the file here",
+    localModelProblem: {
+      wrong_size: "That file is a different size from this version, so it isn't the same model. Pick the exact file that was synced.",
+      different_file: "That file looks similar but isn't identical to this version. Pick the exact file that was synced.",
+      too_large: "That file is too large to check in the browser.",
+      unreadable: "That file couldn't be read.",
+      load_failed: "That file matches, but it couldn't be opened as a 3D model.",
+    },
     backToProject: "Retour au projet",
     back: "Retour",
     generalTab: "Général",
@@ -304,6 +316,9 @@ const fr: TranslationResource = {
     smallestDiameter: "Plus petit diamètre",
   },
   compare: {
+    localModelsTitle: "One of these models is kept on its owner's computer",
+    localModelsBody: "Meshdiff has the stats the desktop app synced for this comparison, but not the model files. Open a version and choose your own copy to see it in 3D.",
+    openVersion: "Open v{{number}}",
     backToProject: "Retour au projet",
     share: "Partager",
     downloadReport: "Télécharger le rapport",

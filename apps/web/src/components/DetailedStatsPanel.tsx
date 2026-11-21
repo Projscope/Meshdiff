@@ -17,7 +17,11 @@ interface DetailedStatsPanelProps {
    */
   stats: StatsForPanel;
   hasComparison: boolean;
-  boundingBoxB: [number, number, number];
+  /** The model's absolute size, measured from loaded geometry. null when the
+   * model isn't loaded here (a version kept on its owner's computer, before a
+   * reviewer drops in their copy): the size rows are hidden or "—" rather than
+   * showing a made-up 0 × 0 × 0. */
+  boundingBoxB: [number, number, number] | null;
   /** VersionDetailPage renders PrintabilityDetailsCard itself, right under
    * its own Printability Gate section, instead of leaving it in this grid —
    * everywhere else (CompareVersionsPage, MeasureViewer, LiveDiffToolPage)
@@ -151,15 +155,17 @@ export default function DetailedStatsPanel({
         </SectionCard>
       )}
 
-      <SectionCard>
-        <CollapsibleSection title={t("statsPanel.modelSize")}>
-          <PropertyList>
-            <PropertyRow label={t("statsPanel.sizeX")} value={`${boundingBoxB[0].toFixed(1)} mm`} />
-            <PropertyRow label={t("statsPanel.sizeY")} value={`${boundingBoxB[1].toFixed(1)} mm`} />
-            <PropertyRow label={t("statsPanel.sizeZ")} value={`${boundingBoxB[2].toFixed(1)} mm`} />
-          </PropertyList>
-        </CollapsibleSection>
-      </SectionCard>
+      {boundingBoxB && (
+        <SectionCard>
+          <CollapsibleSection title={t("statsPanel.modelSize")}>
+            <PropertyList>
+              <PropertyRow label={t("statsPanel.sizeX")} value={`${boundingBoxB[0].toFixed(1)} mm`} />
+              <PropertyRow label={t("statsPanel.sizeY")} value={`${boundingBoxB[1].toFixed(1)} mm`} />
+              <PropertyRow label={t("statsPanel.sizeZ")} value={`${boundingBoxB[2].toFixed(1)} mm`} />
+            </PropertyList>
+          </CollapsibleSection>
+        </SectionCard>
+      )}
 
       <SectionCard>
         <CollapsibleSection title={t("statsPanel.versionStats")}>
@@ -167,7 +173,11 @@ export default function DetailedStatsPanel({
             <PropertyRow label={t("statsPanel.volume")} value={stats ? `${volumeB.toFixed(0)} mm³` : "—"} />
             <PropertyRow
               label={t("statsPanel.boundingBox")}
-              value={`${boundingBoxB[0].toFixed(0)} × ${boundingBoxB[1].toFixed(0)} × ${boundingBoxB[2].toFixed(0)} mm`}
+              value={
+                boundingBoxB
+                  ? `${boundingBoxB[0].toFixed(0)} × ${boundingBoxB[1].toFixed(0)} × ${boundingBoxB[2].toFixed(0)} mm`
+                  : "—"
+              }
             />
             <PropertyRow label={t("statsPanel.triangles")} value={stats ? Math.round(stats.triangleDeltaB) : "—"} />
             <PropertyRow label={t("statsPanel.surfaceArea")} value={stats ? `${stats.surfaceAreaB.toFixed(0)} mm²` : "—"} />

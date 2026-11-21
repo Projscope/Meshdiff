@@ -98,6 +98,23 @@ export async function getUserTier(supabase: SupabaseClient, userId: string, tria
 
 export type AccountStatus = "pro" | "restricted";
 
+/**
+ * Whether this account may sync from the desktop client: a Team owner, a
+ * member riding a Team owner's seats, or someone trialing Team.
+ *
+ * Not simply `tier === "team"`: a member has tier "free" (the seat belongs to
+ * the owner), and a member who is also inside their own free trial is reported
+ * with `viaTeamMembership: false` by getAccountAccess() (the trial branch
+ * returns first), so membership is re-checked directly in that case. Pro-only
+ * and plain-trial accounts do not sync.
+ */
+export async function hasSyncAccess(supabase: SupabaseClient, userId: string, access: AccountAccess): Promise<boolean> {
+  if (access.status !== "pro") return false;
+  if (access.tier === "team" || access.viaTeamMembership) return true;
+  const { data } = await supabase.rpc("has_active_team_access", { p_user_id: userId });
+  return !!data;
+}
+
 export const TRIAL_DAYS = 14;
 /** How long a signup can sit before their first upload with the trial clock
  * not yet started. Bounded so an account that never uploads anything can't

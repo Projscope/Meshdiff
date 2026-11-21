@@ -1,6 +1,14 @@
 import { loadMeshGeometry, extensionOf } from "../engine/loadMesh";
 import { computeVoxelDiffOffThread } from "./voxelDiffWorkerClient";
-import { createVersion, uploadVersionBytes, deleteVersion, getVersion, finalizeVersion, type Result } from "./projectsApi";
+import {
+  createVersion,
+  uploadVersionBytes,
+  deleteVersion,
+  getVersion,
+  finalizeVersion,
+  type Result,
+  type VersionDetail,
+} from "./projectsApi";
 
 // Kept out of projectsApi.ts deliberately: loadMesh.ts and
 // voxelDiffWorkerClient.ts both statically import "three", and
@@ -37,6 +45,23 @@ export async function uploadVersion(
   file: File,
   previousVersionId: string | null,
 ): Promise<Result<{ versionId: string }>> {
+  // The diff needs the previous version's file. One synced from the desktop app
+  // keeps its model on its owner's computer, so there is nothing to download:
+  // say so now, before allocating a version and uploading this file for nothing.
+  let previousVersion: VersionDetail | null = null;
+  if (previousVersionId) {
+    const previous = await getVersion(projectId, previousVersionId);
+    if (!previous.success) return previous;
+    if (!previous.data.downloadUrl) {
+      return {
+        success: false,
+        error:
+          "The previous version was synced from the desktop app and its file isn't stored here, so this upload can't be compared with it. Add new versions from the desktop app, or ask its owner.",
+      };
+    }
+    previousVersion = previous.data;
+  }
+
   const allocated = await createVersion(projectId, file);
   if (!allocated.success) return allocated;
   const versionId = allocated.data.versionId;
@@ -63,25 +88,23 @@ export async function uploadVersion(
 
   let previousGeometry = currentGeoResult.data;
   let previousFormat = currentFormat;
-  if (previousVersionId) {
-    const previousVersion = await getVersion(projectId, previousVersionId);
-    if (!previousVersion.success) return fail(previousVersion.error);
+  if (previousVersion?.downloadUrl) {
     let previousBlob: Blob;
     try {
-      const response = await fetch(previousVersion.data.downloadUrl);
+      const response = await fetch(previousVersion.downloadUrl);
       if (!response.ok) throw new Error();
       previousBlob = await response.blob();
     } catch {
       return fail("Failed to read previous version file");
     }
     const previousGeoResult = await loadMeshGeometry(
-      new File([previousBlob], previousVersion.data.fileName),
+      new File([previousBlob], previousVersion.fileName),
     );
     if (!previousGeoResult.success) {
       return fail(previousGeoResult.error);
     }
     previousGeometry = previousGeoResult.data;
-    previousFormat = previousVersion.data.fileFormat;
+    previousFormat = previousVersion.fileFormat;
   }
 
   const diffResult = await computeVoxelDiffOffThread(previousGeometry, currentGeoResult.data, {
