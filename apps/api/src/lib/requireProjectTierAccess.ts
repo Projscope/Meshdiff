@@ -2,6 +2,7 @@ import type { FastifyReply } from "fastify";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectAccess } from "./ownership.js";
 import { getAccountAccess } from "./subscription.js";
+import { recordEvent } from "./productEvents.js";
 
 /**
  * Gates a *mutation* on a project that isn't the auto-seeded Sample
@@ -37,7 +38,14 @@ export async function requireProjectWriteAccess(
   if (access.isSample) return true;
 
   const { status } = await getAccountAccess(supabase, userId);
-  if (status === "pro") return true;
+  if (status === "pro") {
+    // The route pattern (e.g. "POST /projects/:projectId/versions/:versionId/comments")
+    // says which gated feature this was without every call site passing one.
+    recordEvent(supabase, userId, "first_pro_feature_used", {
+      feature: `${reply.request.method} ${reply.request.routeOptions?.url ?? reply.request.url}`,
+    });
+    return true;
+  }
 
   reply.code(403).send({
     success: false,

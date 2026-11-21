@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { sanitizeFilename, extensionOf } from "../lib/filename.js";
-import { requireAuth } from "../lib/requireAuth.js";
+import { requireAuth, getOptionalUser } from "../lib/requireAuth.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
+import { recordEvent } from "../lib/productEvents.js";
 import { getUserTier } from "../lib/subscription.js";
 
 const ALLOWED_EXTENSIONS = new Set(["stl", "obj", "3mf"]);
@@ -114,6 +115,9 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
       if (statsError) {
         app.log.warn(statsError, "Failed to record share_stats row");
       }
+      // Anonymous tool, but attribute it when the sharer happens to be signed in.
+      const sharer = await getOptionalUser(request);
+      recordEvent(supabase, sharer?.id ?? null, "share_created", { kind: "live", expiresInDays });
 
       const [uploadA, uploadB] = await Promise.all([
         supabase.storage.from(BUCKET).createSignedUploadUrl(fileAPath),
@@ -312,6 +316,7 @@ export default async function shareRoute(app: FastifyInstance): Promise<void> {
         if (statsError) {
           app.log.warn(statsError, "Failed to record share_stats row");
         }
+        recordEvent(supabase, request.userId!, "share_created", { kind: "comparison", tier, expiresInDays });
 
         return {
           success: true,

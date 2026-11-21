@@ -34,6 +34,7 @@ import { renderMeshThumbnail } from "../engine/renderThumbnail";
 import { generateThumbnailFromVersion } from "../lib/projectThumbnail";
 import SampleProjectTour from "../components/SampleProjectTour";
 import { setTourDismissed, setTourAwaitingCompare, getSampleTourStage } from "../lib/sampleProjectTour";
+import { usePaywallViewed } from "../lib/trackEvent";
 import { useTeamTourStage, isTeamTourActive } from "../lib/teamTour";
 
 // Kept in sync with the server-side allowlist (apps/api/src/routes/versions.ts)
@@ -97,6 +98,7 @@ export default function ProjectDetailPage() {
   const [teamTourStage] = useTeamTourStage();
   const diffColors = useDiffColors();
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  usePaywallViewed("upload_locked", !isPro && !!project);
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);

@@ -30,6 +30,7 @@ import TeamCreateSpotlight from "./TeamCreateSpotlight";
 import { isAdminEmail } from "../lib/isAdmin";
 import { useTrialTierModalDismissed } from "../lib/trialTierChoiceModal";
 import { getTeamTourStage, setTeamTourStage } from "../lib/teamTour";
+import { usePaywallViewed } from "../lib/trackEvent";
 
 const STATUS_DOT: Record<"pass" | "warn" | "fail", string> = {
   pass: "bg-accent-500",
@@ -290,6 +291,7 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
   // until the subscription fetch resolves, so the sidebar doesn't flash a
   // locked state on first load.
   const isRestricted = subscription?.accountStatus === "restricted";
+  usePaywallViewed("trial_ended", isRestricted);
   // Distinct from isTeamMember: a regular team member (not the owner) has
   // no subscription/stripe_customers row of their own, so /billing/portal
   // would 404 for them — only the actual subscriber (Pro or Team) gets the

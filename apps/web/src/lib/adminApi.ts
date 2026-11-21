@@ -5,6 +5,10 @@ export interface AdminUserRow {
   email: string | null;
   signupDate: string;
   lastSignInAt: string | null;
+  /** Last time this user used the app (any authenticated API call), from
+   * user_activity. Unlike lastSignInAt it also moves when a saved session
+   * returns. null = not seen since tracking began. */
+  lastSeenAt: string | null;
   tier: "free" | "pro" | "team";
   status: string | null;
   currentPeriodEnd: string | null;

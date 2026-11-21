@@ -4,6 +4,7 @@ import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireSupabase } from "../lib/requireSupabase.js";
 import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus, trialEndsAtMs } from "../lib/subscription.js";
 import { getFirstUploadAt, getFirstUploadsByUser } from "../lib/firstUpload.js";
+import { getLastSeenByUser } from "../lib/productEvents.js";
 import { isAdminEmail } from "../lib/requireAdmin.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 import { getDemoUserIds, setDemoAccount } from "../lib/demoAccounts.js";
@@ -127,6 +128,10 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
           supabase,
           pageResult.error ? [] : pageResult.data.users.map((u) => u.id),
         );
+        const lastSeenByUser = await getLastSeenByUser(
+          supabase,
+          pageResult.error ? [] : pageResult.data.users.map((u) => u.id),
+        );
 
         if (pageResult.error) {
           app.log.error(pageResult.error, "Failed to list users");
@@ -197,6 +202,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
               email: u.email ?? null,
               signupDate: u.created_at,
               lastSignInAt: u.last_sign_in_at ?? null,
+              lastSeenAt: lastSeenByUser.get(u.id) ?? null,
               tier: "team" as const,
               status: null,
               currentPeriodEnd: null,
@@ -220,6 +226,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
               email: u.email ?? null,
               signupDate: u.created_at,
               lastSignInAt: u.last_sign_in_at ?? null,
+              lastSeenAt: lastSeenByUser.get(u.id) ?? null,
               tier: adminGrantedTier,
               status: null,
               currentPeriodEnd: null,
@@ -248,6 +255,7 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
             email: u.email ?? null,
             signupDate: u.created_at,
             lastSignInAt: u.last_sign_in_at ?? null,
+            lastSeenAt: lastSeenByUser.get(u.id) ?? null,
             tier: isActive ? sub!.tier : "free",
             status: sub?.status ?? null,
             currentPeriodEnd: isActive ? sub!.current_period_end : null,
