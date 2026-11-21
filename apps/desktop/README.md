@@ -118,19 +118,14 @@ electron-builder cannot read a version range through npm workspace hoisting.
 
 ## Release
 
-Installers and the update manifest are published by `.github/workflows/desktop-release.yml`
-to the public releases-only repo `Projscope/meshdiff-releases`. Installed apps check that
-repo for updates; the source in this repo stays private.
+Step-by-step instructions, setup, verification and troubleshooting are in
+[docs/RELEASING.md](docs/RELEASING.md). In short: bump `version` in `apps/desktop/package.json`, merge to
+`main`, then `git tag desktop-vX.Y.Z && git push origin desktop-vX.Y.Z` (the tag must match the version).
+`.github/workflows/desktop-release.yml` tests the app, builds the installer and publishes it to the public
+releases-only repo `Projscope/meshdiff-releases`, which installed apps update from. The source in this
+repo stays private. Before the first public release see [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+(code signing, terms and privacy review).
 
-One-time setup:
-1. Create the public repo `Projscope/meshdiff-releases` (a README is enough).
-2. Create a fine-grained token with *Contents: read and write* on that repo only and add it
-   to this repo as the secret `RELEASES_REPO_TOKEN`.
-
-To release: bump `version` in `apps/desktop/package.json`, then
-`git tag desktop-vX.Y.Z && git push origin desktop-vX.Y.Z`. The tag must match the version.
-
-Not done yet: code signing. Unsigned installers trigger Windows SmartScreen warnings.
 Release notes on the public repo are public: keep admin and internal details out.
 
 ## Privacy model

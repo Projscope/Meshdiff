@@ -1,5 +1,8 @@
 # Releasing Meshdiff Desktop 1.0: what's left, and who does it
 
+How to cut a release (tag, workflow, verifying, troubleshooting) is in [RELEASING.md](RELEASING.md).
+This page is the one-time and first-public-release checklist.
+
 Everything below is a step only the owner can take (accounts, secrets, decisions) or a
 check to run before announcing. Engineering work for 1.0 is otherwise done.
 
