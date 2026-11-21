@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { MeshdiffDesktopBridge, UpdateStatus } from "../../../shared/src/desktopBridge";
+import type { MeshdiffDesktopBridge, ProjectSyncStatus, SyncBridge, UpdateStatus } from "../../../shared/src/desktopBridge";
 import type { LibraryBridge } from "../../../shared/src/localLibrary";
 
 // The only surface the renderer gets. Everything goes through named IPC
@@ -29,10 +29,33 @@ const library: LibraryBridge = {
   addComment: (projectId, comment) => call("library:addComment", projectId, comment),
   setCommentStatus: (projectId, commentId, status) => call("library:setCommentStatus", projectId, commentId, status),
   deleteComment: (projectId, commentId) => call("library:deleteComment", projectId, commentId),
+  attachVersionFile: (projectId, versionId, bytes) => call("library:attachVersionFile", projectId, versionId, bytes),
+};
+
+const sync: SyncBridge = {
+  getAccount: () => call("sync:getAccount"),
+  signIn: (email, password) => call("sync:signIn", email, password),
+  signOut: () => call("sync:signOut"),
+  openWebsite: (page) => call("sync:openWebsite", page),
+  listTeams: () => call("sync:listTeams"),
+  listTeamProjects: (teamId) => call("sync:listTeamProjects", teamId),
+  connectProject: (projectId, teamId) => call("sync:connectProject", projectId, teamId),
+  openTeamProject: (cloudProjectId, teamId) => call("sync:openTeamProject", cloudProjectId, teamId),
+  disconnectProject: (projectId) => call("sync:disconnectProject", projectId),
+  syncProject: (projectId) => call("sync:syncProject", projectId),
+  getProjectStatus: (projectId) => call("sync:getProjectStatus", projectId),
+  onStatus(callback) {
+    const listener = (_event: unknown, projectId: string, status: ProjectSyncStatus) => callback(projectId, status);
+    ipcRenderer.on("sync:status", listener);
+    return () => {
+      ipcRenderer.removeListener("sync:status", listener);
+    };
+  },
 };
 
 const bridge: MeshdiffDesktopBridge = {
   library,
+  sync,
   getInfo: () => ipcRenderer.invoke("desktop:getInfo"),
   getUpdateStatus: () => ipcRenderer.invoke("desktop:getUpdateStatus"),
   checkForUpdates: () => ipcRenderer.invoke("desktop:checkForUpdates"),

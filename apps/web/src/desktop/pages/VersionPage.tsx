@@ -8,6 +8,7 @@ import CommentPin from "../../components/CommentPin";
 import CommentPopover from "../../components/CommentPopover";
 import CommentsPanel from "../../components/CommentsPanel";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import LocalCopyPrompt from "../../components/LocalCopyPrompt";
 import DetailedStatsPanel from "../../components/DetailedStatsPanel";
 import PendingCommentPopover from "../../components/PendingCommentPopover";
 import PrintabilityBadge from "../../components/PrintabilityBadge";
@@ -26,7 +27,7 @@ function toSummary(comment: LocalComment): CommentSummary {
   return {
     id: comment.id,
     authorUserId: null,
-    authorEmail: "You",
+    authorEmail: comment.authorEmail ?? "You",
     parentCommentId: comment.parentCommentId,
     body: comment.body,
     position: comment.position,
@@ -53,6 +54,8 @@ export default function VersionPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CommentSummary | null>(null);
   const [tab, setTab] = useState<"details" | "comments">("details");
+  const [isAttaching, setIsAttaching] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   const version = detail?.versions.find((v) => v.id === versionId) ?? null;
 
@@ -61,6 +64,8 @@ export default function VersionPage() {
     let cancelled = false;
     setGeometry(null);
     setGeometryError(null);
+    // A teammate's version arrives without its file; there is nothing to load until one is attached.
+    if (version.missingFile) return;
     loadVersionGeometry(projectId, version)
       .then((g) => !cancelled && setGeometry(g))
       .catch((e) => !cancelled && setGeometryError(errorMessage(e)));
@@ -68,7 +73,7 @@ export default function VersionPage() {
       cancelled = true;
     };
     // Reload only when the file itself changes, not on every refresh of the project.
-  }, [projectId, version?.id, version?.sha256]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, version?.id, version?.sha256, version?.missingFile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const comments = useMemo(
     () => (detail?.comments ?? []).filter((c) => c.versionId === versionId).map(toSummary),
@@ -83,6 +88,19 @@ export default function VersionPage() {
     const size = geometry.boundingBox?.getSize(new THREE.Vector3());
     return size ? [size.x, size.y, size.z] : [0, 0, 0];
   }, [geometry]);
+
+  /** Stores the user's own copy of a model a teammate synced; the main process checks it is the same file. */
+  async function attachFile(file: File) {
+    setIsAttaching(true);
+    setAttachError(null);
+    try {
+      await library().attachVersionFile(projectId, versionId, await file.arrayBuffer());
+      await refresh();
+    } catch (e) {
+      setAttachError(errorMessage(e));
+    }
+    setIsAttaching(false);
+  }
 
   async function run(action: () => Promise<unknown>) {
     setActionError(null);
@@ -160,6 +178,7 @@ export default function VersionPage() {
           geometry={geometry}
           onMeshClick={isPlacing ? handleMeshClick : undefined}
           toolbarExtras={
+            version.missingFile ? undefined : (
             <button
               type="button"
               data-testid="toolbar-comment"
@@ -172,6 +191,7 @@ export default function VersionPage() {
             >
               💬
             </button>
+            )
           }
         >
           {topLevel.map((comment) => (
@@ -210,7 +230,15 @@ export default function VersionPage() {
             </>
           )}
         </ReadOnlyMeshViewer>
-        {!geometry && !geometryError && (
+        {version.missingFile && version.cloud?.storageMode !== "cloud" && (
+          <LocalCopyPrompt fileName={version.fileName} isChecking={isAttaching} problem={null} problemMessage={attachError} onFile={(file) => void attachFile(file)} />
+        )}
+        {version.missingFile && version.cloud?.storageMode === "cloud" && (
+          <div data-testid="web-upload-note" className="absolute inset-0 z-10 flex items-center justify-center bg-ink-950/90 p-6 text-center text-sm text-ink-300">
+            This version was uploaded through the Meshdiff website, so its model isn't kept on any computer here. Open it on the website to see the model.
+          </div>
+        )}
+        {!geometry && !geometryError && !version.missingFile && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm text-ink-400">Loading model…</div>
         )}
         {geometryError && (
@@ -228,7 +256,8 @@ export default function VersionPage() {
         <p className="mt-1 text-xs text-ink-500">
           {formatBytes(version.sizeBytes)} · {formatDateTime(version.createdAt)}
           <br />
-          sha256 <span className="font-mono">{version.sha256.slice(0, 16)}…</span>
+          {version.cloud?.uploaderEmail && (<>from {version.cloud.uploaderEmail}<br /></>)}
+          {version.sha256 && (<>sha256 <span className="font-mono">{version.sha256.slice(0, 16)}…</span></>)}
         </p>
 
         {actionError && (
@@ -244,7 +273,9 @@ export default function VersionPage() {
             <p className="mt-2 text-xs text-ink-300">{analysis.changeSummary}</p>
           </>
         ) : (
-          <p className="mt-4 text-xs text-ink-500">Analyzing this version…</p>
+          <p className="mt-4 text-xs text-ink-500">
+            {version.missingFile ? "No stats are available for this version yet. Attach your copy of the file to analyze it here." : "Analyzing this version…"}
+          </p>
         )}
 
         <div role="tablist" className="mt-4 flex border-b border-ink-800 text-xs">
@@ -268,7 +299,7 @@ export default function VersionPage() {
         <div className="mt-4">
           {tab === "details" ? (
             analysis && (
-              <DetailedStatsPanel stats={analysis.stats} hasComparison={analysis.comparedToVersionId !== null} boundingBoxB={boundingBox} />
+              <DetailedStatsPanel stats={analysis.stats} hasComparison={analysis.comparedToVersionId !== null} boundingBoxB={version.missingFile && !geometry ? null : boundingBox} />
             )
           ) : (
             <CommentsPanel

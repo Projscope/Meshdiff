@@ -174,7 +174,7 @@ try {
   check("Open folder opens the library folder in the file manager", opened.length === 1 && sameDir(opened[0], libraryDir), JSON.stringify(opened));
   check("Settings shows the app version", (await win.textContent('[data-testid="about-text"]')).includes("Meshdiff Desktop 0.0.1"));
   check("Settings reports the update state", (await win.textContent('[data-testid="update-text"]')).length > 0, await win.textContent('[data-testid="update-text"]'));
-  check("Settings says models never leave the computer", (await win.textContent("body")).includes("Your models never leave this computer"));
+  check("Settings says models never leave the computer", (await win.textContent("body")).includes("Your model files never leave this computer"));
 
   // ---- fonts are bundled, and the renderer still can't reach the network ----
   const fonts = await win.evaluate(async () => {

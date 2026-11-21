@@ -9,6 +9,8 @@ interface LocalCopyPromptProps {
   /** True while the dropped file is being hashed and parsed. */
   isChecking: boolean;
   problem: LocalCopyProblem | null;
+  /** Overrides the standard text for `problem` (the desktop app gets its wording from the file store). */
+  problemMessage?: string | null;
   onFile: (file: File) => void;
 }
 
@@ -18,7 +20,7 @@ interface LocalCopyPromptProps {
  * their own copy (checked against the stored SHA-256, never uploaded) turns the
  * 3D view and comment pins on.
  */
-export default function LocalCopyPrompt({ fileName, isChecking, problem, onFile }: LocalCopyPromptProps) {
+export default function LocalCopyPrompt({ fileName, isChecking, problem, problemMessage, onFile }: LocalCopyPromptProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -67,9 +69,9 @@ export default function LocalCopyPrompt({ fileName, isChecking, problem, onFile 
         </button>
         <p className="text-[11px] text-ink-500">{t("versionDetail.localModelDropHint")}</p>
 
-        {problem && (
+        {(problem || problemMessage) && (
           <div role="alert" className="w-full rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-xs text-red-300">
-            {t(`versionDetail.localModelProblem.${problem}`)}
+            {problemMessage ?? (problem ? t(`versionDetail.localModelProblem.${problem}`) : null)}
           </div>
         )}
       </div>

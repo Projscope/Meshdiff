@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LocalProjectDetail } from "@meshdiff/shared/localLibrary";
 import { analyzeVersion } from "./analyzeVersion";
 import { isUsableAnalysis } from "./analysisValidity";
+import { diffBaseFor } from "./diffBase";
 import { errorMessage, library } from "./library";
 
 export interface UseProject {
@@ -18,8 +19,9 @@ export interface UseProject {
 /**
  * Loads a local project and keeps its versions analyzed. A version needs
  * analysis when it has none (just added, or the app closed mid-analysis), when
+
  * the saved one is damaged, or when it was diffed against a version that's since
- * been deleted. They run one at a
+ * been deleted. Versions without a file on this computer are left alone. They run one at a
  * time, because the diff worker caches the pair it's working on.
  */
 export function useProject(projectId: string): UseProject {
@@ -62,14 +64,17 @@ export function useProject(projectId: string): UseProject {
     const { versions } = detail;
     const index = versions.findIndex((version, i) => {
       if (failed.current.has(version.id)) return false;
-      const expected = versions[i - 1]?.id ?? null;
+      // A teammate's version that arrived without its file can't be analyzed here; the cloud
+      // already holds its stats, which were pulled in with it.
+      if (version.missingFile) return false;
+      const expected = diffBaseFor(versions, i)?.id ?? null;
       // Also recomputed when a saved analysis is damaged, not just missing or stale.
       return !isUsableAnalysis(version.analysis) || version.analysis.comparedToVersionId !== expected;
     });
     if (index === -1) return;
 
     const version = versions[index]!;
-    const previous = versions[index - 1] ?? null;
+    const previous = diffBaseFor(versions, index);
     setAnalyzingVersionId(version.id);
     void (async () => {
       try {

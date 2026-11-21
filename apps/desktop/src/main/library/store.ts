@@ -10,6 +10,7 @@ import type {
   LocalFormat,
   LocalProject,
   LocalProjectDetail,
+  ProjectCloudLink,
   LocalProjectSummary,
   LocalVersion,
   NewLocalComment,
@@ -36,12 +37,18 @@ const STATUSES: ReadonlySet<string> = new Set(["open", "resolved", "reopened"]);
 /** A problem the user can act on (bad input, missing/corrupt file). Its message is safe to show. */
 export class LibraryError extends Error {}
 
-interface StoredComment extends LocalComment {
+export interface StoredComment extends LocalComment {
   /** Soft delete, so a later sync can tell "deleted" from "never existed". */
   deletedAt: string | null;
+  /** The cloud has this comment (it was created there, or came from there). */
+  onServer?: boolean;
+  /** A change here (created, status changed, deleted) hasn't reached the cloud yet.
+   * Missing on comments written before sync existed: treated as dirty, so
+   * connecting a project uploads what was already there. */
+  dirty?: boolean;
 }
 
-interface StoredProject {
+export interface StoredProject {
   schemaVersion: number;
   project: LocalProject;
   versions: LocalVersion[];
@@ -223,6 +230,9 @@ export class LibraryStore {
     const data = await this.read(projectId);
     const version = data.versions.find((v) => v.id === versionId);
     if (!version) throw new LibraryError("That version no longer exists.");
+    if (version.missingFile) {
+      throw new LibraryError("This version's model isn't on this computer. Attach your copy of the file to open it.");
+    }
     let bytes: Buffer;
     try {
       bytes = await fs.promises.readFile(this.blobPath(version.sha256, version.format));
@@ -251,11 +261,21 @@ export class LibraryStore {
     this.assertVersionId(versionId);
     return this.serialized(async () => {
       const data = await this.read(projectId);
-      if (!data.versions.some((v) => v.id === versionId)) throw new LibraryError("That version no longer exists.");
+      const removed = data.versions.find((v) => v.id === versionId);
+      if (!removed) throw new LibraryError("That version no longer exists.");
       data.versions = data.versions.filter((v) => v.id !== versionId);
       const deletedAt = now();
+      // Removing a version here never removes it (or its comments) from the cloud:
+      // teammates still have it. Remember it so the next sync doesn't bring it back.
+      const keepInCloud = removed.cloud !== undefined && data.project.cloud !== undefined;
+      if (keepInCloud && !data.project.cloud!.ignoredVersionIds.includes(versionId)) {
+        data.project.cloud!.ignoredVersionIds.push(versionId);
+      }
       for (const comment of data.comments) {
-        if (comment.versionId === versionId && comment.deletedAt === null) comment.deletedAt = deletedAt;
+        if (comment.versionId === versionId && comment.deletedAt === null) {
+          comment.deletedAt = deletedAt;
+          if (keepInCloud) comment.dirty = false;
+        }
       }
       data.project.updatedAt = deletedAt;
       await this.write(data);
@@ -295,6 +315,8 @@ export class LibraryStore {
         createdAt: timestamp,
         updatedAt: timestamp,
         deletedAt: null,
+        onServer: false,
+        dirty: true,
       };
       data.comments.push(comment);
       data.project.updatedAt = timestamp;
@@ -309,6 +331,7 @@ export class LibraryStore {
       if (!comment) throw new LibraryError("That comment no longer exists.");
       comment.status = status;
       comment.updatedAt = now();
+      comment.dirty = true;
       return publicComment(comment);
     });
   }
@@ -323,9 +346,58 @@ export class LibraryStore {
         if (comment.deletedAt === null && (comment.id === commentId || comment.parentCommentId === commentId)) {
           comment.deletedAt = deletedAt;
           comment.updatedAt = deletedAt;
+          comment.dirty = true;
         }
       }
       data.project.updatedAt = deletedAt;
+    });
+  }
+
+  // ---- cloud sync support -------------------------------------------------
+
+  /** A deep copy of a project's stored data, including deleted comments and sync flags. */
+  async snapshot(projectId: string): Promise<StoredProject> {
+    return structuredClone(await this.read(projectId));
+  }
+
+  /** Runs one read-modify-write on a project. The sync engine does its network
+   * calls outside this and uses it only to apply the results, so the lock is
+   * never held across a request. */
+  transact<T>(projectId: string, change: (data: StoredProject) => T): Promise<T> {
+    return this.mutate(projectId, change);
+  }
+
+  /** Creates an empty project with a chosen link, for opening a team project here. */
+  createLinkedProject(name: string, cloud: ProjectCloudLink): Promise<LocalProject> {
+    return this.serialized(async () => {
+      const timestamp = now();
+      const project: LocalProject = { id: crypto.randomUUID(), name: cleanName(name, "The project name"), createdAt: timestamp, updatedAt: timestamp, cloud };
+      await this.write({ schemaVersion: SCHEMA_VERSION, project, versions: [], comments: [] });
+      return project;
+    });
+  }
+
+  /** Stores the model file for a version that arrived without one. */
+  attachVersionFile(projectId: string, versionId: string, bytes: Buffer): Promise<LocalVersion> {
+    this.assertVersionId(versionId);
+    return this.serialized(async () => {
+      const data = await this.read(projectId);
+      const version = data.versions.find((v) => v.id === versionId);
+      if (!version) throw new LibraryError("That version no longer exists.");
+      if (!version.missingFile) throw new LibraryError("This version already has its model file.");
+      if (version.cloud?.storageMode === "cloud") {
+        throw new LibraryError("This version was uploaded through the Meshdiff website. Open it there to see the model.");
+      }
+      if (bytes.length > MAX_MODEL_BYTES) {
+        throw new LibraryError(`The file is larger than ${Math.round(MAX_MODEL_BYTES / (1024 * 1024))} MB.`);
+      }
+      if (bytes.length !== version.sizeBytes || crypto.createHash("sha256").update(bytes).digest("hex") !== version.sha256) {
+        throw new LibraryError("That file isn't the same as this version. Choose the exact file that was synced.");
+      }
+      await this.ensureBlob(version.sha256, version.format, bytes);
+      delete version.missingFile;
+      await this.write(data);
+      return version;
     });
   }
 
@@ -438,6 +510,6 @@ export class LibraryStore {
 }
 
 function publicComment(comment: StoredComment): LocalComment {
-  const { deletedAt: _deletedAt, ...rest } = comment;
-  return rest;
+  const { deletedAt: _deletedAt, onServer: _onServer, dirty, ...rest } = comment;
+  return { ...rest, pendingSync: dirty !== false };
 }

@@ -9,6 +9,7 @@ import type {
   NewLocalComment,
 } from "../../../../shared/src/localLibrary";
 import { LibraryError, LibraryStore, MAX_MODEL_BYTES } from "./store";
+import { SyncError } from "../sync/errors";
 
 type Reply<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -28,7 +29,7 @@ function toBuffer(value: unknown): Buffer {
 /** Registers one `library:*` channel. Only our own app:// page may call it, input
  * is validated by the store, and anything unexpected becomes a generic message
  * rather than leaking a stack trace or file path to the renderer. */
-function handle<T>(
+export function handle<T>(
   channel: string,
   appOrigin: string,
   run: (event: IpcMainInvokeEvent, args: unknown[]) => Promise<T>,
@@ -39,7 +40,8 @@ function handle<T>(
       if (!sender.startsWith(`${appOrigin}/`)) throw new LibraryError("Request refused.");
       return { ok: true, data: await run(event, args) };
     } catch (error) {
-      if (error instanceof LibraryError) return { ok: false, error: error.message };
+      // Both carry messages written for the user; anything else is logged, not shown.
+      if (error instanceof LibraryError || error instanceof SyncError) return { ok: false, error: error.message };
       console.error(`[library] ${channel} failed:`, error);
       return { ok: false, error: "Something went wrong reading or writing your library." };
     }
@@ -101,4 +103,7 @@ export function registerLibraryIpc(store: LibraryStore, appOrigin: string): void
     store.setCommentStatus(projectId as string, commentId as string, status as LocalCommentStatus),
   );
   h("library:deleteComment", (_e, [projectId, commentId]) => store.deleteComment(projectId as string, commentId as string));
+  h("library:attachVersionFile", (_e, [projectId, versionId, bytes]) =>
+    store.attachVersionFile(projectId as string, versionId as string, toBuffer(bytes)),
+  );
 }

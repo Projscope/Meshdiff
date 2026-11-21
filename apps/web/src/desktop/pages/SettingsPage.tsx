@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DesktopInfo, UpdateStatus } from "@meshdiff/shared/desktopBridge";
 import type { LibraryInfo } from "@meshdiff/shared/localLibrary";
+import CloudAccountSection from "../components/CloudAccountSection";
 import { errorMessage, formatBytes, library } from "../lib/library";
 
 function updateText(status: UpdateStatus | null): string {
@@ -104,6 +105,10 @@ export default function SettingsPage() {
         )}
       </Section>
 
+      <Section title="Team sync">
+        <CloudAccountSection />
+      </Section>
+
       <Section title="Updates">
         <p data-testid="update-text">{updateText(update)}</p>
         <div className="mt-3 flex gap-2">
@@ -130,9 +135,9 @@ export default function SettingsPage() {
 
       <Section title="Privacy">
         <ul className="list-disc space-y-1 pl-5">
-          <li>Your models never leave this computer. This app has no account and no cloud sync yet.</li>
-          <li>The app's window cannot make network requests at all, so it has no way to send your files anywhere.</li>
-          <li>The only network access is the app itself checking GitHub for updates.</li>
+          <li>Your model files never leave this computer, even when you sync.</li>
+          <li>Nothing is sent anywhere unless you sign in and connect a project to a team. Then your team's cloud project receives only: each version's file name and size, a SHA-256 fingerprint of the file, the analysis results (stats and printability), and your comments.</li>
+          <li>The app's window cannot make network requests at all. Only the app's background process talks to Meshdiff (when you sign in or sync) and to GitHub (to check for updates).</li>
         </ul>
       </Section>
 

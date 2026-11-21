@@ -36,6 +36,42 @@ reuse them. Set `MESHDIFF_LIBRARY_DIR` to point the app at a throwaway library (
   recovery screen instead of a blank window (`ErrorBoundary.tsx`).
 - Fonts (IBM Plex Sans, Space Grotesk) are bundled with `@fontsource`, so nothing is fetched from a CDN.
 
+## Team sync (optional, Team plan)
+
+The app is fully usable without an account. Signing in (Settings) and connecting a
+project to a team adds sync; the server enforces the plan (`requireSyncAccess`), so
+free and Pro accounts get `team_required`, which the app shows as a calm status.
+
+What is sent for a connected project: each version's file name, size, SHA-256 and
+analysis stats, and the comments. **Never the model file.** Teammates open the project
+and see stats and comments; they attach their own copy of a file, which is accepted
+only if its hash matches. A version a teammate uploaded through the website has no
+file anywhere here (nothing to attach).
+
+How it works (`src/main/sync/`):
+- `engine.ts` reconciles a project with its cloud project. There is no queue: what still
+  needs to go up is read from the project's own data (a version with no `cloud` info, a
+  comment with `dirty` set) and every call is idempotent on the item's id, so an interrupted
+  or failed sync resumes and a repeated one does nothing. Network calls run outside the
+  store lock; results are applied in short transactions that re-check the item.
+- Comments are append-only; status is last-writer-wins by when it reaches the cloud. A
+  comment with a change waiting to go up is never overwritten by a pull. The comment feed
+  cursor only advances in the same transaction that applies a page.
+- Removing a synced version here never removes it from the cloud, and it won't come back
+  (`ignoredVersionIds`). A version the team deleted is kept here but never pushed again.
+- `auth.ts` signs in with Supabase Auth over REST; the session is kept encrypted with the
+  OS key store (`secrets.ts`, Electron `safeStorage`). If encryption isn't available the
+  session is simply not saved. Going offline never signs the user out.
+- `service.ts` is what the IPC calls: single-flight per project, one retry after a token
+  refresh, expected failures (offline, signed out, no plan) returned as a status.
+  Connected projects also sync every 5 minutes while the app is open.
+
+Where the cloud lives is baked in at build time: `MESHDIFF_API_URL`,
+`MESHDIFF_SUPABASE_URL`, `MESHDIFF_SUPABASE_ANON_KEY` (set as repository *variables* for the
+release workflow; the anon key is public by design). Environment variables of the same
+names override them at runtime, which is how the tests (and you) point a build at a local
+stack. With none set, the app runs fully locally and says syncing isn't set up.
+
 ## Develop
 
 ```bash
@@ -44,6 +80,7 @@ npm run start --workspace apps/desktop     # run from source
 npm run test --workspace @meshdiff/desktop # unit tests for the library store
 npm run smoke --workspace apps/desktop     # launches the real app and checks it
 node tests/library-e2e.mjs                 # drives the real UI: projects, versions, comments, restart
+node tests/sync-e2e.mjs                    # two app instances syncing through a local stand-in cloud
 ```
 
 `npm run pack` builds an unpacked app and `npm run dist` builds the installer into

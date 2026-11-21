@@ -51,7 +51,15 @@ jobs:
       - run: npm run typecheck --workspace apps/desktop
 
       # Builds the web renderer bundle (typechecks the web app) and bundles main/preload.
+      # The cloud addresses are baked into the app here. Set them as repository
+      # *variables* (not secrets: the Supabase anon key is public by design):
+      # MESHDIFF_SUPABASE_URL and MESHDIFF_SUPABASE_ANON_KEY. Without them the
+      # installer still works, fully locally, and says syncing isn't set up.
       - run: npm run build --workspace apps/desktop
+        env:
+          MESHDIFF_API_URL: ${{ vars.MESHDIFF_API_URL || 'https://meshdiff-api.onrender.com' }}
+          MESHDIFF_SUPABASE_URL: ${{ vars.MESHDIFF_SUPABASE_URL }}
+          MESHDIFF_SUPABASE_ANON_KEY: ${{ vars.MESHDIFF_SUPABASE_ANON_KEY }}
 
       - run: npm run test --workspace @meshdiff/desktop
 
@@ -62,6 +70,12 @@ jobs:
       # Drives the real UI: create a project, add versions, comment on the model,
       # compare, restart and confirm everything persisted.
       - run: node tests/library-e2e.mjs
+        working-directory: apps/desktop
+
+      # Two real app instances (two users, two libraries) syncing through a local
+      # stand-in for the cloud: sign-in, connect, push/pull, attach a file,
+      # comments both ways, offline, plan checks, restart.
+      - run: node tests/sync-e2e.mjs
         working-directory: apps/desktop
 
       - name: Build installer and publish release

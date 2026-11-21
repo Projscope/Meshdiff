@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { LocalProjectSummary } from "@meshdiff/shared/localLibrary";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import TeamProjectDialog from "../components/TeamProjectDialog";
 import { errorMessage, formatDateTime, library } from "../lib/library";
+import { useAccount } from "../lib/sync";
 
 export default function LibraryPage() {
   const navigate = useNavigate();
@@ -11,6 +13,8 @@ export default function LibraryPage() {
   const [name, setName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<LocalProjectSummary | null>(null);
+  const [isOpeningTeamProject, setIsOpeningTeamProject] = useState(false);
+  const { account } = useAccount();
 
   const load = useCallback(async () => {
     try {
@@ -53,7 +57,7 @@ export default function LibraryPage() {
     <div className="mx-auto max-w-4xl px-6 py-8">
       <h1 className="text-2xl font-bold">Projects</h1>
       <p className="mt-1 text-sm text-ink-400">
-        Everything here is stored on this computer. Nothing is uploaded.
+        Everything here is stored on this computer. Nothing is uploaded unless you connect a project to your team.
       </p>
 
       <form onSubmit={handleCreate} className="mt-6 flex gap-2">
@@ -74,6 +78,17 @@ export default function LibraryPage() {
           Create project
         </button>
       </form>
+
+      {account?.signedIn && account.syncEnabled && (
+        <button
+          type="button"
+          data-testid="open-team-project-start"
+          onClick={() => setIsOpeningTeamProject(true)}
+          className="mt-3 text-xs text-accent-fg-400 underline"
+        >
+          Open a team project…
+        </button>
+      )}
 
       {error && (
         <div role="alert" className="mt-4 rounded-sm border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-300">
@@ -97,7 +112,14 @@ export default function LibraryPage() {
             className="flex items-center justify-between gap-3 rounded-lg border border-ink-800 bg-ink-900 px-4 py-3"
           >
             <Link to={`/p/${project.id}`} className="min-w-0 flex-1">
-              <div className="truncate font-medium text-ink-50">{project.name}</div>
+              <div className="flex items-center gap-2">
+                <span className="truncate font-medium text-ink-50">{project.name}</span>
+                {project.cloud && (
+                  <span data-testid="team-badge" className="shrink-0 rounded-sm bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">
+                    {project.cloud.teamName}
+                  </span>
+                )}
+              </div>
               <div className="mt-0.5 text-xs text-ink-500">
                 {project.versionCount} {project.versionCount === 1 ? "version" : "versions"}
                 {project.latestFileName && ` · latest ${project.latestFileName}`} · updated {formatDateTime(project.updatedAt)}
@@ -114,6 +136,16 @@ export default function LibraryPage() {
           </li>
         ))}
       </ul>
+
+      {isOpeningTeamProject && (
+        <TeamProjectDialog
+          onClose={() => setIsOpeningTeamProject(false)}
+          onOpened={(projectId) => {
+            setIsOpeningTeamProject(false);
+            navigate(`/p/${projectId}`);
+          }}
+        />
+      )}
 
       {pendingDelete && (
         <ConfirmDialog

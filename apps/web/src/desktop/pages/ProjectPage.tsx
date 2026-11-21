@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import type { LocalVersion } from "@meshdiff/shared/localLibrary";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import PrintabilityBadge from "../../components/PrintabilityBadge";
+import SyncPanel from "../components/SyncPanel";
 import { errorMessage, formatBytes, formatDateTime, library } from "../lib/library";
 import { useProject } from "../lib/useProject";
 
@@ -160,6 +161,8 @@ export default function ProjectPage() {
         </div>
       )}
 
+      <SyncPanel project={project} onChanged={() => void refresh()} />
+
       {versions.length === 0 ? (
         <p className="mt-8 rounded-lg border border-dashed border-ink-700 px-4 py-10 text-center text-sm text-ink-400">
           No versions yet. Add your first model (STL, OBJ or 3MF), or drag files here. Each new file is compared with the one before it.
@@ -177,8 +180,10 @@ export default function ProjectPage() {
                     type="checkbox"
                     aria-label={`Select v${version.number} to compare`}
                     checked={selected.includes(version.id)}
+                    disabled={version.missingFile}
+                    title={version.missingFile ? "This version's model isn't on this computer, so it can't be compared yet" : undefined}
                     onChange={() => toggleSelected(version.id)}
-                    className="mt-1 accent-sky-400"
+                    className="mt-1 accent-sky-400 disabled:opacity-40"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -186,14 +191,36 @@ export default function ProjectPage() {
                         v{version.number} · {version.fileName}
                       </Link>
                       {analysis && <PrintabilityBadge status={analysis.printabilityStatus} />}
+                      {project.cloud && version.missingFile && (
+                        <span data-testid="no-file" className="rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-fg-300">
+                          No file on this computer
+                        </span>
+                      )}
+                      {project.cloud && !version.missingFile && !version.cloud && (
+                        <span data-testid="draft" className="rounded-sm bg-ink-800 px-1.5 py-0.5 text-[10px] font-medium text-ink-300">
+                          Not synced yet
+                        </span>
+                      )}
+                      {version.cloud && !version.cloud.removedInCloud && (
+                        <span data-testid="synced" className="rounded-sm bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                          Synced
+                        </span>
+                      )}
+                      {version.cloud?.removedInCloud && (
+                        <span className="rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-fg-300">
+                          Removed from the team project
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 text-xs text-ink-500">
-                      {formatBytes(version.sizeBytes)} · added {formatDateTime(version.createdAt)} · sha256 {version.sha256.slice(0, 12)}…
+                      {formatBytes(version.sizeBytes)} · added {formatDateTime(version.createdAt)}
+                      {version.cloud?.uploaderEmail ? ` by ${version.cloud.uploaderEmail}` : ""}
+                      {version.sha256 ? ` · sha256 ${version.sha256.slice(0, 12)}…` : ""}
                     </div>
                     {analysis && (
                       <p data-testid="change-summary" className="mt-2 text-sm text-ink-300">{analysis.changeSummary}</p>
                     )}
-                    {!analysis && !error && (
+                    {!analysis && !error && !version.missingFile && (
                       <p data-testid="analyzing" className="mt-2 text-sm text-ink-500">
                         {isAnalyzing ? "Analyzing…" : "Waiting to analyze…"}
                       </p>
@@ -218,7 +245,11 @@ export default function ProjectPage() {
       {pendingDelete && (
         <ConfirmDialog
           title="Delete version?"
-          message={`v${pendingDelete.number} (${pendingDelete.fileName}) and its comments will be permanently deleted from this computer. This can't be undone.`}
+          message={
+            pendingDelete.cloud
+              ? `v${pendingDelete.number} (${pendingDelete.fileName}) and its comments will be deleted from this computer. Your team keeps its copy in the cloud, and it won't come back here when you sync.`
+              : `v${pendingDelete.number} (${pendingDelete.fileName}) and its comments will be permanently deleted from this computer. This can't be undone.`
+          }
           confirmLabel="Delete"
           isDestructive
           onConfirm={() => void handleDeleteVersion(pendingDelete)}

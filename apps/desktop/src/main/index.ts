@@ -5,6 +5,10 @@ import type { DesktopInfo } from "../../../shared/src/desktopBridge";
 import { checkForUpdates, getUpdateStatus, initUpdater, installUpdate } from "./updater";
 import { registerLibraryIpc } from "./library/ipc";
 import { LibraryStore } from "./library/store";
+import { resolveCloudConfig } from "./sync/config";
+import { broadcastStatus, registerSyncIpc } from "./sync/ipc";
+import { SafeStorageSecrets } from "./sync/secrets";
+import { SyncService } from "./sync/service";
 
 const APP_HOST = "meshdiff";
 const APP_ORIGIN = `app://${APP_HOST}`;
@@ -160,7 +164,24 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     // MESHDIFF_LIBRARY_DIR lets tests use a throwaway library instead of the user's real one.
     const libraryRoot = process.env.MESHDIFF_LIBRARY_DIR ?? path.join(app.getPath("userData"), "library");
-    registerLibraryIpc(new LibraryStore(libraryRoot), APP_ORIGIN);
+    const store = new LibraryStore(libraryRoot);
+    registerLibraryIpc(store, APP_ORIGIN);
+
+    // Cloud sync is optional: with no cloud configured, or nobody signed in, nothing here
+    // touches the network. Only this process ever talks to the cloud, never the renderer.
+    const sync = new SyncService({
+      store,
+      config: resolveCloudConfig(),
+      secrets: new SafeStorageSecrets(path.join(app.getPath("userData"), "cloud-session.bin")),
+      onStatus: broadcastStatus,
+      openExternal: (url) => {
+        if (url.startsWith("https://")) void shell.openExternal(url);
+      },
+    });
+    registerSyncIpc(sync, APP_ORIGIN);
+    sync.startAutoSync();
+    // Catch up shortly after launch, once the window is up (a no-op when signed out).
+    setTimeout(() => void sync.syncAll(), 10_000).unref();
     createWindow();
     initUpdater();
 
