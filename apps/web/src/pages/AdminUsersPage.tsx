@@ -189,7 +189,9 @@ export default function AdminUsersPage() {
                       <div className="flex items-center gap-1.5">
                         <span>
                           {user.isTrialing
-                            ? `${user.trialDaysRemaining} day${user.trialDaysRemaining === 1 ? "" : "s"} left`
+                            ? `${user.trialDaysRemaining} day${user.trialDaysRemaining === 1 ? "" : "s"} left${
+                                user.trialClockStarted === false ? " · no upload yet" : ""
+                              }`
                             : user.tier === "free"
                               ? "trial ended"
                               : (user.status ?? "—")}

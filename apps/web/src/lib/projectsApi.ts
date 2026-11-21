@@ -326,6 +326,9 @@ export interface SubscriptionStatus {
   isTrialing: boolean;
   /** Whole days left in the trial window, or null when not trialing. */
   trialDaysRemaining: number | null;
+  /** false until the user's first upload starts the 14-day clock — until
+   * then trialDaysRemaining is the time left to start it, not 14. */
+  trialClockStarted: boolean;
   /** Only populated for a Team subscription's owner — a member riding the
    * owner's seats has no purchased/used figure of their own. */
   seats: { purchased: number; used: number } | null;

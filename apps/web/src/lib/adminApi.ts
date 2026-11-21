@@ -12,6 +12,8 @@ export interface AdminUserRow {
    * computeTrialStatus() in apps/api/src/lib/subscription.ts. */
   isTrialing: boolean;
   trialDaysRemaining: number | null;
+  /** false while the user hasn't uploaded yet (and has no admin override). */
+  trialClockStarted: boolean;
   /** Flagged by an admin as a demo/test/showcase account — excluded from
    * the stat widgets and signups chart, no effect on the account itself.
    * See setUserDemoStatus() and apps/api/src/lib/demoAccounts.ts. */

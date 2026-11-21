@@ -635,7 +635,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                 : isTeamMember
                   ? t("billing.accessViaTeam")
                   : isTrialing
-                    ? t("billing.trialActive", { count: subscription?.trialDaysRemaining ?? 0 })
+                    ? t(subscription?.trialClockStarted === false ? "billing.trialNotStarted" : "billing.trialActive", {
+                      count: subscription?.trialDaysRemaining ?? 0,
+                    })
                     : isRestricted
                       ? t("billing.trialEnded")
                       : t("billing.freeBlurb")}
@@ -753,7 +755,9 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                         : isTeamMember
                           ? t("billing.accessViaTeam")
                           : isTrialing
-                            ? t("billing.trialActive", { count: subscription?.trialDaysRemaining ?? 0 })
+                            ? t(subscription?.trialClockStarted === false ? "billing.trialNotStarted" : "billing.trialActive", {
+                      count: subscription?.trialDaysRemaining ?? 0,
+                    })
                             : isRestricted
                               ? t("billing.trialEnded")
                               : t("billing.freeBlurb")}

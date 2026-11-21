@@ -106,7 +106,14 @@ export const PRE_UPLOAD_TRIAL_DAYS = 30;
 
 export interface TrialStatus {
   isTrialing: boolean;
+  /** Whole days until access ends — the real figure, even before the
+   * 14-day clock has started (then it's the time left in the pre-upload
+   * window). */
   trialDaysRemaining: number | null;
+  /** false while the account is still in the pre-upload window (no first
+   * upload, no admin override), so the UI can say the 14 days start at
+   * their first upload instead of implying they have 14 days left. */
+  trialClockStarted: boolean;
 }
 
 const DAY_MS = 86_400_000;
@@ -135,20 +142,19 @@ export function trialEndsAtMs(
 /** Pure day-math, factored out so getAccountAccess() and the admin users
  * list/stats (which already have each row's auth.users.created_at from
  * listUsers(), and fetch first uploads in one bulk query) can't drift on
- * the trial window. While the clock hasn't started (no override, no first
- * upload) `trialDaysRemaining` is the full TRIAL_DAYS rather than the
- * time left in the pre-upload window, so the UI shows what they'll get. */
+ * the trial window. `trialDaysRemaining` is always the real time until
+ * access ends; `trialClockStarted` says which rule that end date came from. */
 export function computeTrialStatus(
   createdAt: string | null | undefined,
   overrideEndsAt?: string | null,
   firstUploadAt?: string | null,
 ): TrialStatus {
   const msRemaining = trialEndsAtMs(createdAt, overrideEndsAt, firstUploadAt) - Date.now();
-  if (msRemaining <= 0) return { isTrialing: false, trialDaysRemaining: null };
-  const clockStarted = !!overrideEndsAt || !!firstUploadAt;
+  if (msRemaining <= 0) return { isTrialing: false, trialDaysRemaining: null, trialClockStarted: false };
   return {
     isTrialing: true,
-    trialDaysRemaining: clockStarted ? Math.ceil(msRemaining / DAY_MS) : TRIAL_DAYS,
+    trialDaysRemaining: Math.ceil(msRemaining / DAY_MS),
+    trialClockStarted: !!overrideEndsAt || !!firstUploadAt,
   };
 }
 
@@ -165,6 +171,8 @@ export interface AccountAccess {
   isTrialing: boolean;
   /** Whole days left in the trial window, or null when not trialing. */
   trialDaysRemaining: number | null;
+  /** See TrialStatus.trialClockStarted. */
+  trialClockStarted: boolean;
 }
 
 // The real access gate (see requireActiveAccess.ts). A free-tier user gets
@@ -184,7 +192,7 @@ export async function getAccountAccess(supabase: SupabaseClient, userId: string)
   // computation below instead (it still needs isTrialing/
   // trialDaysRemaining populated correctly for the UI).
   if (tier !== "free" && !viaTrialChoice) {
-    return { status: "pro", tier, viaTeamMembership: false, isTrialing: false, trialDaysRemaining: null };
+    return { status: "pro", tier, viaTeamMembership: false, isTrialing: false, trialDaysRemaining: null, trialClockStarted: false };
   }
 
   const { data: userResult } = await supabase.auth.admin.getUserById(userId);
@@ -193,7 +201,7 @@ export async function getAccountAccess(supabase: SupabaseClient, userId: string)
   // never restricted, never trial-gated, with or without a subscription
   // of their own.
   if (isAdminEmail(userResult?.user?.email)) {
-    return { status: "pro", tier: "team", viaTeamMembership: false, isTrialing: false, trialDaysRemaining: null };
+    return { status: "pro", tier: "team", viaTeamMembership: false, isTrialing: false, trialDaysRemaining: null, trialClockStarted: false };
   }
 
   const [trialOverride, firstUploadAt] = await Promise.all([
@@ -212,5 +220,6 @@ export async function getAccountAccess(supabase: SupabaseClient, userId: string)
     viaTeamMembership: !!hasTeamAccess,
     isTrialing: false,
     trialDaysRemaining: null,
+    trialClockStarted: false,
   };
 }

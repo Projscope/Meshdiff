@@ -113,6 +113,7 @@ export default async function billingRoute(app: FastifyInstance): Promise<void> 
           accountStatus: access.status,
           isTrialing: access.isTrialing,
           trialDaysRemaining: access.trialDaysRemaining,
+          trialClockStarted: access.trialClockStarted,
           seats,
         },
       };
