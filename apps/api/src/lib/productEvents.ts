@@ -52,14 +52,22 @@ export function touchLastSeen(supabase: SupabaseClient, userId: string): void {
         .from("user_activity")
         .upsert({ user_id: userId, last_seen_at: new Date(now).toISOString() }, { onConflict: "user_id" });
       if (error) {
-        lastSeenTouchedAt.delete(userId);
+        backOffLastSeen(userId, now);
         console.warn(`user_activity upsert failed: ${error.message}`);
       }
     } catch (err) {
-      lastSeenTouchedAt.delete(userId);
+      backOffLastSeen(userId, now);
       console.warn("user_activity upsert threw:", err);
     }
   })();
+}
+
+// After a failed write, retry in LAST_SEEN_RETRY_MS instead of on the very
+// next request — otherwise a missing table (API deployed before its
+// migration) would add a failing query and a log line to every call.
+const LAST_SEEN_RETRY_MS = 300_000;
+function backOffLastSeen(userId: string, now: number): void {
+  lastSeenTouchedAt.set(userId, now - LAST_SEEN_INTERVAL_MS + LAST_SEEN_RETRY_MS);
 }
 
 /** Bulk lookup for the admin users list — one query instead of one per row. */
