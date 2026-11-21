@@ -78,6 +78,23 @@ jobs:
       - run: node tests/sync-e2e.mjs
         working-directory: apps/desktop
 
+      # electron-builder starts two publishers at once, and when the release doesn't
+      # exist yet both try to create it: one wins, the other gets "422 Published
+      # releases must have a valid tag" and aborts the whole upload (this broke the
+      # first run). Creating the release up front means they only ever upload into it.
+      - name: Make sure the public release exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          if gh release view "v${version}" --repo Projscope/meshdiff-releases > /dev/null 2>&1; then
+            echo "Release v${version} already exists"
+          else
+            gh release create "v${version}" --repo Projscope/meshdiff-releases \
+              --title "${version}" --notes "Meshdiff Desktop ${version}"
+          fi
+
       - name: Build installer and publish release
         working-directory: apps/desktop
         run: npx electron-builder --win --publish always
