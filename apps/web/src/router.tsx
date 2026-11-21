@@ -26,6 +26,7 @@ import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
 import AdminBlogPage from "./pages/AdminBlogPage";
 import AdminBlogEditorPage from "./pages/AdminBlogEditorPage";
 import AdminFeedbackPage from "./pages/AdminFeedbackPage";
+import AdminFunnelPage from "./pages/AdminFunnelPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProjectsLayout from "./components/ProjectsLayout";
 import RootLayout from "./components/RootLayout";
@@ -159,6 +160,16 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ProjectsLayout>
               <AdminUsersPage />
+            </ProjectsLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin/funnel",
+        element: (
+          <ProtectedRoute>
+            <ProjectsLayout>
+              <AdminFunnelPage />
             </ProjectsLayout>
           </ProtectedRoute>
         ),

@@ -5,6 +5,7 @@ import { requireSupabase } from "../lib/requireSupabase.js";
 import { INACTIVE_SUBSCRIPTION_STATUSES, computeTrialStatus, trialEndsAtMs } from "../lib/subscription.js";
 import { getFirstUploadAt, getFirstUploadsByUser } from "../lib/firstUpload.js";
 import { getLastSeenByUser } from "../lib/productEvents.js";
+import { getAdminFunnel } from "../lib/adminFunnel.js";
 import { isAdminEmail } from "../lib/requireAdmin.js";
 import { getAdminStats, getSignupBuckets, type SignupGranularity } from "../lib/adminStats.js";
 import { getDemoUserIds, setDemoAccount } from "../lib/demoAccounts.js";
@@ -95,6 +96,24 @@ export default async function adminRoute(app: FastifyInstance): Promise<void> {
       }
     },
   );
+
+  // Where signups drop off, plus a per-user activity table — see
+  // lib/adminFunnel.ts. Excludes demo accounts and admins.
+  app.get("/admin/funnel", { preHandler: [requireAuth, requireAdmin] }, async (request, reply) => {
+    try {
+      const result = await getAdminFunnel(request.supabase!);
+      if (!result.success) {
+        app.log.error("Failed to compute admin funnel: " + result.error);
+        reply.code(502);
+        return { success: false, error: "Failed to load funnel" };
+      }
+      return { success: true, data: result.data };
+    } catch (err) {
+      app.log.error(err, "Admin funnel threw");
+      reply.code(502);
+      return { success: false, error: "Failed to load funnel" };
+    }
+  });
 
   app.get<{ Querystring: AdminUsersQuery }>(
     "/admin/users",

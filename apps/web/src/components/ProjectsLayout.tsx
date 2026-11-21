@@ -572,6 +572,12 @@ export default function ProjectsLayout({ children }: { children: ReactNode }) {
                       Users
                     </Link>
                     <Link
+                      to="/admin/funnel"
+                      className="rounded-sm px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
+                    >
+                      Funnel
+                    </Link>
+                    <Link
                       to="/admin/analytics"
                       className="rounded-sm px-2 py-1.5 text-sm text-ink-400 hover:bg-ink-800 hover:text-ink-200"
                     >
