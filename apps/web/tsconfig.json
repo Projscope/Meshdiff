@@ -20,5 +20,5 @@
       "@meshdiff/shared/*": ["../shared/src/*"]
     }
   },
-  "include": ["src", "vite.config.ts", "playwright.config.ts", "tests"]
+  "include": ["src", "vite.config.ts", "vite.desktop.config.ts", "playwright.config.ts", "tests"]
 }

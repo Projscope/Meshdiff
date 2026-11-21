@@ -1,3 +1,5 @@
+import { IS_DESKTOP } from "./runtime";
+
 const GA_MEASUREMENT_ID = "G-YYCQHG6EW5";
 
 declare global {
@@ -11,7 +13,7 @@ declare global {
  * (import.meta.env.DEV) never fires it, so local testing doesn't pollute
  * real traffic/conversion numbers. */
 export function initAnalytics(): void {
-  if (!import.meta.env.PROD) return;
+  if (!import.meta.env.PROD || IS_DESKTOP) return;
 
   window.dataLayer = window.dataLayer ?? [];
   function gtag(...args: unknown[]) {
@@ -72,7 +74,7 @@ function isOwnerBrowser(): boolean {
 }
 
 export function trackPageview(): void {
-  if (!import.meta.env.PROD) return;
+  if (!import.meta.env.PROD || IS_DESKTOP) return;
   if (isOwnerBrowser()) return;
 
   const payload = JSON.stringify({
