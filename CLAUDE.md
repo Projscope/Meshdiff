@@ -409,6 +409,28 @@ trial_tier_choice (
 -- Pro-level access — only ever 'team' ('pro' is the absence of a row).
 -- Checked by getUserTier() only while actually trialing. See pro.md's
 -- "Trial tier choice".
+
+-- 20260101000041_product_events.sql (service-role only, RLS on, no policies)
+user_activity (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  last_seen_at timestamptz not null default now()
+);
+-- Last authenticated API call, written at most ~hourly per user by
+-- touchLastSeen() in requireAuth. Exists because auth.users.last_sign_in_at
+-- only moves on an explicit sign-in, never when a saved session returns.
+
+product_events (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade,   -- null = anonymous (Live Diff share)
+  event text not null check (event in ('first_upload','first_pro_feature_used','share_created','paywall_viewed')),
+  props jsonb not null default '{}',
+  created_at timestamptz not null default now()
+);
+-- first_upload / first_pro_feature_used are once per user (partial unique
+-- index). trial_started/trial_ended are NOT events — derive them from
+-- first_user_uploads + computeTrialStatus(). Written fire-and-forget by
+-- recordEvent() in apps/api/src/lib/productEvents.ts; apps/api/scripts/
+-- userActivityReport.sql is the per-user read query.
 ```
 
 `has_active_team_access(p_user_id uuid) returns boolean` (SQL function,
@@ -480,6 +502,7 @@ genuinely becomes `'team'`; see pro.md's "Trial tier choice"). Concretely:
 | PATCH  | `/admin/users/:userId/demo`                    | Required, admin | Body `{ demo: boolean }` — flags/unflags a demo account, see pro.md |
 | PATCH  | `/admin/users/:userId/subscription`            | Required, admin | Body `{ tier: 'free'\|'pro'\|'team' }` — manual tier grant, see pro.md's "Admin overrides" |
 | PATCH  | `/admin/users/:userId/trial`                   | Required, admin | Body `{ days: number\|null }` — extends/shortens/clears a trial, see pro.md's "Admin overrides" |
+| POST   | `/events`                                      | Required | Body `{ event: 'paywall_viewed', surface }` — the only client-originated product event; all others are recorded server-side |
 
 Frontend callers: `apps/web/src/lib/projectsApi.ts`
 (`startProCheckout`/`startTeamCheckout`/`getSubscription`/etc.) and

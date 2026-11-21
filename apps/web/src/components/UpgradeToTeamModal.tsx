@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { startTeamCheckout } from "../lib/projectsApi";
+import { usePaywallViewed } from "../lib/trackEvent";
 
 export default function UpgradeToTeamModal({ onClose }: { onClose: () => void }) {
+  usePaywallViewed("upgrade_team");
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

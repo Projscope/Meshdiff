@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { getSupabase } from "./supabase.js";
+import { touchLastSeen } from "./productEvents.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -55,6 +56,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
   }
 
   request.userId = data.user.id;
+  touchLastSeen(supabase, data.user.id);
 }
 
 /**

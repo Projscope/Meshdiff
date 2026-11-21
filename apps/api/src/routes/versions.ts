@@ -13,6 +13,7 @@ import { getStableVersion } from "../lib/stableVersion.js";
 import { MAX_FILE_BYTES } from "../lib/fileSizeLimit.js";
 import { logTeamAudit } from "../lib/teamAuditLog.js";
 import { notifyVersionStateChanged } from "../lib/notify.js";
+import { recordEvent } from "../lib/productEvents.js";
 
 // Diffing now runs client-side (see finalize() below and
 // ProjectDetailPage.tsx/projectsApi.ts) — the server never parses or
@@ -327,6 +328,12 @@ export default async function versionsRoute(app: FastifyInstance): Promise<void>
           app.log.error(updateError, "Failed to update version with diff results");
           reply.code(502);
           return { success: false, error: "Failed to finalize version" };
+        }
+        if (!access.isSample) {
+          recordEvent(supabase, request.userId!, "first_upload", {
+            project_id: projectId,
+            version_number: currentRow.version_number,
+          });
         }
 
         if (previousRow) {

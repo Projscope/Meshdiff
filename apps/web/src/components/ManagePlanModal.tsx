@@ -9,6 +9,7 @@ import {
   type SubscriptionStatus,
 } from "../lib/projectsApi";
 import ConfirmDialog from "./ConfirmDialog";
+import { usePaywallViewed } from "../lib/trackEvent";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -41,6 +42,7 @@ interface ManagePlanModalProps {
  */
 export default function ManagePlanModal({ subscription, onClose, onSubscriptionChange, onNotice }: ManagePlanModalProps) {
   const { t } = useTranslation();
+  usePaywallViewed("manage_plan", subscription.tier === "free");
   const [pendingAction, setPendingAction] = useState<"downgrade-to-free" | "pro-to-team" | "team-to-pro" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
