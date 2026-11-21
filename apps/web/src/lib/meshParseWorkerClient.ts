@@ -9,6 +9,11 @@ const client = createWorkerClient<MeshParseWorkerRequest, MeshParseWorkerRespons
   () => new Worker(new URL("../workers/meshParseWorker.ts", import.meta.url), { type: "module" }),
 );
 
+/** Stops a parse that is running; it resolves as a failure with this message. */
+export function cancelMeshParse(message?: string): void {
+  client.cancel(message);
+}
+
 function toGeometry(data: ParsedMeshGeometry): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
@@ -33,9 +38,12 @@ function toGeometry(data: ParsedMeshGeometry): THREE.BufferGeometry {
  * inline implementation did; only the transfer of the resulting typed
  * arrays back is new.
  */
-export function loadMeshGeometryOffThread(file: File): Promise<Result<THREE.BufferGeometry>> {
+export function loadMeshGeometryOffThread(
+  file: File,
+  options?: { maxTriangles?: number },
+): Promise<Result<THREE.BufferGeometry>> {
   const id = client.nextId();
-  return client.send({ id, file }).then((result) =>
+  return client.send({ id, file, maxTriangles: options?.maxTriangles }).then((result) =>
     result.success ? { success: true, data: toGeometry(result.data) } : result,
   );
 }

@@ -326,7 +326,11 @@ function isUncoloredWhite(colors: Float32Array): boolean {
   return true;
 }
 
-export function parseProductionThreeMF(buffer: ArrayBuffer): Result<THREE.BufferGeometry> {
+export function parseProductionThreeMF(
+  buffer: ArrayBuffer,
+  options?: { maxTriangles?: number },
+): Result<THREE.BufferGeometry> {
+  const maxTriangles = options?.maxTriangles ?? MAX_TRIANGLES_PER_MESH;
   try {
     const zip = fflate.unzipSync(new Uint8Array(buffer));
     const decoder = new TextDecoder();
@@ -386,9 +390,9 @@ export function parseProductionThreeMF(buffer: ArrayBuffer): Result<THREE.Buffer
       if (obj.meshData) {
         const { vertices, triangles } = obj.meshData;
         triangleTotal += triangles.length;
-        if (triangleTotal > MAX_TRIANGLES_PER_MESH) {
+        if (triangleTotal > maxTriangles) {
           throw new Error(
-            `Mesh has more than ${MAX_TRIANGLES_PER_MESH.toLocaleString()} triangles, exceeding the limit for diffing`,
+            `Mesh has more than ${maxTriangles.toLocaleString()} triangles, exceeding the limit for diffing`,
           );
         }
         const objectColor: [number, number, number] =

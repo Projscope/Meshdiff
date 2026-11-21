@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain, protocol, session, shell } from "electron";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { computeAnalysisLimits } from "../../../shared/src/analysisLimits";
 import type { DesktopInfo } from "../../../shared/src/desktopBridge";
 import { checkForUpdates, getUpdateStatus, initUpdater, installUpdate } from "./updater";
 import { registerLibraryIpc } from "./library/ipc";
@@ -143,6 +145,14 @@ function registerIpc(): void {
       isPackaged: app.isPackaged,
     }),
   );
+  // Worked out fresh each time: how much memory is free changes while the app runs.
+  ipcMain.handle("desktop:getAnalysisLimits", () => {
+    const limits = computeAnalysisLimits(os.totalmem(), os.freemem());
+    // For testing and support: MESHDIFF_ANALYSIS_MAX_TRIANGLES forces the limit (e.g. to try a small computer).
+    const forced = Number(process.env.MESHDIFF_ANALYSIS_MAX_TRIANGLES);
+    if (Number.isFinite(forced) && forced > 0) limits.maxTriangles = Math.floor(forced);
+    return limits;
+  });
   ipcMain.handle("desktop:getUpdateStatus", () => getUpdateStatus());
   ipcMain.handle("desktop:checkForUpdates", () => checkForUpdates());
   ipcMain.handle("desktop:installUpdate", () => installUpdate());

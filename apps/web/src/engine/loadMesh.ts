@@ -29,6 +29,6 @@ export function extensionOf(filename: string): string {
  * CLAUDE.md's "3D Performance Rules". This function just hands the file
  * across and reconstructs a BufferGeometry from the result.
  */
-export function loadMeshGeometry(file: File): Promise<Result<THREE.BufferGeometry>> {
-  return loadMeshGeometryOffThread(file);
+export function loadMeshGeometry(file: File, options?: { maxTriangles?: number }): Promise<Result<THREE.BufferGeometry>> {
+  return loadMeshGeometryOffThread(file, options);
 }

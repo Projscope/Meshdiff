@@ -24,11 +24,13 @@ function check(name, ok, detail = "") {
 // A throwaway library, so the test never touches the user's real projects.
 const libraryDir = fs.mkdtempSync(path.join(os.tmpdir(), "meshdiff-smoke-"));
 const env = { ...process.env, MESHDIFF_LIBRARY_DIR: libraryDir };
+// Its own profile, so it never collides with an installed Meshdiff that is open (the app allows one instance per profile).
+const userArg = `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), "meshdiff-smoke-userdata-"))}`;
 
 const app = await electron.launch(
   packagedExe
-    ? { executablePath: packagedExe, env }
-    : { executablePath: require("electron"), args: [appDir], cwd: appDir, env },
+    ? { executablePath: packagedExe, args: [userArg], env }
+    : { executablePath: require("electron"), args: [appDir, userArg], cwd: appDir, env },
 );
 
 const consoleErrors = [];

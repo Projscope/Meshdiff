@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { computeVoxelDiff } from "./diffVoxels.js";
+import { MAX_TRIANGLES_PER_MESH, computeVoxelDiff } from "./diffVoxels.js";
 import { countOccupied, voxelizeGeometry } from "./voxelize.js";
 
 describe("computeVoxelDiff", () => {
@@ -85,6 +85,39 @@ describe("computeVoxelDiff", () => {
 
     const result = computeVoxelDiff(point, point);
 
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("computeVoxelDiff triangle cap", () => {
+  // 20 * (detail + 1)^2 triangles: 60,500, over the default cap of 50,000.
+  const sphere = (radius: number) => new THREE.IcosahedronGeometry(radius, 54);
+
+  it("keeps the website/server default", () => {
+    expect(MAX_TRIANGLES_PER_MESH).toBe(50_000);
+    const result = computeVoxelDiff(sphere(10), sphere(10.5));
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("50,000");
+  });
+
+  it("accepts a larger mesh when the caller raises the cap", () => {
+    const result = computeVoxelDiff(sphere(10), sphere(10.5), { maxTriangles: 100_000 });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.stats.approxVolumeDeltaMm3).toBeGreaterThan(0); // B is bigger than A
+  });
+
+  it("refuses with the callers own number when it lowers the cap", () => {
+    const result = computeVoxelDiff(new THREE.BoxGeometry(10, 10, 10), new THREE.BoxGeometry(10, 10, 10), { maxTriangles: 5 });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("12 triangles");
+    expect(result.error).toContain("5 limit");
+  });
+
+  it("checks both meshes, not just the first", () => {
+    const result = computeVoxelDiff(new THREE.BoxGeometry(10, 10, 10), sphere(10), { maxTriangles: 1_000 });
     expect(result.success).toBe(false);
   });
 });

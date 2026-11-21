@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type FormEvent } from "react";
+import { useEffect, useState, type DragEvent, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { LocalVersion } from "@meshdiff/shared/localLibrary";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -9,10 +9,35 @@ import { useProject } from "../lib/useProject";
 
 const MODEL_EXTENSIONS = [".stl", ".obj", ".3mf"];
 
+/** The line under a version that is being (or about to be) analysed. A big model takes a while, so after a few seconds it says so and offers Cancel. */
+function AnalyzingNote({ isAnalyzing, onCancel }: { isAnalyzing: boolean; onCancel: () => void }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!isAnalyzing) {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(timer);
+  }, [isAnalyzing]);
+
+  return (
+    <div data-testid="analyzing" className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-500">
+      <span>{isAnalyzing ? "Analyzing…" : "Waiting to analyze…"}</span>
+      {isAnalyzing && slow && <span className="text-xs">This is a large model; it can take a minute or more.</span>}
+      {isAnalyzing && (
+        <button type="button" data-testid="cancel-analysis" onClick={onCancel} className="text-xs text-accent-fg-400 underline">
+          Cancel
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectPage() {
   const { projectId = "" } = useParams();
   const navigate = useNavigate();
-  const { detail, loadError, analyzingVersionId, analysisErrors, refresh } = useProject(projectId);
+  const { detail, loadError, analyzingVersionId, analysisErrors, refresh, cancelAnalysis, retryAnalysis } = useProject(projectId);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -221,11 +246,16 @@ export default function ProjectPage() {
                       <p data-testid="change-summary" className="mt-2 text-sm text-ink-300">{analysis.changeSummary}</p>
                     )}
                     {!analysis && !error && !version.missingFile && (
-                      <p data-testid="analyzing" className="mt-2 text-sm text-ink-500">
-                        {isAnalyzing ? "Analyzing…" : "Waiting to analyze…"}
+                      <AnalyzingNote isAnalyzing={isAnalyzing} onCancel={cancelAnalysis} />
+                    )}
+                    {error && (
+                      <p data-testid="analysis-error" className="mt-2 text-sm text-red-300">
+                        Couldn't analyze this file: {error}{" "}
+                        <button type="button" data-testid="retry-analysis" onClick={() => retryAnalysis(version.id)} className="text-accent-fg-400 underline">
+                          Try again
+                        </button>
                       </p>
                     )}
-                    {error && <p className="mt-2 text-sm text-red-300">Couldn't analyze this file: {error}</p>}
                   </div>
                   <button
                     type="button"
