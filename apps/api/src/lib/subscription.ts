@@ -148,8 +148,9 @@ export function computeTrialStatus(
   createdAt: string | null | undefined,
   overrideEndsAt?: string | null,
   firstUploadAt?: string | null,
+  now: number = Date.now(),
 ): TrialStatus {
-  const msRemaining = trialEndsAtMs(createdAt, overrideEndsAt, firstUploadAt) - Date.now();
+  const msRemaining = trialEndsAtMs(createdAt, overrideEndsAt, firstUploadAt) - now;
   if (msRemaining <= 0) return { isTrialing: false, trialDaysRemaining: null, trialClockStarted: false };
   return {
     isTrialing: true,

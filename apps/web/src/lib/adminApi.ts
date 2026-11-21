@@ -148,3 +148,54 @@ export function getAdminAnalytics(
   const query = params.toString();
   return request(`/admin/analytics${query ? `?${query}` : ""}`);
 }
+
+export interface FunnelStep {
+  key: string;
+  label: string;
+  count: number;
+  /** 0..1 of everyone who signed up. */
+  shareOfSignups: number;
+  /** 0..1 of the previous step; null for the first. */
+  shareOfPrevious: number | null;
+}
+
+export type FunnelTrialState = "paying" | "trialing" | "trialing_not_started" | "ended";
+
+export interface FunnelUserRow {
+  id: string;
+  email: string | null;
+  signedUp: string;
+  trial: FunnelTrialState;
+  daysLeft: number | null;
+  uploads: number;
+  /** Uploaded something, but only the sample-gear files from the button. */
+  sampleOnly: boolean;
+  comments: number;
+  shares: number;
+  paywallViews: number;
+  lastSeenAt: string | null;
+  lastSignInAt: string | null;
+  lastActivityAt: string | null;
+}
+
+export interface AdminFunnel {
+  generatedAt: string;
+  steps: FunnelStep[];
+  paying: { count: number; shareOfSignups: number };
+  /** Counts events recorded since tracking began — they understate earlier behaviour. */
+  tracked: {
+    since: string | null;
+    activeLast7d: number;
+    paywallViewers: number;
+    sharers: number;
+    proFeatureUsers: number;
+  };
+  rows: FunnelUserRow[];
+  rowsTruncated: boolean;
+}
+
+/** Where signups drop off plus a per-user activity table — see
+ * apps/api/src/lib/adminFunnel.ts. Excludes demo accounts and admins. */
+export function getAdminFunnel(): Promise<Result<AdminFunnel>> {
+  return request("/admin/funnel");
+}
