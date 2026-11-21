@@ -574,3 +574,30 @@ describe("hashing", () => {
     expect(cloud.versions[0].contentSha256).toBe(crypto.createHash("sha256").update("exact bytes").digest("hex"));
   });
 });
+
+describe("data from the cloud is checked before it is stored", () => {
+  it("ignores malformed versions and comments from the cloud, and keeps the good ones", async () => {
+    const project = await alice.connected();
+    await alice.addVersion(project.id, "a.stl", "one");
+    await alice.engine.sync(project.id);
+    const cloudId = (await alice.data(project.id)).project.cloud!.cloudProjectId;
+
+    // A teammate (or a faulty server) sends junk next to the real data.
+    cloud.versions.push(
+      { id: "../../etc/passwd", projectId: cloudId, uploaderId: "x", versionNumber: 2, fileName: "x.stl", fileFormat: "stl", fileSizeBytes: 1, storageMode: "local", contentSha256: "a".repeat(64), changeSummary: null, printabilityStatus: null, approvalStatus: null, createdAt: cloud.clock(), uploaderEmail: "x@y.z", stats: null, comparedTo: null },
+      { id: "01HZ0000000000000000000007", projectId: cloudId, uploaderId: "x", versionNumber: 3, fileName: "evil.exe", fileFormat: "exe", fileSizeBytes: 1, storageMode: "local", contentSha256: "a".repeat(64), changeSummary: null, printabilityStatus: null, approvalStatus: null, createdAt: cloud.clock(), uploaderEmail: "x@y.z", stats: null, comparedTo: null },
+    );
+    const v1 = (await alice.data(project.id)).versions[0];
+    const now = cloud.clock();
+    cloud.comments.push(
+      { id: "not-a-uuid", projectId: cloudId, authorId: "x", versionId: v1.id, parentCommentId: null, body: "bad id", position: [0, 0, 0], normal: null, status: "open", authorEmail: "x@y.z", createdAt: now, updatedAt: now, deletedAt: null },
+      { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1", projectId: cloudId, authorId: "x", versionId: v1.id, parentCommentId: null, body: "bad position", position: [Number.NaN, 0, 0], normal: null, status: "open", authorEmail: "x@y.z", createdAt: now, updatedAt: now, deletedAt: null },
+      { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2", projectId: cloudId, authorId: "x", versionId: v1.id, parentCommentId: null, body: "fine", position: [1, 1, 1], normal: null, status: "open", authorEmail: "x@y.z", createdAt: now, updatedAt: now, deletedAt: null },
+    );
+
+    await alice.engine.sync(project.id);
+    const data = await alice.data(project.id);
+    expect(data.versions.map((v) => v.id)).toEqual([v1.id]);
+    expect(data.comments.map((c) => c.body)).toEqual(["fine"]);
+  });
+});

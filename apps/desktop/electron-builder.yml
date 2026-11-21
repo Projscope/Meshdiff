@@ -41,3 +41,15 @@ publish:
   owner: Projscope
   repo: meshdiff-releases
   releaseType: release
+
+# Switch off Electron features this app never uses, at build time, so a stolen or
+# tampered copy can't be repurposed: no running the exe as a plain Node interpreter,
+# no NODE_OPTIONS injection, app code only from the signed-integrity asar, encrypted
+# cookies. (The Node inspector fuse stays on: the end-to-end tests drive the app through it.)
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false

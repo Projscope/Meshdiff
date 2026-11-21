@@ -163,3 +163,15 @@ describe("cloud configuration", () => {
     expect(resolveCloudConfig({}, { ...baked, supabaseAnonKey: "" })).toBeNull();
   });
 });
+
+describe("ids in request paths", () => {
+  it("are encoded, so a hostile id can't change which endpoint is called", async () => {
+    const { client, fetchMock } = api(() => ok({ changes: [], nextCursor: null, hasMore: false }));
+    await client.getCommentChanges("../../admin/users?x=1#", null);
+    expect(String(fetchMock.mock.calls[0][0])).toBe("https://api.test/projects/..%2F..%2Fadmin%2Fusers%3Fx%3D1%23/comments/changes");
+
+    const del = api(() => ok(true));
+    await del.client.deleteComment("p/../q", "v?", "c#");
+    expect(String(del.fetchMock.mock.calls[0][0])).toBe("https://api.test/projects/p%2F..%2Fq/versions/v%3F/comments/c%23");
+  });
+});

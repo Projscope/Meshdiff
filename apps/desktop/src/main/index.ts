@@ -96,6 +96,7 @@ function lockDownSession(): void {
     callback({ cancel: !allowed });
   });
   ses.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  ses.setPermissionCheckHandler(() => false);
 }
 
 function createWindow(): BrowserWindow {
@@ -146,6 +147,16 @@ function registerIpc(): void {
   ipcMain.handle("desktop:checkForUpdates", () => checkForUpdates());
   ipcMain.handle("desktop:installUpdate", () => installUpdate());
 }
+
+// Every web contents the app ever creates (not just the main window) gets the same lock-down.
+app.on("web-contents-created", (_event, contents) => {
+  // No <webview>, ever: it would be a way to load something other than our own page.
+  contents.on("will-attach-webview", (event) => event.preventDefault());
+  contents.setWindowOpenHandler(() => ({ action: "deny" }));
+  contents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(`${APP_ORIGIN}/`)) event.preventDefault();
+  });
+});
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();

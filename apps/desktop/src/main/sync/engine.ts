@@ -8,6 +8,7 @@ import type {
 import { LibraryError, type LibraryStore, type StoredComment, type StoredProject } from "../library/store";
 import type { CloudApi, CloudComment, CloudCommentChange, CloudVersion } from "./cloudApi";
 import { SyncError } from "./errors";
+import { cleanRemoteComment, cleanRemoteVersion, isValidCommentId, isValidVersionId } from "./sanitize";
 
 export interface SyncResult {
   pushedVersions: number;
@@ -18,7 +19,6 @@ export interface SyncResult {
   problems: string[];
 }
 
-const FORMATS: ReadonlySet<string> = new Set(["stl", "obj", "3mf"]);
 /** A guard against a cloud that never says it has no more pages. */
 const MAX_COMMENT_PAGES = 200;
 
@@ -250,7 +250,11 @@ export class SyncEngine {
   // ---- pull ---------------------------------------------------------------
 
   private async pullVersions(projectId: string, cloudId: string): Promise<number> {
-    const remote = (await this.api.listVersions(cloudId)).filter((v) => FORMATS.has(v.fileFormat)).sort((a, b) => a.versionNumber - b.versionNumber);
+    // Anything malformed is dropped rather than written into the library (see sanitize.ts).
+    const remote = (await this.api.listVersions(cloudId))
+      .map(cleanRemoteVersion)
+      .filter((v): v is CloudVersion => v !== null)
+      .sort((a, b) => a.versionNumber - b.versionNumber);
     const before = await this.store.snapshot(projectId);
     const known = new Set(before.versions.map((v) => v.id));
     const ignored = new Set(before.project.cloud?.ignoredVersionIds ?? []);
@@ -345,7 +349,9 @@ export class SyncEngine {
     const ignored = new Set(data.project.cloud?.ignoredVersionIds ?? []);
     let applied = 0;
 
-    for (const change of changes) {
+    for (const raw of changes) {
+      const change = sanitizeChange(raw);
+      if (!change) continue;
       if (!versionIds.has(change.kind === "deleted" ? change.versionId : change.comment.versionId)) continue;
       if (ignored.has(change.kind === "deleted" ? change.versionId : change.comment.versionId)) continue;
 
@@ -393,6 +399,15 @@ export class SyncEngine {
     }
     return applied;
   }
+}
+
+function sanitizeChange(change: CloudCommentChange): CloudCommentChange | null {
+  if (!change || typeof change !== "object") return null;
+  if (change.kind === "deleted") {
+    return isValidCommentId(change.id) && isValidVersionId(change.versionId) ? change : null;
+  }
+  const comment = cleanRemoteComment(change.comment);
+  return comment ? { kind: "upsert", comment } : null;
 }
 
 /**

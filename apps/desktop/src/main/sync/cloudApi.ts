@@ -205,22 +205,22 @@ export class HttpCloudApi implements CloudApi {
   }
 
   async setProjectTeam(projectId: string, teamId: string): Promise<void> {
-    await this.must("PATCH", `/projects/${projectId}`, { teamId });
+    await this.must("PATCH", `/projects/${encodeURIComponent(projectId)}`, { teamId });
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    await this.request("DELETE", `/projects/${projectId}`, undefined, [404]);
+    await this.request("DELETE", `/projects/${encodeURIComponent(projectId)}`, undefined, [404]);
   }
 
   listVersions(projectId: string): Promise<CloudVersion[]> {
-    return this.must<CloudVersion[]>("GET", `/projects/${projectId}/versions`);
+    return this.must<CloudVersion[]>("GET", `/projects/${encodeURIComponent(projectId)}/versions`);
   }
 
   async createLocalVersion(
     projectId: string,
     version: { versionId: string; fileName: string; fileSize: number; contentSha256: string },
   ): Promise<{ versionNumber: number; finalized: boolean }> {
-    const data = await this.must<{ versionNumber: number; finalized: boolean }>("POST", `/projects/${projectId}/versions`, {
+    const data = await this.must<{ versionNumber: number; finalized: boolean }>("POST", `/projects/${encodeURIComponent(projectId)}/versions`, {
       storageMode: "local",
       versionId: version.versionId,
       fileName: version.fileName,
@@ -236,7 +236,7 @@ export class HttpCloudApi implements CloudApi {
     stats: VoxelDiffStats,
     comparedToVersionId: string | null,
   ): Promise<void> {
-    await this.must("POST", `/projects/${projectId}/versions/${versionId}/finalize`, {
+    await this.must("POST", `/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/finalize`, {
       stats,
       ...(comparedToVersionId ? { comparedToVersionId } : {}),
     });
@@ -244,7 +244,7 @@ export class HttpCloudApi implements CloudApi {
 
   async getDiffStats(versionAId: string, versionBId: string): Promise<VoxelDiffStats | null> {
     try {
-      return await this.request<VoxelDiffStats>("GET", `/diff/${versionAId}/${versionBId}`);
+      return await this.request<VoxelDiffStats>("GET", `/diff/${encodeURIComponent(versionAId)}/${encodeURIComponent(versionBId)}`);
     } catch (error) {
       // No cached diff (409) or a version we can't see (404): just no stats, not a failed sync.
       if (error instanceof SyncError && (error.kind === "conflict" || error.kind === "not_found")) return null;
@@ -253,7 +253,7 @@ export class HttpCloudApi implements CloudApi {
   }
 
   async createComment(projectId: string, versionId: string, comment: NewCloudComment): Promise<CloudComment> {
-    const data = await this.must<RawComment>("POST", `/projects/${projectId}/versions/${versionId}/comments`, {
+    const data = await this.must<RawComment>("POST", `/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/comments`, {
       id: comment.id,
       body: comment.body,
       position: comment.position,
@@ -265,11 +265,11 @@ export class HttpCloudApi implements CloudApi {
   }
 
   async setCommentStatus(projectId: string, versionId: string, commentId: string, status: LocalCommentStatus): Promise<void> {
-    await this.must("PATCH", `/projects/${projectId}/versions/${versionId}/comments/${commentId}`, { status });
+    await this.must("PATCH", `/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/comments/${encodeURIComponent(commentId)}`, { status });
   }
 
   async deleteComment(projectId: string, versionId: string, commentId: string): Promise<void> {
-    await this.request("DELETE", `/projects/${projectId}/versions/${versionId}/comments/${commentId}`, undefined, [404]);
+    await this.request("DELETE", `/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/comments/${encodeURIComponent(commentId)}`, undefined, [404]);
   }
 
   async getCommentChanges(projectId: string, cursor: string | null): Promise<CloudCommentPage> {
@@ -278,7 +278,7 @@ export class HttpCloudApi implements CloudApi {
       changes: Array<RawComment | RawTombstone>;
       nextCursor: string | null;
       hasMore: boolean;
-    }>("GET", `/projects/${projectId}/comments/changes${query}`);
+    }>("GET", `/projects/${encodeURIComponent(projectId)}/comments/changes${query}`);
     return {
       changes: data.changes.map((change): CloudCommentChange =>
         // A tombstone carries no content, only the fact that it is gone.
